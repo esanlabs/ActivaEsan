@@ -1,6 +1,6 @@
 // ========= CONFIGURACIÓN =========
 // PEGA AQUÍ LA URL QUE TE DIO GOOGLE APPS SCRIPT
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxIbn-_Ar8EjSXZO-4vi451CRUb9VBPvgAXmxR6pzzfMjZX4cCZvMRtUGmsSIkPlUoQ/exec'; 
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzvKKYTsCy5Itu268JmZ40hfeZEexayLo_vtFiWC1teApT9IUBxz_0Dl6hkeG7JRszH/exec'; 
 // =================================
 
 let registrosCargados = [];
@@ -99,12 +99,13 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
   const fecha = document.getElementById('fechaEvento').value;
   const tablet = document.getElementById('tablet').value;
 
-  // VALIDACIÓN ESTRICTA: ¿Existe la tablet ese día?
-  const conflicto = registrosCargados.find(r => 
-    r.fecha && r.fecha.startsWith(fecha) && 
-    r.tablet === tablet && 
-    r.estado !== 'Cancelado'
-  );
+  // VALIDACIÓN ESTRICTA DE FECHA Y TABLET
+  const conflicto = registrosCargados.find(r => {
+    if (!r.fecha) return false;
+    // Normaliza strings de fecha en formato YYYY-MM-DD
+    const fechaRegistro = String(r.fecha).split('T')[0];
+    return fechaRegistro === fecha && r.tablet === tablet && r.estado !== 'Cancelado';
+  });
 
   if (conflicto) {
     document.getElementById('mensajeConflicto').innerText = `La ${tablet} ya está asignada el ${fecha} para "${conflicto.tipoEvento}" (Ticket #${conflicto.ticket} del área ${conflicto.area}).`;
