@@ -1,6 +1,6 @@
 // ========= CONFIGURACIÓN =========
 // Pega aquí la URL que obtuviste al implementar tu Google Apps Script
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwc0rgJ6XbYNVR6CubKD7fhkSVPKkTrj-oyaaiCHK1Dr9tWeY9nBinwOLAC_1LGvp1J/exec'; 
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyLrt49NGOESjzP8lXQVScAW7QAOwq5CSKyvIzs-ND3QlvuJQyiN5lpUOmkAX0PBpox/exec'; 
 // =================================
 
 let registrosCargados = [];
