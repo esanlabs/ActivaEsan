@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Activaciones | Dashboard</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Configuración de Colores de Marca -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            marca: {
+              rojo: '#E3173E',
+              gris: '#696A6d',
+              negro: '#000000',
+              blanco: '#ffffff'
+            }
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.3s ease-out',
+            'slide-up': 'slideUp 0.4s ease-out'
+          },
+          keyframes: {
+            fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+            slideUp: { '0%': { opacity: '0', transform: 'translateY(20px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- FullCalendar -->
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core/locales/es.global.min.js"></script>
+
+  <style>
+    /* Estilos personalizados para el calendario para que coincida con la marca */
+    .fc-theme-standard td, .fc-theme-standard th { border-color: #f3f4f6; }
+    .fc .fc-button-primary { background-color: #000000 !important; border-color: #000000 !important; transition: all 0.3s ease; }
+    .fc .fc-button-primary:hover { background-color: #696A6d !important; border-color: #696A6d !important; }
+    .fc .fc-daygrid-day.fc-day-today { background-color: rgba(227, 23, 62, 0.05) !important; }
+    /* Animaciones de inputs */
+    .input-elegant { transition: all 0.3s ease; border: 1px solid #e5e7eb; }
+    .input-elegant:focus { border-color: #E3173E; box-shadow: 0 0 0 3px rgba(227, 23, 62, 0.1); outline: none; }
+  </style>
+</head>
+
+<body class="bg-gray-50 font-sans text-marca-negro">
+
+  <!-- Navbar -->
+  <header class="bg-marca-blanco shadow-sm border-b border-gray-100 sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-marca-rojo flex items-center justify-center text-marca-blanco font-bold">A</div>
+        <h1 class="text-xl font-bold tracking-tight">Gestión de Activaciones</h1>
+      </div>
+      <button onclick="abrirModal()" class="bg-marca-rojo hover:bg-red-700 text-marca-blanco px-5 py-2.5 rounded-full font-medium transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+        Nueva Activación
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6 py-8">
+    <!-- Loader (Mientras carga Google Sheets) -->
+    <div id="loader" class="flex flex-col items-center justify-center py-20 text-marca-gris">
+      <svg class="animate-spin h-10 w-10 text-marca-rojo mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+      <p class="font-medium">Sincronizando con Google Sheets...</p>
+    </div>
+
+    <!-- Contenedor del Calendario -->
+    <div id="calendarContainer" class="hidden bg-marca-blanco p-6 rounded-2xl shadow-lg border border-gray-100 animate-slide-up">
+      <div id="calendar"></div>
+    </div>
+  </main>
+
+  <!-- Modal Formulario -->
+  <div id="modalOverlay" class="fixed inset-0 bg-marca-negro/40 backdrop-blur-sm hidden z-50 flex items-center justify-center opacity-0 transition-opacity duration-300">
+    <div id="modalBox" class="bg-marca-blanco rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto transform scale-95 transition-transform duration-300 relative">
+      
+      <!-- Cabecera del modal -->
+      <div class="sticky top-0 bg-marca-blanco px-8 py-5 border-b border-gray-100 flex justify-between items-center z-10">
+        <h2 class="text-2xl font-bold text-marca-negro">Registrar Activación</h2>
+        <button onclick="cerrarModal()" class="text-marca-gris hover:text-marca-rojo transition-colors bg-gray-100 p-2 rounded-full">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <div class="p-8">
+        <!-- Alerta Conflicto -->
+        <div id="alertaConflicto" class="hidden mb-6 p-4 rounded-xl bg-red-50 border border-red-100 text-marca-rojo animate-fade-in flex gap-3">
+          <svg class="w-6 h-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          <div>
+            <p class="font-bold">Error de disponibilidad</p>
+            <p id="mensajeConflicto" class="text-sm mt-1 text-marca-gris"></p>
+          </div>
+        </div>
+
+        <!-- Formulario -->
+        <form id="formActivacion" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <!-- Fechas y Dispositivos (Lo más importante arriba) -->
+          <div class="col-span-1 md:col-span-2 grid grid-cols-2 gap-5 p-5 bg-gray-50 rounded-xl mb-2">
+            <div>
+              <label class="block text-xs font-bold text-marca-gris uppercase tracking-wider mb-2">Fecha de Evento <span class="text-marca-rojo">*</span></label>
+              <input type="date" id="fechaEvento" required class="w-full input-elegant rounded-lg p-2.5 text-sm bg-white">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-marca-gris uppercase tracking-wider mb-2">Tablet <span class="text-marca-rojo">*</span></label>
+              <select id="tablet" required class="w-full input-elegant rounded-lg p-2.5 text-sm bg-white">
+                <option value="Tablet 1">Tablet 1</option><option value="Tablet 2">Tablet 2</option>
+                <option value="Tablet 3">Tablet 3</option><option value="Tablet 4">Tablet 4</option>
+                <option value="Tablet 5">Tablet 5</option><option value="Tablet 6">Tablet 6</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-marca-gris uppercase tracking-wider mb-2">Ticket</label>
+            <input type="text" id="ticket" placeholder="Ej: 258988" required class="w-full input-elegant rounded-lg p-2.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-marca-gris uppercase tracking-wider mb-2">Tipo de Evento</label>
+            <input type="text" id="tipoEvento" placeholder="Ej: Activación Pregrado" required class="w-full input-elegant rounded-lg p-2.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-marca-gris uppercase tracking-wider mb-2">Área Solicitante</label>
+            <select id="area" required class="w-full input-elegant rounded-lg p-2.5 text-sm">
+              <option value="DPA">DPA</option><option value="MKT Postgrado">MKT Postgrado</option>
+              <option value="MKT Pregrado">MKT Pregrado</option><option value="Imagen">Imagen</option>
+              <option value="Maestrias">Maestrias</option><option value="ESAN Labs">ESAN Labs</option>
+              <option value="Permanencia Estudiantil">Permanencia Estudiantil</option>
+              <option value="GTH">GTH</option><option value="Esan Ediciones">Esan Ediciones</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-marca-gris uppercase tracking-wider mb-2">Tipo de Servicio</label>
+            <select id="servicio" class="w-full input-elegant rounded-lg p-2.5 text-sm">
+              <option value="Foto QR">Foto QR</option><option value="Foto Impresa">Foto Impresa</option>
+              <option value="Foto Impresa + QR">Foto Impresa + QR</option><option value="Foto Correo">Foto Correo</option>
+              <option value="360°">360°</option><option value="Foto impresa + 360°">Foto impresa + 360°</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-marca-gris uppercase tracking-wider mb-2">Solicita</label>
+            <input type="text" id="solicita" placeholder="Nombre del responsable" class="w-full input-elegant rounded-lg p-2.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-marca-gris uppercase tracking-wider mb-2">Estado</label>
+            <select id="estado" class="w-full input-elegant rounded-lg p-2.5 text-sm">
+              <option value="Confirmado">Confirmado</option><option value="En espera">En espera</option>
+              <option value="Culminado">Culminado</option><option value="Cancelado">Cancelado</option>
+            </select>
+          </div>
+          
+          <div class="col-span-1 md:col-span-2 grid grid-cols-3 gap-5">
+            <div>
+              <label class="block text-xs font-bold text-marca-gris uppercase tracking-wider mb-2">Centro Costos</label>
+              <input type="text" id="costos" class="w-full input-elegant rounded-lg p-2.5 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-marca-gris uppercase tracking-wider mb-2">N° Personas</label>
+              <input type="number" id="personas" class="w-full input-elegant rounded-lg p-2.5 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-marca-gris uppercase tracking-wider mb-2">N° Fotos</label>
+              <input type="number" id="fotos" class="w-full input-elegant rounded-lg p-2.5 text-sm">
+            </div>
+          </div>
+
+          <div class="col-span-1 md:col-span-2">
+            <label class="block text-xs font-bold text-marca-gris uppercase tracking-wider mb-2">Observaciones</label>
+            <textarea id="observaciones" rows="2" class="w-full input-elegant rounded-lg p-2.5 text-sm"></textarea>
+          </div>
+
+          <!-- Botones -->
+          <div class="col-span-1 md:col-span-2 flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
+            <button type="button" onclick="cerrarModal()" class="px-6 py-2.5 rounded-full text-marca-gris hover:bg-gray-100 font-medium transition-colors">Cancelar</button>
+            <button type="submit" id="btnGuardar" class="px-6 py-2.5 rounded-full bg-marca-negro hover:bg-marca-gris text-marca-blanco font-medium transition-all duration-300 shadow-md hover:shadow-lg flex items-center gap-2">
+              Guardar Registro
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ========= CONFIGURACIÓN =========
+    // PEGA AQUÍ LA URL QUE TE DIO GOOGLE APPS SCRIPT EN EL PASO 1
+    const GOOGLE_SCRIPT_URL = 'URL_DE_TU_GOOGLE_SCRIPT_AQUI'; 
+    // =================================
+    
+    let registrosCargados = [];
+    let calendar;
+
+    // Inicializar app
+    document.addEventListener('DOMContentLoaded', () => {
+      cargarDatosDesdeGoogle();
+    });
+
+    // 1. Obtener datos de Google Sheets
+    async function cargarDatosDesdeGoogle() {
+      try {
+        const respuesta = await fetch(GOOGLE_SCRIPT_URL);
+        registrosCargados = await respuesta.json();
+        
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('calendarContainer').classList.remove('hidden');
+        
+        inicializarCalendario();
+      } catch (error) {
+        console.error("Error cargando datos:", error);
+        alert("Error al conectar con Google Sheets. Revisa la consola.");
+      }
+    }
+
+    // 2. Renderizar Calendario
+    function inicializarCalendario() {
+      const calendarEl = document.getElementById('calendar');
+      
+      const eventos = registrosCargados
+        .filter(r => r.estado !== 'Cancelado' && r.fecha)
+        .map(r => {
+          let color = '#000000'; // Negro por defecto
+          if(r.estado === 'Confirmado') color = '#E3173E'; // Rojo marca
+          if(r.estado === 'En espera') color = '#696A6d'; // Gris marca
+
+          return {
+            title: `[${r.tablet}] ${r.area}`,
+            start: r.fecha.split('T')[0], // Limpiar formato fecha
+            backgroundColor: color,
+            borderColor: color,
+            extendedProps: {
+              ticket: r.ticket,
+              evento: r.tipoEvento,
+              estado: r.estado
+            }
+          };
+        });
+
+      calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        locale: 'es',
+        headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,listWeek' },
+        events: eventos,
+        eventClick: (info) => {
+          const props = info.event.extendedProps;
+          alert(`Evento: ${props.evento}\nTicket: ${props.ticket}\nEstado: ${props.estado}\nTablet: ${info.event.title.split(']')[0].replace('[','')}`);
+        }
+      });
+      calendar.render();
+    }
+
+    // 3. Manejo de la Ventana Modal (Animaciones)
+    function abrirModal() {
+      const overlay = document.getElementById('modalOverlay');
+      const box = document.getElementById('modalBox');
+      overlay.classList.remove('hidden');
+      // Pequeño delay para la animación
+      setTimeout(() => {
+        overlay.classList.remove('opacity-0');
+        box.classList.remove('scale-95');
+        box.classList.add('scale-100');
+      }, 10);
+      document.getElementById('alertaConflicto').classList.add('hidden');
+    }
+
+    function cerrarModal() {
+      const overlay = document.getElementById('modalOverlay');
+      const box = document.getElementById('modalBox');
+      overlay.classList.add('opacity-0');
+      box.classList.remove('scale-100');
+      box.classList.add('scale-95');
+      setTimeout(() => {
+        overlay.classList.add('hidden');
+        document.getElementById('formActivacion').reset();
+      }, 300);
+    }
+
+    // 4. Guardar datos y Validar
+    document.getElementById('formActivacion').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const fecha = document.getElementById('fechaEvento').value;
+      const tablet = document.getElementById('tablet').value;
+
+      // VALIDACIÓN ESTRICTA: ¿Existe la tablet ese día?
+      const conflicto = registrosCargados.find(r => 
+        r.fecha && r.fecha.startsWith(fecha) && 
+        r.tablet === tablet && 
+        r.estado !== 'Cancelado'
+      );
+
+      if (conflicto) {
+        document.getElementById('mensajeConflicto').innerText = `La ${tablet} ya está asignada el ${fecha} para "${conflicto.tipoEvento}" (Ticket #${conflicto.ticket} del área ${conflicto.area}).`;
+        document.getElementById('alertaConflicto').classList.remove('hidden');
+        return; // Detiene el proceso
+      }
+
+      // Preparar datos para enviar
+      const btn = document.getElementById('btnGuardar');
+      btn.innerHTML = `<svg class="animate-spin h-5 w-5 mr-2 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg> Guardando...`;
+      btn.disabled = true;
+
+      const nuevoRegistro = {
+        ticket: document.getElementById('ticket').value,
+        tipoEvento: document.getElementById('tipoEvento').value,
+        area: document.getElementById('area').value,
+        solicita: document.getElementById('solicita').value,
+        centroCostos: document.getElementById('costos').value,
+        tipoServicio: document.getElementById('servicio').value,
+        estado: document.getElementById('estado').value,
+        tablet: tablet,
+        fecha: fecha,
+        cantPersonas: document.getElementById('personas').value || "",
+        cantFotos: document.getElementById('fotos').value || "",
+        costo: "", // Puede agregarse input si se desea
+        observaciones: document.getElementById('observaciones').value
+      };
+
+      try {
+        await fetch(GOOGLE_SCRIPT_URL, {
+          method: 'POST',
+          body: JSON.stringify(nuevoRegistro)
+        });
+
+        // Actualizar UI sin recargar página
+        registrosCargados.push(nuevoRegistro);
+        calendar.destroy(); // Recargar calendario
+        inicializarCalendario();
+        cerrarModal();
+        
+      } catch (error) {
+        alert("Ocurrió un error al guardar. Revisa tu conexión.");
+      } finally {
+        btn.innerHTML = "Guardar Registro";
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
