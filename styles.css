@@ -1,0 +1,32 @@
+/* Customización para el FullCalendar */
+.fc-theme-standard td, 
+.fc-theme-standard th { 
+  border-color: #f3f4f6; 
+}
+
+.fc .fc-button-primary { 
+  background-color: #000000 !important; 
+  border-color: #000000 !important; 
+  transition: all 0.3s ease; 
+}
+
+.fc .fc-button-primary:hover { 
+  background-color: #696A6d !important; 
+  border-color: #696A6d !important; 
+}
+
+.fc .fc-daygrid-day.fc-day-today { 
+  background-color: rgba(227, 23, 62, 0.05) !important; 
+}
+
+/* Animaciones y estilos de los Inputs del formulario */
+.input-elegant { 
+  transition: all 0.3s ease; 
+  border: 1px solid #e5e7eb; 
+}
+
+.input-elegant:focus { 
+  border-color: #E3173E; 
+  box-shadow: 0 0 0 3px rgba(227, 23, 62, 0.1); 
+  outline: none; 
+}
