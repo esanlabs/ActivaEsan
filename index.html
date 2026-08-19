@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Activaciones | Dashboard</title>
+  <title>Activaciones | Dashboard Admin</title>
   
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -47,7 +47,7 @@
     <div class="max-w-7xl mx-auto px-6 py-4 flex flex-wrap gap-4 justify-between items-center">
       <div class="flex items-center gap-3">
         <div class="w-8 h-8 rounded-full bg-marca-rojo flex items-center justify-center text-marca-blanco font-bold">A</div>
-        <h1 class="text-xl font-bold tracking-tight">Gestión de Activaciones</h1>
+        <h1 class="text-xl font-bold tracking-tight">Gestión de Activaciones <span class="text-xs bg-red-100 text-marca-rojo px-2 py-0.5 rounded-full uppercase ml-2">Admin</span></h1>
       </div>
       
       <div class="flex items-center gap-3">
@@ -69,9 +69,52 @@
       <p class="font-medium">Sincronizando con Google Sheets...</p>
     </div>
 
-    <!-- Calendario -->
-    <div id="calendarContainer" class="hidden bg-marca-blanco p-6 rounded-2xl shadow-lg border border-gray-100 animate-slide-up">
-      <div id="calendar"></div>
+    <!-- Contenedor del Calendario + Filtros -->
+    <div id="calendarContainer" class="hidden space-y-4 animate-slide-up">
+      
+      <!-- BARRA DE FILTROS Y LEYENDA (EXCLUSIVO ADMIN) -->
+      <div class="bg-marca-blanco p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-wrap gap-4 items-center justify-between">
+        
+        <!-- Filtros Dropdowns -->
+        <div class="flex flex-wrap items-center gap-3">
+          <span class="text-xs font-bold text-marca-gris uppercase tracking-wider">Filtros:</span>
+          
+          <select id="filtroArea" onchange="aplicarFiltros()" class="border-gray-200 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo bg-gray-50">
+            <option value="TODAS">Todas las Áreas</option>
+            <option value="DPA">DPA</option>
+            <option value="MKT Postgrado">MKT Postgrado</option>
+            <option value="MKT Pregrado">MKT Pregrado</option>
+            <option value="Imagen">Imagen</option>
+            <option value="Maestrias">Maestrias</option>
+            <option value="ESAN Labs">ESAN Labs</option>
+            <option value="Permanencia Estudiantil">Permanencia Estudiantil</option>
+            <option value="GTH">GTH</option>
+            <option value="Esan Ediciones">Esan Ediciones</option>
+          </select>
+
+          <select id="filtroServicio" onchange="aplicarFiltros()" class="border-gray-200 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo bg-gray-50">
+            <option value="TODOS">Todos los Servicios</option>
+            <option value="Foto Booth">Foto Booth</option>
+            <option value="360°">360°</option>
+            <option value="Foto Gif Impresión">Foto Gif Impresión</option>
+            <option value="Foto Gif Virtual">Foto Gif Virtual</option>
+          </select>
+        </div>
+
+        <!-- Leyenda de Colores -->
+        <div class="flex items-center gap-4 text-xs font-medium text-marca-gris">
+          <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-[#E3173E]"></span> Foto Gif</div>
+          <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-[#2563EB]"></span> Foto Booth</div>
+          <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-[#16A34A]"></span> 360°</div>
+          <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-[#000000]"></span> Pasado / Cancelado</div>
+        </div>
+
+      </div>
+
+      <!-- Calendario -->
+      <div class="bg-marca-blanco p-6 rounded-2xl shadow-lg border border-gray-100">
+        <div id="calendar"></div>
+      </div>
     </div>
   </main>
 
@@ -95,7 +138,6 @@
             <h3 class="text-sm font-bold text-marca-negro mb-4 uppercase tracking-wider">Datos Generales</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               
-              <!-- Cantidad (Solo al crear) -->
               <div id="contenedorCantidad">
                 <label class="block text-xs font-bold text-marca-gris mb-1">N° de Activaciones</label>
                 <input type="number" id="cantActivaciones" min="1" max="10" value="1" onchange="renderizarBloques()" class="w-full border-gray-300 rounded-lg p-2.5 text-sm border focus:outline-none focus:border-marca-rojo">
@@ -134,11 +176,9 @@
           </div>
 
           <!-- SECCIÓN 2: BLOQUES DINÁMICOS -->
-          <div id="contenedorBloques" class="space-y-4">
-            <!-- Los bloques se generan desde JS -->
-          </div>
+          <div id="contenedorBloques" class="space-y-4"></div>
 
-          <!-- SECCIÓN 3: EDICIÓN ADMINISTRADOR (Oculto al crear) -->
+          <!-- SECCIÓN 3: EDICIÓN ADMINISTRADOR -->
           <div id="contenedorEdicion" class="hidden bg-red-50 p-5 rounded-xl border border-red-100">
             <h3 class="text-sm font-bold text-marca-rojo mb-4 uppercase tracking-wider">Modo Administrador</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -167,13 +207,21 @@
             </div>
           </div>
 
-          <!-- Botones -->
+          <!-- Botones de Acción -->
           <div class="flex justify-between items-center mt-6 pt-6 border-t border-gray-100">
-            <button type="button" id="btnEliminar" onclick="eliminarRegistro()" class="hidden px-5 py-2.5 rounded-full bg-red-600 hover:bg-red-700 text-white font-medium text-sm transition-colors shadow-md">
-              Borrar Registro
-            </button>
+            
+            <!-- Botones Admin (Ocultos al crear) -->
+            <div id="accionesAdmin" class="hidden flex gap-2">
+              <button type="button" id="btnCancelar" onclick="cancelarRegistro()" class="px-4 py-2 rounded-full bg-amber-500 hover:bg-amber-600 text-white font-medium text-xs transition-colors shadow-sm">
+                Cancelar Evento
+              </button>
+              <button type="button" id="btnEliminar" onclick="eliminarRegistro()" class="px-4 py-2 rounded-full bg-red-600 hover:bg-red-700 text-white font-medium text-xs transition-colors shadow-sm">
+                Borrar Registro
+              </button>
+            </div>
+
             <div class="flex gap-3 ml-auto">
-              <button type="button" onclick="cerrarModal()" class="px-6 py-2.5 rounded-full text-marca-gris hover:bg-gray-100 font-medium text-sm transition-colors">Cancelar</button>
+              <button type="button" onclick="cerrarModal()" class="px-6 py-2.5 rounded-full text-marca-gris hover:bg-gray-100 font-medium text-sm transition-colors">Cerrar</button>
               <button type="submit" id="btnGuardar" class="px-6 py-2.5 rounded-full bg-marca-negro hover:bg-marca-gris text-white font-medium text-sm transition-all shadow-md">
                 Guardar
               </button>
