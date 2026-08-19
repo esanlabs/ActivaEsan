@@ -72,7 +72,7 @@
     <!-- Contenedor del Calendario + Filtros -->
     <div id="calendarContainer" class="hidden space-y-4 animate-slide-up">
       
-      <!-- BARRA DE FILTROS Y LEYENDA (EXCLUSIVO ADMIN) -->
+      <!-- BARRA DE FILTROS Y LEYENDA -->
       <div class="bg-marca-blanco p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-wrap gap-4 items-center justify-between">
         
         <!-- Filtros Dropdowns -->
@@ -210,13 +210,10 @@
           <!-- Botones de Acción -->
           <div class="flex justify-between items-center mt-6 pt-6 border-t border-gray-100">
             
-            <!-- Botones Admin (Ocultos al crear) -->
+            <!-- Botón de Cancelar para Admin -->
             <div id="accionesAdmin" class="hidden flex gap-2">
               <button type="button" id="btnCancelar" onclick="cancelarRegistro()" class="px-4 py-2 rounded-full bg-amber-500 hover:bg-amber-600 text-white font-medium text-xs transition-colors shadow-sm">
                 Cancelar Evento
-              </button>
-              <button type="button" id="btnEliminar" onclick="eliminarRegistro()" class="px-4 py-2 rounded-full bg-red-600 hover:bg-red-700 text-white font-medium text-xs transition-colors shadow-sm">
-                Borrar Registro
               </button>
             </div>
 
