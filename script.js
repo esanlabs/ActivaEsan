@@ -399,6 +399,9 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
   try {
     const res = await fetch(GOOGLE_SCRIPT_URL, {
       method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+      },
       body: JSON.stringify(payloadCompleto)
     });
 
@@ -409,7 +412,7 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
     try {
       resJson = JSON.parse(textoRespuesta);
     } catch (e) {
-      console.error("❌ [DEBUG ERROR] El servidor no respondió con un JSON. Respuesta recibida:", textoRespuesta);
+      console.error("❌ [DEBUG ERROR] Respuesta no es JSON:", textoRespuesta);
       alert(`[ERROR SERVIDOR] Respuesta no reconocida:\n${textoRespuesta.substring(0, 300)}...`);
       return;
     }
@@ -424,7 +427,7 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
     }
   } catch (error) {
     console.error("❌ [DEBUG ERROR CONEXIÓN]:", error);
-    alert("Error de conexión con el servidor al intentar guardar.");
+    alert(`Error de conexión con el servidor:\n${error.toString()}`);
   } finally {
     btn.innerHTML = idEventoEditando ? "Actualizar" : "Guardar";
     btn.disabled = false;
@@ -469,6 +472,9 @@ window.cancelarRegistro = async function() {
   try {
     const res = await fetch(GOOGLE_SCRIPT_URL, {
       method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+      },
       body: JSON.stringify({
         action: 'update',
         items: [payloadItem]
@@ -491,7 +497,7 @@ window.cancelarRegistro = async function() {
       cerrarModal();
     }
   } catch (error) {
-    alert("Error de conexión al intentar cancelar.");
+    alert(`Error de conexión al intentar cancelar:\n${error.toString()}`);
   } finally {
     btn.innerHTML = `Cancelar Evento`;
     btn.disabled = false;
