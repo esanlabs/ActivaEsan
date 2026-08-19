@@ -199,10 +199,9 @@
                 <label class="block text-xs font-bold text-marca-rojo mb-1">N° Fotos Realizadas</label>
                 <input type="number" id="fotos" class="w-full border-gray-300 rounded-lg p-2.5 text-sm border focus:outline-none">
               </div>
-          
+
               <div class="col-span-1 md:col-span-2">
                 <label class="block text-xs font-bold text-marca-rojo mb-1">Link Drive / Entregables</label>
-                <!-- CAMBIO AQUÍ: Se usó type="text" para evitar la validación estricta de URL -->
                 <input type="text" id="link" class="w-full border-gray-300 rounded-lg p-2.5 text-sm border focus:outline-none">
               </div>
             </div>
@@ -211,7 +210,6 @@
           <!-- Botones de Acción -->
           <div class="flex justify-between items-center mt-6 pt-6 border-t border-gray-100">
             
-            <!-- Botón de Cancelar para Admin -->
             <div id="accionesAdmin" class="hidden flex gap-2">
               <button type="button" id="btnCancelar" onclick="cancelarRegistro()" class="px-4 py-2 rounded-full bg-amber-500 hover:bg-amber-600 text-white font-medium text-xs transition-colors shadow-sm">
                 Cancelar Evento
