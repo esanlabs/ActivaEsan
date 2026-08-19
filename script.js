@@ -5,9 +5,34 @@ let calendar;
 let idEventoEditando = null; 
 
 document.addEventListener('DOMContentLoaded', () => {
-  console.log("🔍 [DEBUG] Inicializando aplicación...");
   cargarDatosDesdeGoogle();
 });
+
+// SISTEMA DE NOTIFICACIONES FLOTANTES (TOASTS)
+function mostrarToast(mensaje, tipo = 'exito') {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  const bgColor = tipo === 'exito' ? 'bg-emerald-600' : tipo === 'error' ? 'bg-marca-rojo' : 'bg-gray-800';
+  
+  toast.className = `${bgColor} text-white px-4 py-3 rounded-xl shadow-xl text-xs font-medium flex items-center gap-3 transform translate-y-5 opacity-0 transition-all duration-300 pointer-events-auto`;
+  toast.innerHTML = `
+    <span>${mensaje}</span>
+    <button onclick="this.parentElement.remove()" class="ml-auto text-white/80 hover:text-white font-bold">✕</button>
+  `;
+
+  container.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.classList.remove('translate-y-5', 'opacity-0');
+  }, 10);
+
+  setTimeout(() => {
+    toast.classList.add('opacity-0', 'translate-y-2');
+    setTimeout(() => toast.remove(), 300);
+  }, 4500);
+}
 
 function normalizarFechaISO(fechaStr) {
   if (!fechaStr) return '';
@@ -28,17 +53,14 @@ function obtenerFechaHoyISO() {
 }
 
 async function cargarDatosDesdeGoogle() {
-  console.log("🔍 [DEBUG] Conectando con Google Sheets para traer registros...");
   try {
     const respuesta = await fetch(GOOGLE_SCRIPT_URL);
     const textoRaw = await respuesta.text();
 
     try {
       registrosCargados = JSON.parse(textoRaw);
-      console.log(`✅ [DEBUG] Datos cargados con éxito. ${registrosCargados.length} registros obtenidos.`, registrosCargados);
     } catch (e) {
-      console.error("❌ [DEBUG ERROR] La respuesta de Google Sheets no es un JSON válido. Respuesta recibida:", textoRaw);
-      alert(`[ERROR SERVIDOR] Respuesta no válida recibida:\n${textoRaw.substring(0, 300)}...`);
+      mostrarToast("Respuesta del servidor no válida.", "error");
       return;
     }
 
@@ -46,14 +68,14 @@ async function cargarDatosDesdeGoogle() {
     document.getElementById('calendarContainer').classList.remove('hidden');
     inicializarCalendario();
   } catch (error) {
-    console.error("❌ [DEBUG ERROR] Fallo de red o conexión:", error);
-    alert("Error de conexión al cargar la base de datos.");
+    mostrarToast("Error de conexión al cargar registros.", "error");
   }
 }
 
 function generarEventosProcesados() {
   const areaFiltro = document.getElementById('filtroArea')?.value || 'TODAS';
   const servicioFiltro = document.getElementById('filtroServicio')?.value || 'TODOS';
+  const busquedaTexto = (document.getElementById('buscadorTexto')?.value || '').toLowerCase().trim();
   const hoyStr = obtenerFechaHoyISO();
 
   return registrosCargados
@@ -61,6 +83,14 @@ function generarEventosProcesados() {
     .filter(r => {
       if (areaFiltro !== 'TODAS' && r.area !== areaFiltro) return false;
       if (servicioFiltro !== 'TODOS' && r.tipoServicio !== servicioFiltro) return false;
+      
+      // Filtro de búsqueda por nombre de evento o solicitante
+      if (busquedaTexto) {
+        const matchEvento = (r.tipoEvento || '').toLowerCase().includes(busquedaTexto);
+        const matchSolicita = (r.solicita || '').toLowerCase().includes(busquedaTexto);
+        if (!matchEvento && !matchSolicita) return false;
+      }
+
       return true;
     })
     .map(r => {
@@ -97,7 +127,6 @@ function generarEventosProcesados() {
 }
 
 function inicializarCalendario() {
-  console.log("🔍 [DEBUG] Renderizando calendario...");
   const calendarEl = document.getElementById('calendar');
   const eventos = generarEventosProcesados();
 
@@ -134,7 +163,6 @@ function inicializarCalendario() {
     eventClick: (info) => {
       const p = info.event.extendedProps;
       idEventoEditando = p.numEvento; 
-      console.log(`🔍 [DEBUG] Evento seleccionado para edición (ID: ${idEventoEditando}):`, p);
 
       document.getElementById('modalTitulo').innerText = "Editar Activación (Vista Admin)";
       document.getElementById('btnGuardar').innerText = "Actualizar";
@@ -149,7 +177,7 @@ function inicializarCalendario() {
       document.getElementById('observaciones').value = p.observaciones || "";
 
       document.getElementById('cantActivaciones').value = 1;
-      renderizarBloques();
+      renderizarBloques(true); // Permite editar fechas pasadas si es admin
       
       document.getElementById('nombreEvento_0').value = p.tipoEvento || "";
       document.getElementById('servicio_0').value = p.tipoServicio || "";
@@ -167,7 +195,6 @@ function inicializarCalendario() {
 }
 
 window.aplicarFiltros = function() {
-  console.log("🔍 [DEBUG] Aplicando filtros...");
   if (calendar) {
     calendar.removeAllEvents();
     calendar.addEventSource(generarEventosProcesados());
@@ -251,12 +278,16 @@ window.actualizarOpcionesDisponibilidad = function() {
   }
 };
 
-window.renderizarBloques = function() {
+window.renderizarBloques = function(esEdicion = false) {
   const container = document.getElementById('contenedorBloques');
   const cant = parseInt(document.getElementById('cantActivaciones').value) || 1;
+  const hoyISO = obtenerFechaHoyISO();
   container.innerHTML = '';
 
   for (let i = 0; i < cant; i++) {
+    // Si es una solicitud nueva, se aplica min="${hoyISO}" para bloquear fechas pasadas
+    const minAttr = esEdicion ? '' : `min="${hoyISO}"`;
+
     const bloque = `
       <div class="border border-gray-200 p-4 rounded-xl relative">
         <div class="absolute -top-3 left-4 bg-white px-2 text-xs font-bold text-marca-gris">ACTIVACIÓN ${i + 1}</div>
@@ -279,7 +310,7 @@ window.renderizarBloques = function() {
 
           <div>
             <label class="block text-xs font-bold text-marca-gris mb-1">Fecha *</label>
-            <input type="date" id="fechaEvento_${i}" required onchange="actualizarOpcionesDisponibilidad()" class="w-full border-gray-300 rounded-lg p-2.5 text-sm border focus:outline-none focus:border-marca-rojo">
+            <input type="date" id="fechaEvento_${i}" ${minAttr} required onchange="actualizarOpcionesDisponibilidad()" class="w-full border-gray-300 rounded-lg p-2.5 text-sm border focus:outline-none focus:border-marca-rojo">
           </div>
 
         </div>
@@ -302,7 +333,7 @@ window.abrirModalNuevo = function() {
   document.getElementById('accionesAdmin').classList.add('hidden');
   
   document.getElementById('cantActivaciones').value = 1;
-  renderizarBloques();
+  renderizarBloques(false);
   
   abrirModal();
 };
@@ -356,7 +387,7 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
     if (servicio === 'Foto Gif Impresión') {
       const disp = calcularDisponibilidadGif(fecha, i);
       if (disp <= 0) {
-        bloqueosDetectados.push(`- No hay unidades disponibles de "Foto Gif Impresión" para el día ${fecha}.`);
+        bloqueosDetectados.push(`- Límite excedido para "Foto Gif Impresión" cerca al ${fecha}.`);
       }
     }
 
@@ -390,8 +421,6 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
     items: payloadItems
   };
 
-  console.log("🔍 [DEBUG] Enviando Payload al Servidor:", payloadCompleto);
-
   const btn = document.getElementById('btnGuardar');
   btn.innerHTML = `Procesando...`;
   btn.disabled = true;
@@ -399,41 +428,35 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
   try {
     const res = await fetch(GOOGLE_SCRIPT_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8',
-      },
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(payloadCompleto)
     });
 
     const textoRespuesta = await res.text();
-    console.log("🔍 [DEBUG] Respuesta RAW recibida del Servidor:", textoRespuesta);
-
     let resJson;
     try {
       resJson = JSON.parse(textoRespuesta);
     } catch (e) {
-      console.error("❌ [DEBUG ERROR] Respuesta no es JSON:", textoRespuesta);
-      alert(`[ERROR SERVIDOR] Respuesta no reconocida:\n${textoRespuesta.substring(0, 300)}...`);
+      mostrarToast("Error en formato de respuesta del servidor.", "error");
       return;
     }
 
     if (resJson.status === 'error') {
-      console.error("❌ [DEBUG ERROR SERVIDOR]:", resJson);
-      alert(`[FALLO EN SERVIDOR]\nPaso: ${resJson.paso || 'Desconocido'}\nDetalle: ${resJson.errorDetallado || resJson.message || 'Sin detalle'}`);
+      mostrarToast(`Error: ${resJson.message || resJson.errorDetallado}`, "error");
     } else {
-      console.log("✅ [DEBUG] Guardado exitoso:", resJson);
+      mostrarToast(idEventoEditando ? "Registro actualizado correctamente" : "Solicitud registrada con éxito", "exito");
       await cargarDatosDesdeGoogle();
       cerrarModal();
     }
   } catch (error) {
-    console.error("❌ [DEBUG ERROR CONEXIÓN]:", error);
-    alert(`Error de conexión con el servidor:\n${error.toString()}`);
+    mostrarToast("Error de conexión al guardar.", "error");
   } finally {
     btn.innerHTML = idEventoEditando ? "Actualizar" : "Guardar";
     btn.disabled = false;
   }
 });
 
+// CANCELAR REGISTRO
 window.cancelarRegistro = async function() {
   if (!idEventoEditando) return;
   if (!confirm("¿Estás seguro de que deseas marcar este evento como CANCELADO?")) return;
@@ -444,7 +467,7 @@ window.cancelarRegistro = async function() {
 
   const registroActual = registrosCargados.find(r => String(r.numEvento).trim() === String(idEventoEditando).trim());
   if (!registroActual) {
-    alert("No se encontró el registro a cancelar en los datos cargados.");
+    mostrarToast("No se encontró el registro.", "error");
     btn.innerHTML = `Cancelar Evento`;
     btn.disabled = false;
     return;
@@ -467,14 +490,10 @@ window.cancelarRegistro = async function() {
     observaciones: registroActual.observaciones || ""
   };
 
-  console.log("🔍 [DEBUG] Enviando cancelación para el ID:", idEventoEditando);
-
   try {
     const res = await fetch(GOOGLE_SCRIPT_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8',
-      },
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({
         action: 'update',
         items: [payloadItem]
@@ -486,18 +505,19 @@ window.cancelarRegistro = async function() {
     try {
       resJson = JSON.parse(textoRespuesta);
     } catch (e) {
-      alert(`[ERROR CANCELACIÓN] Respuesta no válida del servidor:\n${textoRespuesta.substring(0, 300)}...`);
+      mostrarToast("Error al procesar la respuesta.", "error");
       return;
     }
 
     if (resJson.status === 'error') {
-      alert(`[ERROR CANCELACIÓN SERVIDOR]\nPaso: ${resJson.paso}\nDetalle: ${resJson.errorDetallado}`);
+      mostrarToast(`Error al cancelar: ${resJson.errorDetallado}`, "error");
     } else {
+      mostrarToast("Evento cancelado correctamente", "exito");
       await cargarDatosDesdeGoogle();
       cerrarModal();
     }
   } catch (error) {
-    alert(`Error de conexión al intentar cancelar:\n${error.toString()}`);
+    mostrarToast("Error de conexión al intentar cancelar.", "error");
   } finally {
     btn.innerHTML = `Cancelar Evento`;
     btn.disabled = false;
