@@ -145,6 +145,7 @@ function inicializarCalendario() {
       document.getElementById('fotos').value = p.cantFotos || "";
       document.getElementById('link').value = p.link || ""; 
 
+      actualizarOpcionesDisponibilidad();
       abrirModal();
     }
   });
@@ -155,6 +156,90 @@ window.aplicarFiltros = function() {
   if (calendar) {
     calendar.removeAllEvents();
     calendar.addEventSource(generarEventosProcesados());
+  }
+};
+
+// CÁLCULO DE DISPONIBILIDAD PARA FOTO GIF IMPRESIÓN
+function calcularDisponibilidadGif(fechaEval, blockIndexActual) {
+  if (!fechaEval) return 2;
+  
+  const msPorDia = 24 * 60 * 60 * 1000;
+  const tEval = new Date(fechaEval).getTime();
+  
+  // Revisamos la ocupación en la ventana de 3 días (Ayer, Hoy, Mañana)
+  const diasVentana = [tEval - msPorDia, tEval, tEval + msPorDia];
+  let maxOcupadosEnVentana = 0;
+
+  diasVentana.forEach(tDia => {
+    let ocupadosEnEsteDia = 0;
+
+    // 1. Ocupados en la Base de Datos
+    registrosCargados.forEach(r => {
+      if (r.estado === 'Cancelado' || r.estado === 'Disponible') return;
+      if (r.tipoServicio !== 'Foto Gif Impresión') return;
+      if (String(r.numEvento).trim() === String(idEventoEditando).trim()) return; // Ignorar si editamos
+
+      const tReg = new Date(normalizarFechaISO(r.fecha)).getTime();
+      if (Math.abs((tReg - tDia) / msPorDia) <= 1) {
+        ocupadosEnEsteDia++;
+      }
+    });
+
+    // 2. Ocupados en OTROS bloques del mismo formulario abierto
+    const cant = parseInt(document.getElementById('cantActivaciones')?.value) || 1;
+    for (let j = 0; j < cant; j++) {
+      if (j === blockIndexActual) continue; // No contarse a sí mismo
+      
+      const servJ = document.getElementById(`servicio_${j}`)?.value;
+      const fechaJ = document.getElementById(`fechaEvento_${j}`)?.value;
+
+      if (servJ === 'Foto Gif Impresión' && fechaJ) {
+        const tJ = new Date(fechaJ).getTime();
+        if (Math.abs((tJ - tDia) / msPorDia) <= 1) {
+          ocupadosEnEsteDia++;
+        }
+      }
+    }
+
+    if (ocupadosEnEsteDia > maxOcupadosEnVentana) {
+      maxOcupadosEnVentana = ocupadosEnEsteDia;
+    }
+  });
+
+  return Math.max(0, 2 - maxOcupadosEnVentana);
+}
+
+// ACTUALIZA EL TEXTO EN TIEMPO REAL DENTRO DEL DESPLEGABLE DE SELECCIÓN
+window.actualizarOpcionesDisponibilidad = function() {
+  const cant = parseInt(document.getElementById('cantActivaciones')?.value) || 1;
+
+  for (let i = 0; i < cant; i++) {
+    const selectServicio = document.getElementById(`servicio_${i}`);
+    const inputFecha = document.getElementById(`fechaEvento_${i}`);
+    if (!selectServicio || !inputFecha) continue;
+
+    const fechaVal = inputFecha.value;
+    const disponibles = calcularDisponibilidadGif(fechaVal, i);
+
+    // Buscar la opción 'Foto Gif Impresión' dentro del select
+    for (let opt of selectServicio.options) {
+      if (opt.value === 'Foto Gif Impresión') {
+        if (disponibles >= 2) {
+          opt.text = "Foto Gif Impresión (2 disponibles)";
+          opt.disabled = false;
+        } else if (disponibles === 1) {
+          opt.text = "Foto Gif Impresión (1 disponible)";
+          opt.disabled = false;
+        } else {
+          opt.text = "Foto Gif Impresión (Agotado)";
+          opt.disabled = true;
+          // Si estaba seleccionado y se agotó, cambiarlo automáticamente
+          if (selectServicio.value === 'Foto Gif Impresión') {
+            selectServicio.value = 'Foto Booth';
+          }
+        }
+      }
+    }
   }
 };
 
@@ -176,17 +261,17 @@ window.renderizarBloques = function() {
 
           <div>
             <label class="block text-xs font-bold text-marca-gris mb-1">Activación *</label>
-            <select id="servicio_${i}" required class="w-full border-gray-300 rounded-lg p-2.5 text-sm border focus:outline-none focus:border-marca-rojo">
+            <select id="servicio_${i}" required onchange="actualizarOpcionesDisponibilidad()" class="w-full border-gray-300 rounded-lg p-2.5 text-sm border focus:outline-none focus:border-marca-rojo">
               <option value="Foto Booth">Foto Booth</option>
               <option value="360°">360°</option>
-              <option value="Foto Gif Impresión">Foto Gif Impresión</option>
+              <option value="Foto Gif Impresión">Foto Gif Impresión (2 disponibles)</option>
               <option value="Foto Gif Virtual">Foto Gif Virtual</option>
             </select>
           </div>
 
           <div>
             <label class="block text-xs font-bold text-marca-gris mb-1">Fecha *</label>
-            <input type="date" id="fechaEvento_${i}" required class="w-full border-gray-300 rounded-lg p-2.5 text-sm border focus:outline-none focus:border-marca-rojo">
+            <input type="date" id="fechaEvento_${i}" required onchange="actualizarOpcionesDisponibilidad()" class="w-full border-gray-300 rounded-lg p-2.5 text-sm border focus:outline-none focus:border-marca-rojo">
           </div>
 
         </div>
@@ -194,6 +279,7 @@ window.renderizarBloques = function() {
     `;
     container.innerHTML += bloque;
   }
+  actualizarOpcionesDisponibilidad();
 };
 
 window.abrirModalNuevo = function() {
@@ -237,24 +323,6 @@ window.cerrarModal = function() {
   }, 300);
 };
 
-function contarOcupadosBD(fechaEvaluada, idEvadiendo) {
-  const msPorDia = 24 * 60 * 60 * 1000;
-  const tEvaluado = new Date(fechaEvaluada).getTime();
-  let ocupados = 0;
-  
-  registrosCargados.forEach(r => {
-    if (r.estado === 'Cancelado' || r.estado === 'Disponible') return;
-    if (r.tipoServicio !== 'Foto Gif Impresión') return;
-    if (r.numEvento === idEvadiendo) return; 
-    
-    const tRegistro = new Date(normalizarFechaISO(r.fecha)).getTime();
-    if (Math.abs((tRegistro - tEvaluado) / msPorDia) <= 1) { 
-      ocupados++;
-    }
-  });
-  return ocupados;
-}
-
 function obtenerCosto(servicio) {
   if (servicio === 'Foto Gif Impresión' || servicio === 'Foto Gif Virtual') return 899;
   return "";
@@ -266,7 +334,6 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
   const cant = parseInt(document.getElementById('cantActivaciones').value) || 1;
   let bloqueosDetectados = [];
   let payloadItems = [];
-  let fechasGifFormulario = []; 
 
   const areaG = document.getElementById('area').value;
   const solicitaG = document.getElementById('solicita').value;
@@ -279,22 +346,9 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
     const nombre = document.getElementById(`nombreEvento_${i}`).value;
 
     if (servicio === 'Foto Gif Impresión') {
-      const msPorDia = 24 * 60 * 60 * 1000;
-      const tEvaluado = new Date(fecha).getTime();
-      
-      let ocupadosTotal = contarOcupadosBD(fecha, idEventoEditando);
-      
-      fechasGifFormulario.forEach(f => {
-        const tTemp = new Date(f).getTime();
-        if (Math.abs((tTemp - tEvaluado) / msPorDia) <= 1) {
-          ocupadosTotal++;
-        }
-      });
-
-      if (ocupadosTotal >= 2) {
-        bloqueosDetectados.push(`- Límite excedido para "Foto Gif Impresión" cerca al ${fecha}.`);
-      } else {
-        fechasGifFormulario.push(fecha); 
+      const disp = calcularDisponibilidadGif(fecha, i);
+      if (disp <= 0) {
+        bloqueosDetectados.push(`- No hay unidades disponibles de "Foto Gif Impresión" para el día ${fecha}.`);
       }
     }
 
@@ -328,7 +382,7 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
   btn.disabled = true;
 
   try {
-    await fetch(GOOGLE_SCRIPT_URL, {
+    const res = await fetch(GOOGLE_SCRIPT_URL, {
       method: 'POST',
       body: JSON.stringify({
         action: idEventoEditando ? 'update' : 'create_multiple',
@@ -336,18 +390,24 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
       })
     });
 
-    await cargarDatosDesdeGoogle();
-    cerrarModal();
+    const resJson = await res.json();
+
+    if (resJson.status === 'error') {
+      alert("Error en el servidor: " + resJson.message);
+    } else {
+      await cargarDatosDesdeGoogle();
+      cerrarModal();
+    }
   } catch (error) {
     console.error("Error:", error);
-    alert("Hubo un error al guardar.");
+    alert("Hubo un error de conexión al guardar.");
   } finally {
     btn.innerHTML = idEventoEditando ? "Actualizar" : "Guardar";
     btn.disabled = false;
   }
 });
 
-// FUNCIÓN PARA CANCELAR REGISTRO (Marca como Cancelado en Excel)
+// CANCELAR REGISTRO
 window.cancelarRegistro = async function() {
   if (!idEventoEditando) return;
   if (!confirm("¿Estás seguro de que deseas marcar este evento como CANCELADO?")) return;
@@ -356,8 +416,13 @@ window.cancelarRegistro = async function() {
   btn.innerHTML = `Cancelando...`;
   btn.disabled = true;
 
-  const registroActual = registrosCargados.find(r => r.numEvento == idEventoEditando);
-  if (!registroActual) return;
+  const registroActual = registrosCargados.find(r => String(r.numEvento).trim() === String(idEventoEditando).trim());
+  if (!registroActual) {
+    alert("No se encontró el registro a cancelar.");
+    btn.innerHTML = `Cancelar Evento`;
+    btn.disabled = false;
+    return;
+  }
 
   const payloadItem = {
     numEvento: idEventoEditando,
@@ -377,17 +442,22 @@ window.cancelarRegistro = async function() {
   };
 
   try {
-    await fetch(GOOGLE_SCRIPT_URL, {
+    const res = await fetch(GOOGLE_SCRIPT_URL, {
       method: 'POST',
       body: JSON.stringify({
         action: 'update',
         items: [payloadItem]
       })
     });
-    await cargarDatosDesdeGoogle();
-    cerrarModal();
+    const resJson = await res.json();
+    if (resJson.status === 'error') {
+      alert("Error al cancelar: " + resJson.message);
+    } else {
+      await cargarDatosDesdeGoogle();
+      cerrarModal();
+    }
   } catch (error) {
-    alert("Error al cancelar el registro.");
+    alert("Error de conexión al cancelar el registro.");
   } finally {
     btn.innerHTML = `Cancelar Evento`;
     btn.disabled = false;
