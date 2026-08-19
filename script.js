@@ -18,6 +18,14 @@ function normalizarFechaISO(fechaStr) {
   return str.split('T')[0];
 }
 
+function obtenerFechaHoyISO() {
+  const hoy = new Date();
+  const yyyy = hoy.getFullYear();
+  const mm = String(hoy.getMonth() + 1).padStart(2, '0');
+  const dd = String(hoy.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 async function cargarDatosDesdeGoogle() {
   try {
     const respuesta = await fetch(GOOGLE_SCRIPT_URL);
@@ -31,17 +39,41 @@ async function cargarDatosDesdeGoogle() {
   }
 }
 
-function inicializarCalendario() {
-  const calendarEl = document.getElementById('calendar');
-  
-  const eventos = registrosCargados
-    .filter(r => r.estado !== 'Cancelado' && r.fecha)
+function generarEventosProcesados() {
+  const areaFiltro = document.getElementById('filtroArea')?.value || 'TODAS';
+  const servicioFiltro = document.getElementById('filtroServicio')?.value || 'TODOS';
+  const hoyStr = obtenerFechaHoyISO();
+
+  return registrosCargados
+    .filter(r => r.fecha)
+    .filter(r => {
+      if (areaFiltro !== 'TODAS' && r.area !== areaFiltro) return false;
+      if (servicioFiltro !== 'TODOS' && r.tipoServicio !== servicioFiltro) return false;
+      return true;
+    })
     .map(r => {
       const fechaISO = normalizarFechaISO(r.fecha);
-      let color = '#000000'; 
-      
-      // Se quitó la tablet del título en el calendario
+      const esPasado = fechaISO < hoyStr;
+      const esCancelado = r.estado === 'Cancelado';
+
+      let color = '#000000'; // Default
       let titulo = `${r.tipoEvento} [${r.tipoServicio}]`;
+
+      if (esCancelado) {
+        color = '#000000'; // Negro para cancelados
+        titulo = `[CANCELADO] ${r.tipoEvento}`;
+      } else if (esPasado) {
+        color = '#333333'; // Gris Oscuro/Negro para eventos pasados
+      } else {
+        // Eventos Futuros / Hoy
+        if (r.tipoServicio.includes('Foto Gif')) {
+          color = '#E3173E'; // Rojo
+        } else if (r.tipoServicio === 'Foto Booth') {
+          color = '#2563EB'; // Azul
+        } else if (r.tipoServicio === '360°') {
+          color = '#16A34A'; // Verde
+        }
+      }
 
       return {
         title: titulo, 
@@ -51,8 +83,13 @@ function inicializarCalendario() {
         extendedProps: { ...r } 
       };
     });
+}
 
-  if(calendar) calendar.destroy(); 
+function inicializarCalendario() {
+  const calendarEl = document.getElementById('calendar');
+  const eventos = generarEventosProcesados();
+
+  if (calendar) calendar.destroy(); 
 
   calendar = new FullCalendar.Calendar(calendarEl, {
     initialView: 'dayGridMonth',
@@ -66,13 +103,13 @@ function inicializarCalendario() {
     
     eventMouseEnter: function(info) {
       const p = info.event.extendedProps;
-      // Se quitó la tablet del recuadro flotante (Tippy)
       tippy(info.el, {
         content: `
           <div style="text-align:left; font-size:13px;">
             <strong>Evento:</strong> ${p.tipoEvento}<br>
             <strong>Servicio:</strong> ${p.tipoServicio}<br>
-            <strong>Solicita:</strong> ${p.solicita}
+            <strong>Solicita:</strong> ${p.solicita}<br>
+            <strong>Estado:</strong> ${p.estado || 'Confirmado'}
           </div>
         `,
         allowHTML: true,
@@ -91,7 +128,7 @@ function inicializarCalendario() {
       
       document.getElementById('contenedorCantidad').classList.add('hidden');
       document.getElementById('contenedorEdicion').classList.remove('hidden');
-      document.getElementById('btnEliminar').classList.remove('hidden');
+      document.getElementById('accionesAdmin').classList.remove('hidden');
 
       document.getElementById('area').value = p.area || "DPA";
       document.getElementById('solicita').value = p.solicita || "";
@@ -114,6 +151,14 @@ function inicializarCalendario() {
   });
   calendar.render();
 }
+
+// Aplicar Filtros sin recargar la página
+window.aplicarFiltros = function() {
+  if (calendar) {
+    calendar.removeAllEvents();
+    calendar.addEventSource(generarEventosProcesados());
+  }
+};
 
 window.renderizarBloques = function() {
   const container = document.getElementById('contenedorBloques');
@@ -162,7 +207,7 @@ window.abrirModalNuevo = function() {
   
   document.getElementById('contenedorCantidad').classList.remove('hidden');
   document.getElementById('contenedorEdicion').classList.add('hidden');
-  document.getElementById('btnEliminar').classList.add('hidden');
+  document.getElementById('accionesAdmin').classList.add('hidden');
   
   document.getElementById('cantActivaciones').value = 1;
   renderizarBloques();
@@ -212,7 +257,6 @@ function contarOcupadosBD(fechaEvaluada, idEvadiendo) {
   return ocupados;
 }
 
-// Aquí se actualizó el costo: Impresión y Virtual cuestan 899
 function obtenerCosto(servicio) {
   if (servicio === 'Foto Gif Impresión' || servicio === 'Foto Gif Virtual') return 899;
   return "";
@@ -305,9 +349,57 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
   }
 });
 
+// FUNCIÓN PARA CANCELAR REGISTRO (Mantiene fila en Excel pero pasa a Cancelado)
+window.cancelarRegistro = async function() {
+  if (!idEventoEditando) return;
+  if (!confirm("¿Estás seguro de que deseas marcar este evento como CANCELADO?")) return;
+
+  const btn = document.getElementById('btnCancelar');
+  btn.innerHTML = `Cancelando...`;
+  btn.disabled = true;
+
+  const registroActual = registrosCargados.find(r => r.numEvento == idEventoEditando);
+  if (!registroActual) return;
+
+  const payloadItem = {
+    numEvento: idEventoEditando,
+    tipoEvento: registroActual.tipoEvento,
+    area: registroActual.area,
+    solicita: registroActual.solicita,
+    centroCostos: registroActual.centroCostos,
+    tipoServicio: registroActual.tipoServicio,
+    estado: "Cancelado", // Cambia a Cancelado
+    tablet: registroActual.tablet || "",
+    fecha: normalizarFechaISO(registroActual.fecha),
+    cantPersonas: registroActual.cantPersonas || 1,
+    cantFotos: registroActual.cantFotos || "",
+    costo: registroActual.costo || "",
+    link: registroActual.link || "",
+    observaciones: registroActual.observaciones || ""
+  };
+
+  try {
+    await fetch(GOOGLE_SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'update',
+        items: [payloadItem]
+      })
+    });
+    await cargarDatosDesdeGoogle();
+    cerrarModal();
+  } catch (error) {
+    alert("Error al cancelar el registro.");
+  } finally {
+    btn.innerHTML = `Cancelar Evento`;
+    btn.disabled = false;
+  }
+};
+
+// FUNCIÓN PARA ELIMINAR REGISTRO (Borra la fila del Excel)
 window.eliminarRegistro = async function() {
   if (!idEventoEditando) return;
-  if (!confirm("¿Estás seguro de que deseas eliminar este registro permanentemente del Excel?")) return;
+  if (!confirm("¿Estás seguro de que deseas ELIMINAR este registro de forma permanente del Excel?")) return;
 
   const btn = document.getElementById('btnEliminar');
   btn.innerHTML = `Borrando...`;
@@ -325,7 +417,8 @@ window.eliminarRegistro = async function() {
     cerrarModal();
   } catch (error) {
     alert("Error al intentar borrar el registro.");
+  } finally {
     btn.innerHTML = `Borrar Registro`;
     btn.disabled = false;
   }
-}
+};
