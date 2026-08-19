@@ -1,4 +1,4 @@
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzdEBj55fO1ZvkxL2o-6Fyrry2w5fP7KeJ-dupAWd_MNpsr-ela-FiTEtgocGnVvREX/exec'; 
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwc0rgJ6XbYNVR6CubKD7fhkSVPKkTrj-oyaaiCHK1Dr9tWeY9nBinwOLAC_1LGvp1J/exec'; 
 
 let registrosCargados = [];
 let calendar;
@@ -40,8 +40,8 @@ function inicializarCalendario() {
       const fechaISO = normalizarFechaISO(r.fecha);
       let color = '#000000'; 
       
+      // Se quitó la tablet del título en el calendario
       let titulo = `${r.tipoEvento} [${r.tipoServicio}]`;
-      if (r.tablet) titulo += ` [${r.tablet}]`;
 
       return {
         title: titulo, 
@@ -66,13 +66,13 @@ function inicializarCalendario() {
     
     eventMouseEnter: function(info) {
       const p = info.event.extendedProps;
+      // Se quitó la tablet del recuadro flotante (Tippy)
       tippy(info.el, {
         content: `
           <div style="text-align:left; font-size:13px;">
             <strong>Evento:</strong> ${p.tipoEvento}<br>
             <strong>Servicio:</strong> ${p.tipoServicio}<br>
-            <strong>Solicita:</strong> ${p.solicita}<br>
-            <strong>Tablet:</strong> ${p.tablet || 'Pendiente de asignar'}
+            <strong>Solicita:</strong> ${p.solicita}
           </div>
         `,
         allowHTML: true,
@@ -121,7 +121,6 @@ window.renderizarBloques = function() {
   container.innerHTML = '';
 
   for (let i = 0; i < cant; i++) {
-    // AQUI SE REMOVIERON LOS SERVICIOS ANTIGUOS
     const bloque = `
       <div class="border border-gray-200 p-4 rounded-xl relative">
         <div class="absolute -top-3 left-4 bg-white px-2 text-xs font-bold text-marca-gris">ACTIVACIÓN ${i + 1}</div>
@@ -195,7 +194,6 @@ window.cerrarModal = function() {
   }, 300);
 };
 
-// Función para contar cruces en la BASE DE DATOS
 function contarOcupadosBD(fechaEvaluada, idEvadiendo) {
   const msPorDia = 24 * 60 * 60 * 1000;
   const tEvaluado = new Date(fechaEvaluada).getTime();
@@ -214,8 +212,9 @@ function contarOcupadosBD(fechaEvaluada, idEvadiendo) {
   return ocupados;
 }
 
+// Aquí se actualizó el costo: Impresión y Virtual cuestan 899
 function obtenerCosto(servicio) {
-  if (servicio === 'Foto Gif Impresión') return 899;
+  if (servicio === 'Foto Gif Impresión' || servicio === 'Foto Gif Virtual') return 899;
   return "";
 }
 
@@ -225,7 +224,7 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
   const cant = parseInt(document.getElementById('cantActivaciones').value) || 1;
   let bloqueosDetectados = [];
   let payloadItems = [];
-  let fechasGifFormulario = []; // Memoria temporal para evitar trampas en el mismo form
+  let fechasGifFormulario = []; 
 
   const areaG = document.getElementById('area').value;
   const solicitaG = document.getElementById('solicita').value;
@@ -243,7 +242,6 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
       
       let ocupadosTotal = contarOcupadosBD(fecha, idEventoEditando);
       
-      // Validar también contra las fechas que ya pusimos en este mismo formulario
       fechasGifFormulario.forEach(f => {
         const tTemp = new Date(f).getTime();
         if (Math.abs((tTemp - tEvaluado) / msPorDia) <= 1) {
@@ -254,7 +252,7 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
       if (ocupadosTotal >= 2) {
         bloqueosDetectados.push(`- Límite excedido para "Foto Gif Impresión" cerca al ${fecha}.`);
       } else {
-        fechasGifFormulario.push(fecha); // Aprobarlo temporalmente y añadirlo a la memoria
+        fechasGifFormulario.push(fecha); 
       }
     }
 
