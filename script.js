@@ -56,22 +56,21 @@ function generarEventosProcesados() {
       const esPasado = fechaISO < hoyStr;
       const esCancelado = r.estado === 'Cancelado';
 
-      let color = '#000000'; // Default
+      let color = '#000000'; 
       let titulo = `${r.tipoEvento} [${r.tipoServicio}]`;
 
       if (esCancelado) {
-        color = '#000000'; // Negro para cancelados
+        color = '#000000'; 
         titulo = `[CANCELADO] ${r.tipoEvento}`;
       } else if (esPasado) {
-        color = '#333333'; // Gris Oscuro/Negro para eventos pasados
+        color = '#333333'; 
       } else {
-        // Eventos Futuros / Hoy
         if (r.tipoServicio.includes('Foto Gif')) {
-          color = '#E3173E'; // Rojo
+          color = '#E3173E'; 
         } else if (r.tipoServicio === 'Foto Booth') {
-          color = '#2563EB'; // Azul
+          color = '#2563EB'; 
         } else if (r.tipoServicio === '360°') {
-          color = '#16A34A'; // Verde
+          color = '#16A34A'; 
         }
       }
 
@@ -152,7 +151,6 @@ function inicializarCalendario() {
   calendar.render();
 }
 
-// Aplicar Filtros sin recargar la página
 window.aplicarFiltros = function() {
   if (calendar) {
     calendar.removeAllEvents();
@@ -349,7 +347,7 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
   }
 });
 
-// FUNCIÓN PARA CANCELAR REGISTRO (Mantiene fila en Excel pero pasa a Cancelado)
+// FUNCIÓN PARA CANCELAR REGISTRO (Marca como Cancelado en Excel)
 window.cancelarRegistro = async function() {
   if (!idEventoEditando) return;
   if (!confirm("¿Estás seguro de que deseas marcar este evento como CANCELADO?")) return;
@@ -368,7 +366,7 @@ window.cancelarRegistro = async function() {
     solicita: registroActual.solicita,
     centroCostos: registroActual.centroCostos,
     tipoServicio: registroActual.tipoServicio,
-    estado: "Cancelado", // Cambia a Cancelado
+    estado: "Cancelado",
     tablet: registroActual.tablet || "",
     fecha: normalizarFechaISO(registroActual.fecha),
     cantPersonas: registroActual.cantPersonas || 1,
@@ -392,33 +390,6 @@ window.cancelarRegistro = async function() {
     alert("Error al cancelar el registro.");
   } finally {
     btn.innerHTML = `Cancelar Evento`;
-    btn.disabled = false;
-  }
-};
-
-// FUNCIÓN PARA ELIMINAR REGISTRO (Borra la fila del Excel)
-window.eliminarRegistro = async function() {
-  if (!idEventoEditando) return;
-  if (!confirm("¿Estás seguro de que deseas ELIMINAR este registro de forma permanente del Excel?")) return;
-
-  const btn = document.getElementById('btnEliminar');
-  btn.innerHTML = `Borrando...`;
-  btn.disabled = true;
-
-  try {
-    await fetch(GOOGLE_SCRIPT_URL, {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'delete',
-        numEvento: idEventoEditando
-      })
-    });
-    await cargarDatosDesdeGoogle();
-    cerrarModal();
-  } catch (error) {
-    alert("Error al intentar borrar el registro.");
-  } finally {
-    btn.innerHTML = `Borrar Registro`;
     btn.disabled = false;
   }
 };
