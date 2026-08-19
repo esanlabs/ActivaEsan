@@ -75,10 +75,13 @@
       <!-- BARRA DE FILTROS Y LEYENDA -->
       <div class="bg-marca-blanco p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-wrap gap-4 items-center justify-between">
         
-        <!-- Filtros Dropdowns -->
+        <!-- Filtros y Buscador Rápido -->
         <div class="flex flex-wrap items-center gap-3">
-          <span class="text-xs font-bold text-marca-gris uppercase tracking-wider">Filtros:</span>
+          <span class="text-xs font-bold text-marca-gris uppercase tracking-wider">Buscar & Filtros:</span>
           
+          <!-- Buscador por texto -->
+          <input type="text" id="buscadorTexto" oninput="aplicarFiltros()" placeholder="Nombre o solicitante..." class="border-gray-200 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo bg-gray-50 w-48">
+
           <select id="filtroArea" onchange="aplicarFiltros()" class="border-gray-200 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo bg-gray-50">
             <option value="TODAS">Todas las Áreas</option>
             <option value="DPA">DPA</option>
@@ -209,7 +212,6 @@
 
           <!-- Botones de Acción -->
           <div class="flex justify-between items-center mt-6 pt-6 border-t border-gray-100">
-            
             <div id="accionesAdmin" class="hidden flex gap-2">
               <button type="button" id="btnCancelar" onclick="cancelarRegistro()" class="px-4 py-2 rounded-full bg-amber-500 hover:bg-amber-600 text-white font-medium text-xs transition-colors shadow-sm">
                 Cancelar Evento
@@ -228,6 +230,9 @@
       </div>
     </div>
   </div>
+
+  <!-- Contenedor para Notificaciones Flotantes (Toasts) -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
   <script src="script.js" defer></script>
 </body>
