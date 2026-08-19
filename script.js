@@ -5,6 +5,7 @@ let calendar;
 let idEventoEditando = null; 
 
 document.addEventListener('DOMContentLoaded', () => {
+  console.log("🔍 [DEBUG] Inicializando aplicación...");
   cargarDatosDesdeGoogle();
 });
 
@@ -27,15 +28,26 @@ function obtenerFechaHoyISO() {
 }
 
 async function cargarDatosDesdeGoogle() {
+  console.log("🔍 [DEBUG] Conectando con Google Sheets para traer registros...");
   try {
     const respuesta = await fetch(GOOGLE_SCRIPT_URL);
-    registrosCargados = await respuesta.json();
+    const textoRaw = await respuesta.text();
+
+    try {
+      registrosCargados = JSON.parse(textoRaw);
+      console.log(`✅ [DEBUG] Datos cargados con éxito. ${registrosCargados.length} registros obtenidos.`, registrosCargados);
+    } catch (e) {
+      console.error("❌ [DEBUG ERROR] La respuesta de Google Sheets no es un JSON válido. Respuesta recibida:", textoRaw);
+      alert(`[ERROR SERVIDOR] Respuesta no válida recibida:\n${textoRaw.substring(0, 300)}...`);
+      return;
+    }
+
     document.getElementById('loader').style.display = 'none';
     document.getElementById('calendarContainer').classList.remove('hidden');
     inicializarCalendario();
   } catch (error) {
-    console.error("Error al obtener datos:", error);
-    alert("Error al conectar con la base de datos de Google Sheets.");
+    console.error("❌ [DEBUG ERROR] Fallo de red o conexión:", error);
+    alert("Error de conexión al cargar la base de datos.");
   }
 }
 
@@ -85,6 +97,7 @@ function generarEventosProcesados() {
 }
 
 function inicializarCalendario() {
+  console.log("🔍 [DEBUG] Renderizando calendario...");
   const calendarEl = document.getElementById('calendar');
   const eventos = generarEventosProcesados();
 
@@ -121,6 +134,7 @@ function inicializarCalendario() {
     eventClick: (info) => {
       const p = info.event.extendedProps;
       idEventoEditando = p.numEvento; 
+      console.log(`🔍 [DEBUG] Evento seleccionado para edición (ID: ${idEventoEditando}):`, p);
 
       document.getElementById('modalTitulo').innerText = "Editar Activación (Vista Admin)";
       document.getElementById('btnGuardar').innerText = "Actualizar";
@@ -153,31 +167,29 @@ function inicializarCalendario() {
 }
 
 window.aplicarFiltros = function() {
+  console.log("🔍 [DEBUG] Aplicando filtros...");
   if (calendar) {
     calendar.removeAllEvents();
     calendar.addEventSource(generarEventosProcesados());
   }
 };
 
-// CÁLCULO DE DISPONIBILIDAD PARA FOTO GIF IMPRESIÓN
 function calcularDisponibilidadGif(fechaEval, blockIndexActual) {
   if (!fechaEval) return 2;
   
   const msPorDia = 24 * 60 * 60 * 1000;
   const tEval = new Date(fechaEval).getTime();
   
-  // Revisamos la ocupación en la ventana de 3 días (Ayer, Hoy, Mañana)
   const diasVentana = [tEval - msPorDia, tEval, tEval + msPorDia];
   let maxOcupadosEnVentana = 0;
 
   diasVentana.forEach(tDia => {
     let ocupadosEnEsteDia = 0;
 
-    // 1. Ocupados en la Base de Datos
     registrosCargados.forEach(r => {
       if (r.estado === 'Cancelado' || r.estado === 'Disponible') return;
       if (r.tipoServicio !== 'Foto Gif Impresión') return;
-      if (String(r.numEvento).trim() === String(idEventoEditando).trim()) return; // Ignorar si editamos
+      if (String(r.numEvento).trim() === String(idEventoEditando).trim()) return;
 
       const tReg = new Date(normalizarFechaISO(r.fecha)).getTime();
       if (Math.abs((tReg - tDia) / msPorDia) <= 1) {
@@ -185,10 +197,9 @@ function calcularDisponibilidadGif(fechaEval, blockIndexActual) {
       }
     });
 
-    // 2. Ocupados en OTROS bloques del mismo formulario abierto
     const cant = parseInt(document.getElementById('cantActivaciones')?.value) || 1;
     for (let j = 0; j < cant; j++) {
-      if (j === blockIndexActual) continue; // No contarse a sí mismo
+      if (j === blockIndexActual) continue;
       
       const servJ = document.getElementById(`servicio_${j}`)?.value;
       const fechaJ = document.getElementById(`fechaEvento_${j}`)?.value;
@@ -209,7 +220,6 @@ function calcularDisponibilidadGif(fechaEval, blockIndexActual) {
   return Math.max(0, 2 - maxOcupadosEnVentana);
 }
 
-// ACTUALIZA EL TEXTO EN TIEMPO REAL DENTRO DEL DESPLEGABLE DE SELECCIÓN
 window.actualizarOpcionesDisponibilidad = function() {
   const cant = parseInt(document.getElementById('cantActivaciones')?.value) || 1;
 
@@ -221,7 +231,6 @@ window.actualizarOpcionesDisponibilidad = function() {
     const fechaVal = inputFecha.value;
     const disponibles = calcularDisponibilidadGif(fechaVal, i);
 
-    // Buscar la opción 'Foto Gif Impresión' dentro del select
     for (let opt of selectServicio.options) {
       if (opt.value === 'Foto Gif Impresión') {
         if (disponibles >= 2) {
@@ -233,7 +242,6 @@ window.actualizarOpcionesDisponibilidad = function() {
         } else {
           opt.text = "Foto Gif Impresión (Agotado)";
           opt.disabled = true;
-          // Si estaba seleccionado y se agotó, cambiarlo automáticamente
           if (selectServicio.value === 'Foto Gif Impresión') {
             selectServicio.value = 'Foto Booth';
           }
@@ -377,6 +385,13 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
     return;
   }
 
+  const payloadCompleto = {
+    action: idEventoEditando ? 'update' : 'create_multiple',
+    items: payloadItems
+  };
+
+  console.log("🔍 [DEBUG] Enviando Payload al Servidor:", payloadCompleto);
+
   const btn = document.getElementById('btnGuardar');
   btn.innerHTML = `Procesando...`;
   btn.disabled = true;
@@ -384,30 +399,38 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
   try {
     const res = await fetch(GOOGLE_SCRIPT_URL, {
       method: 'POST',
-      body: JSON.stringify({
-        action: idEventoEditando ? 'update' : 'create_multiple',
-        items: payloadItems
-      })
+      body: JSON.stringify(payloadCompleto)
     });
 
-    const resJson = await res.json();
+    const textoRespuesta = await res.text();
+    console.log("🔍 [DEBUG] Respuesta RAW recibida del Servidor:", textoRespuesta);
+
+    let resJson;
+    try {
+      resJson = JSON.parse(textoRespuesta);
+    } catch (e) {
+      console.error("❌ [DEBUG ERROR] El servidor no respondió con un JSON. Respuesta recibida:", textoRespuesta);
+      alert(`[ERROR SERVIDOR] Respuesta no reconocida:\n${textoRespuesta.substring(0, 300)}...`);
+      return;
+    }
 
     if (resJson.status === 'error') {
-      alert("Error en el servidor: " + resJson.message);
+      console.error("❌ [DEBUG ERROR SERVIDOR]:", resJson);
+      alert(`[FALLO EN SERVIDOR]\nPaso: ${resJson.paso || 'Desconocido'}\nDetalle: ${resJson.errorDetallado || resJson.message || 'Sin detalle'}`);
     } else {
+      console.log("✅ [DEBUG] Guardado exitoso:", resJson);
       await cargarDatosDesdeGoogle();
       cerrarModal();
     }
   } catch (error) {
-    console.error("Error:", error);
-    alert("Hubo un error de conexión al guardar.");
+    console.error("❌ [DEBUG ERROR CONEXIÓN]:", error);
+    alert("Error de conexión con el servidor al intentar guardar.");
   } finally {
     btn.innerHTML = idEventoEditando ? "Actualizar" : "Guardar";
     btn.disabled = false;
   }
 });
 
-// CANCELAR REGISTRO
 window.cancelarRegistro = async function() {
   if (!idEventoEditando) return;
   if (!confirm("¿Estás seguro de que deseas marcar este evento como CANCELADO?")) return;
@@ -418,7 +441,7 @@ window.cancelarRegistro = async function() {
 
   const registroActual = registrosCargados.find(r => String(r.numEvento).trim() === String(idEventoEditando).trim());
   if (!registroActual) {
-    alert("No se encontró el registro a cancelar.");
+    alert("No se encontró el registro a cancelar en los datos cargados.");
     btn.innerHTML = `Cancelar Evento`;
     btn.disabled = false;
     return;
@@ -441,6 +464,8 @@ window.cancelarRegistro = async function() {
     observaciones: registroActual.observaciones || ""
   };
 
+  console.log("🔍 [DEBUG] Enviando cancelación para el ID:", idEventoEditando);
+
   try {
     const res = await fetch(GOOGLE_SCRIPT_URL, {
       method: 'POST',
@@ -449,15 +474,24 @@ window.cancelarRegistro = async function() {
         items: [payloadItem]
       })
     });
-    const resJson = await res.json();
+
+    const textoRespuesta = await res.text();
+    let resJson;
+    try {
+      resJson = JSON.parse(textoRespuesta);
+    } catch (e) {
+      alert(`[ERROR CANCELACIÓN] Respuesta no válida del servidor:\n${textoRespuesta.substring(0, 300)}...`);
+      return;
+    }
+
     if (resJson.status === 'error') {
-      alert("Error al cancelar: " + resJson.message);
+      alert(`[ERROR CANCELACIÓN SERVIDOR]\nPaso: ${resJson.paso}\nDetalle: ${resJson.errorDetallado}`);
     } else {
       await cargarDatosDesdeGoogle();
       cerrarModal();
     }
   } catch (error) {
-    alert("Error de conexión al cancelar el registro.");
+    alert("Error de conexión al intentar cancelar.");
   } finally {
     btn.innerHTML = `Cancelar Evento`;
     btn.disabled = false;
