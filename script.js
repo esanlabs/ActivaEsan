@@ -1,4 +1,4 @@
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzdEBj55fO1ZvkxL2o-6Fyrry2w5fP7KeJ-dupAWd_MNpsr-ela-FiTEtgocGnVvREX/exec'; 
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwc0rgJ6XbYNVR6CubKD7fhkSVPKkTrj-oyaaiCHK1Dr9tWeY9nBinwOLAC_1LGvp1J/exec'; 
 
 let registrosCargados = [];
 let calendar;
@@ -38,9 +38,8 @@ function inicializarCalendario() {
     .filter(r => r.estado !== 'Cancelado' && r.fecha)
     .map(r => {
       const fechaISO = normalizarFechaISO(r.fecha);
-      let color = '#000000'; // Default
+      let color = '#000000'; 
       
-      // Construir título: Nombre del Evento [Servicio] - [Tablet si existe]
       let titulo = `${r.tipoEvento} [${r.tipoServicio}]`;
       if (r.tablet) titulo += ` [${r.tablet}]`;
 
@@ -53,7 +52,7 @@ function inicializarCalendario() {
       };
     });
 
-  if(calendar) calendar.destroy(); // Limpiar antes de re-renderizar
+  if(calendar) calendar.destroy(); 
 
   calendar = new FullCalendar.Calendar(calendarEl, {
     initialView: 'dayGridMonth',
@@ -90,27 +89,22 @@ function inicializarCalendario() {
       document.getElementById('modalTitulo').innerText = "Editar Activación (Vista Admin)";
       document.getElementById('btnGuardar').innerText = "Actualizar";
       
-      // Ocultar campo de cantidad y mostrar sección de admin/tablet
       document.getElementById('contenedorCantidad').classList.add('hidden');
       document.getElementById('contenedorEdicion').classList.remove('hidden');
       document.getElementById('btnEliminar').classList.remove('hidden');
 
-      // Llenar datos generales
       document.getElementById('area').value = p.area || "DPA";
       document.getElementById('solicita').value = p.solicita || "";
       document.getElementById('costos').value = p.centroCostos || "";
       document.getElementById('observaciones').value = p.observaciones || "";
 
-      // Forzar 1 solo bloque en edición
       document.getElementById('cantActivaciones').value = 1;
       renderizarBloques();
       
-      // Llenar bloque 0 con datos del evento
       document.getElementById('nombreEvento_0').value = p.tipoEvento || "";
       document.getElementById('servicio_0').value = p.tipoServicio || "";
       document.getElementById('fechaEvento_0').value = normalizarFechaISO(p.fecha);
 
-      // Llenar datos Admin
       document.getElementById('tablet').value = p.tablet || "";
       document.getElementById('fotos').value = p.cantFotos || "";
       document.getElementById('link').value = p.link || ""; 
@@ -121,13 +115,13 @@ function inicializarCalendario() {
   calendar.render();
 }
 
-// Generador de bloques dinámicos
 window.renderizarBloques = function() {
   const container = document.getElementById('contenedorBloques');
   const cant = parseInt(document.getElementById('cantActivaciones').value) || 1;
   container.innerHTML = '';
 
   for (let i = 0; i < cant; i++) {
+    // AQUI SE REMOVIERON LOS SERVICIOS ANTIGUOS
     const bloque = `
       <div class="border border-gray-200 p-4 rounded-xl relative">
         <div class="absolute -top-3 left-4 bg-white px-2 text-xs font-bold text-marca-gris">ACTIVACIÓN ${i + 1}</div>
@@ -145,8 +139,6 @@ window.renderizarBloques = function() {
               <option value="360°">360°</option>
               <option value="Foto Gif Impresión">Foto Gif Impresión</option>
               <option value="Foto Gif Virtual">Foto Gif Virtual</option>
-              <option value="Foto con QR">Foto con QR</option>
-              <option value="Foto Correo">Foto Correo</option>
             </select>
           </div>
 
@@ -169,7 +161,6 @@ window.abrirModalNuevo = function() {
   document.getElementById('modalTitulo').innerText = "Registrar Nueva Solicitud";
   document.getElementById('btnGuardar').innerText = "Guardar Solicitud";
   
-  // Mostrar cantidad, ocultar admin
   document.getElementById('contenedorCantidad').classList.remove('hidden');
   document.getElementById('contenedorEdicion').classList.add('hidden');
   document.getElementById('btnEliminar').classList.add('hidden');
@@ -204,33 +195,27 @@ window.cerrarModal = function() {
   }, 300);
 };
 
-// Validar bloqueo de Foto Gif Impresión (Regla 3 días, Max 2 unidades)
-function validarBloqueo(fechaEvaluada, idEvadiendo) {
+// Función para contar cruces en la BASE DE DATOS
+function contarOcupadosBD(fechaEvaluada, idEvadiendo) {
   const msPorDia = 24 * 60 * 60 * 1000;
   const tEvaluado = new Date(fechaEvaluada).getTime();
-  
   let ocupados = 0;
   
   registrosCargados.forEach(r => {
     if (r.estado === 'Cancelado' || r.estado === 'Disponible') return;
     if (r.tipoServicio !== 'Foto Gif Impresión') return;
-    if (r.numEvento === idEvadiendo) return; // Si estamos editando, ignorar este
+    if (r.numEvento === idEvadiendo) return; 
     
     const tRegistro = new Date(normalizarFechaISO(r.fecha)).getTime();
-    const diferenciaDias = Math.abs((tRegistro - tEvaluado) / msPorDia);
-    
-    if (diferenciaDias <= 1) { // Día previo, mismo día o día posterior
+    if (Math.abs((tRegistro - tEvaluado) / msPorDia) <= 1) { 
       ocupados++;
     }
   });
-  
-  return ocupados >= 2;
+  return ocupados;
 }
 
-// Asignador automático de Costos
 function obtenerCosto(servicio) {
-  if (servicio === 'Foto con QR') return 600;
-  if (servicio === 'Foto Correo' || servicio === 'Foto Gif Impresión') return 899;
+  if (servicio === 'Foto Gif Impresión') return 899;
   return "";
 }
 
@@ -240,22 +225,36 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
   const cant = parseInt(document.getElementById('cantActivaciones').value) || 1;
   let bloqueosDetectados = [];
   let payloadItems = [];
+  let fechasGifFormulario = []; // Memoria temporal para evitar trampas en el mismo form
 
-  // Recolectar datos generales
   const areaG = document.getElementById('area').value;
   const solicitaG = document.getElementById('solicita').value;
   const costosG = document.getElementById('costos').value;
   const obsG = document.getElementById('observaciones').value;
 
-  // Revisar bloqueos y construir payloads por cada cajita
   for (let i = 0; i < cant; i++) {
     const fecha = document.getElementById(`fechaEvento_${i}`).value;
     const servicio = document.getElementById(`servicio_${i}`).value;
     const nombre = document.getElementById(`nombreEvento_${i}`).value;
 
     if (servicio === 'Foto Gif Impresión') {
-      if (validarBloqueo(fecha, idEventoEditando)) {
-        bloqueosDetectados.push(`- No hay "Foto Gif Impresión" disponible para el ${fecha} (ocupado por regla de 3 días).`);
+      const msPorDia = 24 * 60 * 60 * 1000;
+      const tEvaluado = new Date(fecha).getTime();
+      
+      let ocupadosTotal = contarOcupadosBD(fecha, idEventoEditando);
+      
+      // Validar también contra las fechas que ya pusimos en este mismo formulario
+      fechasGifFormulario.forEach(f => {
+        const tTemp = new Date(f).getTime();
+        if (Math.abs((tTemp - tEvaluado) / msPorDia) <= 1) {
+          ocupadosTotal++;
+        }
+      });
+
+      if (ocupadosTotal >= 2) {
+        bloqueosDetectados.push(`- Límite excedido para "Foto Gif Impresión" cerca al ${fecha}.`);
+      } else {
+        fechasGifFormulario.push(fecha); // Aprobarlo temporalmente y añadirlo a la memoria
       }
     }
 
@@ -266,10 +265,10 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
       solicita: solicitaG,
       centroCostos: costosG,
       tipoServicio: servicio,
-      estado: "Confirmado", // Automático
-      tablet: idEventoEditando ? document.getElementById('tablet').value : "", // Solo en edición
+      estado: "Confirmado",
+      tablet: idEventoEditando ? document.getElementById('tablet').value : "",
       fecha: fecha, 
-      cantPersonas: 1, // Automático
+      cantPersonas: 1, 
       cantFotos: idEventoEditando ? document.getElementById('fotos').value : "",
       costo: obtenerCosto(servicio),
       link: idEventoEditando ? document.getElementById('link').value : "", 
@@ -289,7 +288,6 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
   btn.disabled = true;
 
   try {
-    // Mandamos todo como un arreglo al backend
     await fetch(GOOGLE_SCRIPT_URL, {
       method: 'POST',
       body: JSON.stringify({
@@ -309,7 +307,6 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
   }
 });
 
-// Botón para eliminar un registro (Admin)
 window.eliminarRegistro = async function() {
   if (!idEventoEditando) return;
   if (!confirm("¿Estás seguro de que deseas eliminar este registro permanentemente del Excel?")) return;
