@@ -269,8 +269,8 @@ function agregarFilaActivacion(fechaPorDefecto = "", servicioDef = "", nombreDef
         </select>
 
         <div id="divImpresora_${index}" class="mt-2 ${servicioDef.includes('Foto Gif') ? '' : 'hidden'}">
-          <label class="inline-flex items-center gap-1.5 text-xs font-bold text-marca-rojo cursor-pointer">
-            <input type="checkbox" id="checkImpresora_${index}" ${servicioDef === 'Foto Gif Impresión' ? 'checked' : ''} class="rounded text-marca-rojo focus:ring-marca-rojo">
+          <label class="inline-flex items-center gap-1.5 text-xs font-bold text-marca-rojo cursor-pointer transition-all">
+            <input type="checkbox" id="checkImpresora_${index}" onchange="validarImpresorasEnTiempoReal()" ${servicioDef === 'Foto Gif Impresión' ? 'checked' : ''} class="rounded text-marca-rojo focus:ring-marca-rojo">
             Con Impresora
           </label>
         </div>
@@ -278,14 +278,17 @@ function agregarFilaActivacion(fechaPorDefecto = "", servicioDef = "", nombreDef
 
       <div>
         <label class="block text-xs font-bold text-gray-600 mb-1">Fecha *</label>
-        <input type="date" id="fechaEvento_${index}" ${minAttr} value="${fechaPorDefecto}" required class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo">
+        <input type="date" id="fechaEvento_${index}" onchange="validarImpresorasEnTiempoReal()" ${minAttr} value="${fechaPorDefecto}" required class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo">
       </div>
     </div>
   `;
   container.appendChild(div);
+  
+  // Ejecutamos la validación inmediatamente al crear una nueva fila
+  setTimeout(validarImpresorasEnTiempoReal, 50);
 }
 
-function toggleImpresora(index) {
+window.toggleImpresora = function(index) {
   const servicio = document.getElementById(`servicio_${index}`).value;
   const div = document.getElementById(`divImpresora_${index}`);
   const check = document.getElementById(`checkImpresora_${index}`);
@@ -296,7 +299,10 @@ function toggleImpresora(index) {
     div.classList.add('hidden');
     check.checked = false;
   }
-}
+  
+  // Al cambiar el servicio, reevaluamos reglas
+  validarImpresorasEnTiempoReal();
+};
 
 window.eliminarFila = function(index) {
   const elem = document.getElementById(`fila_${index}`);
@@ -306,6 +312,9 @@ window.eliminarFila = function(index) {
   Array.from(container.children).forEach((child, i) => {
     child.querySelector('span.uppercase').innerText = `Activación #${i + 1}`;
   });
+
+  // Al eliminar una fila, liberamos posibles impresoras bloqueadas
+  validarImpresorasEnTiempoReal();
 }
 
 // --- MODALES Y GUARDADO ---
@@ -352,7 +361,6 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
   if (filas.length === 0) return mostrarToast("Agrega al menos una activación.", "error");
 
   let payloadItems = [];
-  let conteoImpresorasForm = {}; // Para sumar lo que se pide en este mismo formulario
 
   for (let i = 0; i < filas.length; i++) {
     const divId = filas[i].id;
@@ -361,15 +369,14 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
     const nombre = document.getElementById(`nombreEvento_${index}`).value;
     const fecha = document.getElementById(`fechaEvento_${index}`).value;
     const servicioBase = document.getElementById(`servicio_${index}`).value;
-    const quiereImpresora = document.getElementById(`checkImpresora_${index}`).checked;
+    const checkObj = document.getElementById(`checkImpresora_${index}`);
+    
+    // Si está bloqueado por validación y alguien intentó burlarlo (hack de HTML), lo forzamos a apagado
+    const quiereImpresora = !checkObj.disabled && checkObj.checked;
 
     let servicioFinal = servicioBase;
     if (servicioBase === 'Foto Gif') {
       servicioFinal = quiereImpresora ? 'Foto Gif Impresión' : 'Foto Gif Virtual';
-    }
-
-    if (servicioFinal === 'Foto Gif Impresión' && fecha) {
-      conteoImpresorasForm[fecha] = (conteoImpresorasForm[fecha] || 0) + 1;
     }
 
     payloadItems.push({
@@ -390,6 +397,28 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
       observaciones: document.getElementById('observaciones').value
     });
   }
+
+  const btn = document.getElementById('btnGuardar');
+  btn.innerText = `Procesando...`;
+  btn.disabled = true;
+
+  try {
+    await fetch(GOOGLE_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: idEventoEditando ? 'update' : 'create_multiple', items: payloadItems })
+    });
+
+    mostrarToast("Procesado correctamente");
+    await cargarDatosDesdeGoogle();
+    cerrarModal();
+  } catch (error) {
+    mostrarToast("Error de conexión al guardar.", "error");
+  } finally {
+    btn.innerText = "Guardar";
+    btn.disabled = false;
+  }
+});
 
   // Validación: Máximo 2 impresoras en total (Formulario + Base de datos) considerando los 3 días
   for (const [fechaStr, countInForm] of Object.entries(conteoImpresorasForm)) {
@@ -506,4 +535,64 @@ window.eliminarAdmin = async function(email) {
 
   await cargarDatosDesdeGoogle();
   renderizarListaAdmins();
+};
+
+// --- VALIDACIÓN EN TIEMPO REAL DE IMPRESORAS ---
+window.validarImpresorasEnTiempoReal = function() {
+  const filas = Array.from(document.getElementById('contenedorBloques').children);
+  const unDiaMs = 24 * 60 * 60 * 1000;
+
+  filas.forEach(fila => {
+    const index = fila.id.split('_')[1];
+    const fechaInput = document.getElementById(`fechaEvento_${index}`).value;
+    const servicio = document.getElementById(`servicio_${index}`).value;
+    const checkImpresora = document.getElementById(`checkImpresora_${index}`);
+    
+    // Si no es Foto Gif o no hay fecha seleccionada, no hacemos cálculo
+    if (servicio !== 'Foto Gif' || !fechaInput) return;
+
+    const fechaElegida = new Date(fechaInput + 'T00:00:00').getTime();
+    
+    // 1. Contar cuántas impresoras están ocupadas en la Base de Datos (Regla de 3 días)
+    let countDB = 0;
+    registrosCargados.forEach(r => {
+      if (r.tipoServicio === 'Foto Gif Impresión' && r.estado !== 'Cancelado' && r.numEvento !== idEventoEditando) {
+        const fechaExistente = new Date(String(r.fecha).split('T')[0] + 'T00:00:00').getTime();
+        const difDias = Math.abs((fechaElegida - fechaExistente) / unDiaMs);
+        if (difDias <= 1) countDB++; // Día previo, mismo día, día posterior
+      }
+    });
+
+    // 2. Contar cuántas impresoras se están pidiendo en las OTRAS filas de este mismo formulario
+    let countForm = 0;
+    filas.forEach(otraFila => {
+      if (otraFila.id === fila.id) return; // Ignoramos la fila actual
+      
+      const otroIndex = otraFila.id.split('_')[1];
+      const otraFecha = document.getElementById(`fechaEvento_${otroIndex}`).value;
+      const otroServicio = document.getElementById(`servicio_${otroIndex}`).value;
+      const otroCheck = document.getElementById(`checkImpresora_${otroIndex}`).checked;
+
+      if (otroServicio === 'Foto Gif' && otroCheck && otraFecha) {
+        const fechaOtra = new Date(otraFecha + 'T00:00:00').getTime();
+        const difDias = Math.abs((fechaElegida - fechaOtra) / unDiaMs);
+        if (difDias <= 1) countForm++;
+      }
+    });
+
+    const totalOcupadas = countDB + countForm;
+
+    // 3. Bloquear o desbloquear en base al límite (Máximo 2)
+    if (totalOcupadas >= 2) {
+      if (!checkImpresora.checked) {
+        checkImpresora.disabled = true;
+        checkImpresora.title = "Ya se agotaron las 2 impresoras para esta fecha (o días cercanos).";
+        checkImpresora.parentElement.classList.add('opacity-50', 'cursor-not-allowed');
+      }
+    } else {
+      checkImpresora.disabled = false;
+      checkImpresora.title = "";
+      checkImpresora.parentElement.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+  });
 };
