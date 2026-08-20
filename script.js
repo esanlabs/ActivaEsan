@@ -1,4 +1,4 @@
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwB3Bcy9QcSyab5DJ-Qv1foyKCodlLDt5vvs3vlVyXAkxTHkhhbc7eCSw0CCGByQDYL/exec'; 
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwtCB66dij-pTgxM7D9fDuXZV4E1x2pSmbEZODgIjkwg5L64jiOLbbGbGT2737vUdjn/exec'; 
 
 let currentUser = null; 
 let registrosCargados = [];
