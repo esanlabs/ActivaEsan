@@ -119,11 +119,7 @@ function generarEventosProcesados() {
   return registrosCargados
     .filter(r => r && r.fecha)
     .filter(r => {
-      if (currentUser.role === 'CLIENTE') {
-        const correoReg = (r.correoSolicitante || '').toLowerCase().trim();
-        if (correoReg !== currentUser.email) return false;
-      }
-
+      // Ya no ocultamos los eventos si es cliente, todos ven todo
       if (areaFiltro !== 'TODAS' && (r.area || '') !== areaFiltro) return false;
       if (servicioFiltro !== 'TODOS' && (r.tipoServicio || '') !== servicioFiltro) return false;
       
@@ -138,8 +134,28 @@ function generarEventosProcesados() {
       const fechaISO = String(r.fecha).split('T')[0];
       const esCancelado = r.estado === 'Cancelado';
       const servicio = r.tipoServicio || '';
-      let color = '#000000'; 
+      
+      // Validar si el evento le pertenece al usuario o si es superadmin
+      const correoReg = (r.correoSolicitante || '').toLowerCase().trim();
+      const esMiEvento = correoReg === currentUser.email;
+      const esSuperUsuario = currentUser.role === 'SUPERADMIN';
+      const tienePermiso = esSuperUsuario || esMiEvento;
 
+      if (!tienePermiso) {
+        // EVENTO AJENO: Color negro, solo nombre, sin clic
+        return {
+          id: r.numEvento,
+          title: r.tipoEvento || 'Sin título', // Solo nombre
+          start: fechaISO,
+          backgroundColor: '#000000',
+          borderColor: '#000000',
+          textColor: '#ffffff',
+          extendedProps: { permitirClick: false } // Bloqueamos el clic
+        };
+      }
+
+      // EVENTO PROPIO O SUPERADMIN: Colores normales y clic habilitado
+      let color = '#000000'; 
       if (esCancelado) {
         color = '#000000'; 
       } else if (servicio.includes('Foto Gif')) {
@@ -156,7 +172,7 @@ function generarEventosProcesados() {
         start: fechaISO,
         backgroundColor: color,
         borderColor: color,
-        extendedProps: { ...r } 
+        extendedProps: { ...r, permitirClick: true } 
       };
     });
 }
@@ -183,6 +199,11 @@ function inicializarCalendario() {
 
     eventClick: (info) => {
       const p = info.event.extendedProps;
+      
+      if (!p.permitirClick) {
+        return; 
+      }
+      
       const esDuenio = (p.correoSolicitante || '').toLowerCase().trim() === currentUser.email;
       
       if (currentUser.role !== 'SUPERADMIN' && !esDuenio) {
@@ -262,11 +283,19 @@ function agregarFilaActivacion(fechaPorDefecto = "", servicioDef = "", nombreDef
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
+      <!-- 1. Nombre del Evento -->
       <div>
         <label class="block text-xs font-bold text-gray-600 mb-1">Nombre del Evento *</label>
         <input type="text" id="nombreEvento_${index}" value="${nombreDef}" required class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo">
       </div>
 
+      <!-- 2. Fecha (Movida al medio) -->
+      <div>
+        <label class="block text-xs font-bold text-gray-600 mb-1">Fecha *</label>
+        <input type="date" id="fechaEvento_${index}" onchange="validarImpresorasEnTiempoReal()" ${minAttr} value="${fechaPorDefecto}" required class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo">
+      </div>
+
+      <!-- 3. Servicio y Checkbox -->
       <div>
         <label class="block text-xs font-bold text-gray-600 mb-1">Servicio *</label>
         <select id="servicio_${index}" onchange="toggleImpresora(${index})" required class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo">
@@ -283,6 +312,7 @@ function agregarFilaActivacion(fechaPorDefecto = "", servicioDef = "", nombreDef
           </label>
         </div>
       </div>
+    </div>
 
       <div>
         <label class="block text-xs font-bold text-gray-600 mb-1">Fecha *</label>
@@ -447,7 +477,7 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
     });
 
     if ((countInForm + countInDB) > 2) {
-      alert(`❌ SOLICITUD RECHAZADA:\n\nSolo contamos con un máximo de 2 impresoras físicas globales.\nPara el ${fechaStr} estás solicitando ${countInForm} y ya hay ${countInDB} programadas/bloqueadas.\nPor favor, ajusta tus fechas o quita la opción de impresora.`);
+      alert(`Atención\nNo contamos con la cantidad de impresoras para atender su fotogif`);
       return; 
     }
   }
