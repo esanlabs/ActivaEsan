@@ -1,46 +1,56 @@
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzdEBj55fO1ZvkxL2o-6Fyrry2w5fP7KeJ-dupAWd_MNpsr-ela-FiTEtgocGnVvREX/exec"; // Asegúrate de tener tu URL desplegada
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwc0rgJ6XbYNVR6CubKD7fhkSVPKkTrj-oyaaiCHK1Dr9tWeY9nBinwOLAC_1LGvp1J/exec'; 
 
-let currentUser = { email: "", name: "", role: "CLIENTE" };
+let currentUser = null; 
 let registrosCargados = [];
 let listaAdmins = [];
-let idEventoEditando = null;
 let calendarObj = null;
+let idEventoEditando = null;
 let contadorFilas = 0;
 
 // --- LOGIN DE GOOGLE ---
-function handleCredentialResponse(response) {
+function parseJwt(token) {
+  const base64Url = token.split('.')[1];
+  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+  const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+  return JSON.parse(jsonPayload);
+}
+
+window.handleCredentialResponse = async function(response) {
   const data = parseJwt(response.credential);
-  if (!data.email.endsWith('@esan.edu.pe')) {
-    mostrarErrorLogin('Acceso denegado: Solo cuentas @esan.edu.pe');
+  const email = data.email.toLowerCase().trim();
+
+  if (!email.endsWith('@esan.edu.pe')) {
+    const err = document.getElementById('loginError');
+    err.innerText = "Acceso denegado: Se requiere una cuenta con dominio @esan.edu.pe";
+    err.classList.remove('hidden');
     return;
   }
 
-  currentUser.email = data.email.toLowerCase();
-  currentUser.name = data.name;
-  
+  currentUser = { email: email, name: data.name };
+
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('mainHeader').classList.remove('hidden');
   document.getElementById('mainContent').classList.remove('hidden');
   document.getElementById('userNombre').innerText = currentUser.name;
   document.getElementById('solicita').value = currentUser.name;
 
-  cargarDatosDesdeGoogle();
-}
-
-function parseJwt(token) {
-  const base64Url = token.split('.')[1];
-  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-  return JSON.parse(decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')));
-}
-
-function mostrarErrorLogin(msg) {
-  const errBox = document.getElementById('loginError');
-  errBox.innerText = msg;
-  errBox.classList.remove('hidden');
-}
+  await cargarDatosDesdeGoogle();
+};
 
 function cerrarSesion() {
   location.reload();
+}
+
+// --- TOASTS ---
+function mostrarToast(mensaje, tipo = 'exito') {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+  const toast = document.createElement('div');
+  const bgColor = tipo === 'exito' ? 'bg-emerald-600' : 'bg-marca-rojo';
+  toast.className = `${bgColor} text-white px-4 py-3 rounded-xl shadow-xl text-xs font-medium flex items-center gap-3 pointer-events-auto transition-all`;
+  toast.innerHTML = `<span>${mensaje}</span><button onclick="this.parentElement.remove()" class="ml-auto font-bold">✕</button>`;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
 }
 
 // --- CARGA DE DATOS ---
@@ -49,94 +59,162 @@ async function cargarDatosDesdeGoogle() {
   document.getElementById('calendarContainer').classList.add('hidden');
 
   try {
-    const res = await fetch(GOOGLE_SCRIPT_URL);
-    const json = await res.json();
-    
-    registrosCargados = json.registros || [];
-    listaAdmins = json.admins || [];
+    const respuesta = await fetch(GOOGLE_SCRIPT_URL);
+    const resData = await respuesta.json();
 
-    // Evaluar Rol
-    if (listaAdmins.includes(currentUser.email)) {
-      currentUser.role = "SUPERADMIN";
-      document.getElementById('badgeRol').innerText = "SuperAdmin";
-      document.getElementById('badgeRol').className = "text-xs px-2 py-0.5 rounded-full uppercase ml-2 bg-red-100 text-marca-rojo font-bold";
-      document.getElementById('btnGestionAdmins').classList.remove('hidden');
-      document.getElementById('btnExcel').classList.remove('hidden');
-    } else {
-      currentUser.role = "CLIENTE";
-      document.getElementById('badgeRol').innerText = "Cliente";
-      document.getElementById('badgeRol').className = "text-xs px-2 py-0.5 rounded-full uppercase ml-2 bg-gray-100 text-gray-700 font-bold";
-    }
+    registrosCargados = resData.registros || [];
+    listaAdmins = resData.admins || ['mtello@esan.edu.pe'];
 
+    const esAdmin = listaAdmins.includes(currentUser.email);
+    currentUser.role = esAdmin ? 'SUPERADMIN' : 'CLIENTE';
+
+    configurarInterfazSegunRol();
     inicializarCalendario();
-  } catch (e) {
-    mostrarToast("Error al cargar registros", "error");
+  } catch (error) {
+    mostrarToast("Error al cargar datos desde el servidor.", "error");
   } finally {
     document.getElementById('loader').classList.add('hidden');
     document.getElementById('calendarContainer').classList.remove('hidden');
   }
 }
 
-// --- INICIALIZAR FULLCALENDAR ---
-function inicializarCalendario() {
-  const calendarEl = document.getElementById('calendar');
-  if (calendarObj) calendarObj.destroy();
-
-  calendarObj = new FullCalendar.Calendar(calendarEl, {
-    initialView: 'dayGridMonth',
-    locale: 'es',
-    headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' },
-    events: mapearEventos(),
-    
-    // CLIC EN EL DIA DEL CALENDARIO
-    dateClick: function(info) {
-      abrirModalNuevo(info.dateStr);
-    },
-
-    eventClick: function(info) {
-      const ev = info.event.extendedProps;
-      // Clientes solo ven/editan sus propios eventos
-      if (currentUser.role !== 'SUPERADMIN' && ev.correoSolicitante !== currentUser.email) {
-        mostrarToast("Solo puedes consultar tus propias activaciones.", "error");
-        return;
-      }
-      abrirModalEdicion(ev);
-    }
-  });
-
-  calendarObj.render();
+function configurarInterfazSegunRol() {
+  const badge = document.getElementById('badgeRol');
+  if (currentUser.role === 'SUPERADMIN') {
+    badge.innerText = 'Super Admin';
+    badge.className = 'text-xs bg-red-100 text-marca-rojo px-2 py-0.5 rounded-full uppercase ml-2 font-bold';
+    document.getElementById('btnGestionAdmins').classList.remove('hidden');
+    document.getElementById('btnExcel').classList.remove('hidden');
+  } else {
+    badge.innerText = 'Cliente';
+    badge.className = 'text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full uppercase ml-2 font-bold';
+    document.getElementById('btnGestionAdmins').classList.add('hidden');
+    document.getElementById('btnExcel').classList.add('hidden');
+  }
 }
 
-function mapearEventos() {
+// --- CALENDARIO Y FILTROS ---
+function generarEventosProcesados() {
+  const areaFiltro = document.getElementById('filtroArea')?.value || 'TODAS';
+  const servicioFiltro = document.getElementById('filtroServicio')?.value || 'TODOS';
+  const busquedaTexto = (document.getElementById('buscadorTexto')?.value || '').toLowerCase().trim();
+
   return registrosCargados
+    .filter(r => r.fecha)
     .filter(r => {
-      // Si es cliente, solo sus eventos
-      if (currentUser.role !== 'SUPERADMIN') {
-        return r.correoSolicitante === currentUser.email;
+      // Regla de vista de cliente
+      if (currentUser.role === 'CLIENTE') {
+        const correoReg = (r.correoSolicitante || '').toLowerCase().trim();
+        if (correoReg !== currentUser.email) return false;
+      }
+
+      if (areaFiltro !== 'TODAS' && r.area !== areaFiltro) return false;
+      if (servicioFiltro !== 'TODOS' && r.tipoServicio !== servicioFiltro) return false;
+      
+      if (busquedaTexto) {
+        const matchEvento = (r.tipoEvento || '').toLowerCase().includes(busquedaTexto);
+        const matchSolicita = (r.solicita || '').toLowerCase().includes(busquedaTexto);
+        if (!matchEvento && !matchSolicita) return false;
       }
       return true;
     })
     .map(r => {
-      let color = '#2563EB'; // Foto Booth
-      if (r.tipoServicio.includes('Foto Gif')) color = '#E3173E';
-      if (r.tipoServicio === '360°') color = '#16A34A';
-      if (r.estado === 'Cancelado') color = '#000000';
+      const fechaISO = String(r.fecha).split('T')[0];
+      const esCancelado = r.estado === 'Cancelado';
+      let color = '#000000'; 
+
+      if (esCancelado) {
+        color = '#000000'; 
+      } else if (r.tipoServicio.includes('Foto Gif')) {
+        color = '#E3173E'; 
+      } else if (r.tipoServicio === 'Foto Booth') {
+        color = '#2563EB'; 
+      } else if (r.tipoServicio === '360°') {
+        color = '#16A34A'; 
+      }
 
       return {
         id: r.numEvento,
-        title: `${r.tipoEvento} (${r.area})`,
-        start: r.fecha,
+        title: `${r.tipoEvento} [${r.tipoServicio}]`,
+        start: fechaISO,
         backgroundColor: color,
         borderColor: color,
-        extendedProps: r
+        extendedProps: { ...r } 
       };
     });
 }
 
-// --- GESTIÓN DE FILAS DINÁMICAS ---
+function inicializarCalendario() {
+  const calendarEl = document.getElementById('calendar');
+  if (calendarObj) calendarObj.destroy(); 
+
+  calendarObj = new FullCalendar.Calendar(calendarEl, {
+    initialView: 'dayGridMonth',
+    locale: 'es',
+    headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,listWeek' },
+    events: generarEventosProcesados(),
+    
+    dateClick: function(info) {
+      abrirModalNuevo(info.dateStr);
+    },
+
+    eventClick: (info) => {
+      const p = info.event.extendedProps;
+      const esDuenio = (p.correoSolicitante || '').toLowerCase().trim() === currentUser.email;
+      
+      if (currentUser.role !== 'SUPERADMIN' && !esDuenio) {
+        mostrarToast("Solo puedes editar tus propias activaciones.", "error");
+        return;
+      }
+
+      idEventoEditando = p.numEvento; 
+      document.getElementById('modalTitulo').innerText = "Editar Activación";
+      document.getElementById('btnGuardar').innerText = "Actualizar";
+      document.getElementById('btnCancelar').classList.remove('hidden');
+      document.getElementById('btnAgregarFila').classList.add('hidden');
+
+      if (currentUser.role === 'SUPERADMIN') {
+        document.getElementById('contenedorEdicion').classList.remove('hidden');
+      } else {
+        document.getElementById('contenedorEdicion').classList.add('hidden');
+      }
+
+      document.getElementById('area').value = p.area || "DPA";
+      document.getElementById('solicita').value = p.solicita || currentUser.name;
+      document.getElementById('costos').value = p.centroCostos || "";
+      document.getElementById('observaciones').value = p.observaciones || "";
+
+      // Limpiar y crear única fila para edición
+      document.getElementById('contenedorBloques').innerHTML = "";
+      contadorFilas = 0;
+      agregarFilaActivacion(String(p.fecha).split('T')[0], p.tipoServicio, p.tipoEvento);
+
+      if (currentUser.role === 'SUPERADMIN') {
+        document.getElementById('tablet').value = p.tablet || "";
+        document.getElementById('fotos').value = p.cantFotos || "";
+        document.getElementById('link').value = p.link || ""; 
+      }
+
+      abrirModal();
+    }
+  });
+  calendarObj.render();
+}
+
+window.aplicarFiltros = () => {
+  if (calendarObj) {
+    calendarObj.removeAllEvents();
+    calendarObj.addEventSource(generarEventosProcesados());
+  }
+};
+
+// --- GESTIÓN DINÁMICA DE BLOQUES (FILAS) ---
 function agregarFilaActivacion(fechaPorDefecto = "", servicioDef = "", nombreDef = "") {
   const container = document.getElementById('contenedorBloques');
   const index = contadorFilas++;
+  const esEdicion = idEventoEditando !== null;
+  const hoyISO = new Date().toISOString().split('T')[0];
+  const minAttr = (esEdicion || currentUser.role === 'SUPERADMIN') ? '' : `min="${hoyISO}"`;
 
   const div = document.createElement('div');
   div.className = "bg-white p-4 rounded-xl border border-gray-200 space-y-3 relative fila-activacion";
@@ -145,18 +223,13 @@ function agregarFilaActivacion(fechaPorDefecto = "", servicioDef = "", nombreDef
   div.innerHTML = `
     <div class="flex justify-between items-center border-b pb-2">
       <span class="text-xs font-bold text-gray-500 uppercase">Activación #${container.children.length + 1}</span>
-      ${container.children.length > 0 ? `<button type="button" onclick="eliminarFila(${index})" class="text-xs text-red-600 font-bold hover:underline">Quitar</button>` : ''}
+      ${(!esEdicion && container.children.length > 0) ? `<button type="button" onclick="eliminarFila(${index})" class="text-xs text-red-600 font-bold hover:underline">Quitar</button>` : ''}
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
       <div>
         <label class="block text-xs font-bold text-gray-600 mb-1">Nombre del Evento *</label>
         <input type="text" id="nombreEvento_${index}" value="${nombreDef}" required class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo">
-      </div>
-
-      <div>
-        <label class="block text-xs font-bold text-gray-600 mb-1">Fecha *</label>
-        <input type="date" id="fechaEvento_${index}" value="${fechaPorDefecto}" required class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo">
       </div>
 
       <div>
@@ -175,9 +248,13 @@ function agregarFilaActivacion(fechaPorDefecto = "", servicioDef = "", nombreDef
           </label>
         </div>
       </div>
+
+      <div>
+        <label class="block text-xs font-bold text-gray-600 mb-1">Fecha *</label>
+        <input type="date" id="fechaEvento_${index}" ${minAttr} value="${fechaPorDefecto}" required class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo">
+      </div>
     </div>
   `;
-
   container.appendChild(div);
 }
 
@@ -194,54 +271,37 @@ function toggleImpresora(index) {
   }
 }
 
-function eliminarFila(index) {
+window.eliminarFila = function(index) {
   const elem = document.getElementById(`fila_${index}`);
   if (elem) elem.remove();
+  
+  // Renumerar títulos
+  const container = document.getElementById('contenedorBloques');
+  Array.from(container.children).forEach((child, i) => {
+    child.querySelector('span.uppercase').innerText = `Activación #${i + 1}`;
+  });
 }
 
-// --- MODALES ---
-function abrirModalNuevo(fechaInicial = "") {
-  idEventoEditando = null;
+// --- MODALES Y GUARDADO ---
+window.abrirModalNuevo = function(fechaInicial = "") {
+  idEventoEditando = null; 
   document.getElementById('formActivacion').reset();
-  document.getElementById('modalTitulo').innerText = "Registrar Nueva Activación";
+  document.getElementById('modalTitulo').innerText = "Registrar Nueva Solicitud";
+  document.getElementById('btnGuardar').innerText = "Guardar Solicitud";
+  
   document.getElementById('solicita').value = currentUser.name;
   document.getElementById('contenedorEdicion').classList.add('hidden');
   document.getElementById('btnCancelar').classList.add('hidden');
   document.getElementById('btnAgregarFila').classList.remove('hidden');
-
+  
   document.getElementById('contenedorBloques').innerHTML = "";
   contadorFilas = 0;
   agregarFilaActivacion(fechaInicial);
+  
+  abrirModal();
+};
 
-  mostrarModal();
-}
-
-function abrirModalEdicion(ev) {
-  idEventoEditando = ev.numEvento;
-  document.getElementById('modalTitulo').innerText = `Editar Activación #${ev.numEvento}`;
-  document.getElementById('solicita').value = ev.solicita;
-  document.getElementById('area').value = ev.area;
-  document.getElementById('costos').value = ev.centroCostos;
-  document.getElementById('observaciones').value = ev.observaciones;
-
-  // Renderizar única fila
-  document.getElementById('contenedorBloques').innerHTML = "";
-  contadorFilas = 0;
-  agregarFilaActivacion(ev.fecha, ev.tipoServicio, ev.tipoEvento);
-  document.getElementById('btnAgregarFila').classList.add('hidden');
-
-  if (currentUser.role === 'SUPERADMIN') {
-    document.getElementById('contenedorEdicion').classList.remove('hidden');
-    document.getElementById('tablet').value = ev.tablet || "";
-    document.getElementById('fotos').value = ev.cantFotos || "";
-    document.getElementById('link').value = ev.link || "";
-  }
-
-  document.getElementById('btnCancelar').classList.remove('hidden');
-  mostrarModal();
-}
-
-function mostrarModal() {
+window.abrirModal = function() {
   const overlay = document.getElementById('modalOverlay');
   const box = document.getElementById('modalBox');
   overlay.classList.remove('hidden');
@@ -249,25 +309,21 @@ function mostrarModal() {
     overlay.classList.remove('opacity-0');
     box.classList.remove('scale-95');
   }, 10);
-}
+};
 
-function cerrarModal() {
+window.cerrarModal = function() {
   const overlay = document.getElementById('modalOverlay');
   const box = document.getElementById('modalBox');
   overlay.classList.add('opacity-0');
   box.classList.add('scale-95');
   setTimeout(() => overlay.classList.add('hidden'), 300);
-}
+};
 
-// --- GUARDAR Y REGLA DE 3 DÍAS ---
 document.getElementById('formActivacion').addEventListener('submit', async (e) => {
   e.preventDefault();
-
+  
   const filas = document.getElementById('contenedorBloques').children;
-  if (filas.length === 0) {
-    mostrarToast("Agrega al menos una activación.", "error");
-    return;
-  }
+  if (filas.length === 0) return mostrarToast("Agrega al menos una activación.", "error");
 
   let payloadItems = [];
 
@@ -285,7 +341,7 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
       servicioFinal = quiereImpresora ? 'Foto Gif Impresión' : 'Foto Gif Virtual';
     }
 
-    // --- REGLA DE 3 DÍAS MARGEN EN FOTO GIF IMPRESIÓN ---
+    // Regla de 3 días para Foto Gif Impresión
     if (currentUser.role !== 'SUPERADMIN' && servicioFinal === 'Foto Gif Impresión' && fecha) {
       const fechaElegida = new Date(fecha + 'T00:00:00').getTime();
       const unDiaMs = 24 * 60 * 60 * 1000;
@@ -296,18 +352,18 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
         }
         const fechaExistente = new Date(String(r.fecha).split('T')[0] + 'T00:00:00').getTime();
         const difDias = Math.abs((fechaElegida - fechaExistente) / unDiaMs);
-        return difDias <= 1; // Bloquea día anterior, mismo día y día posterior
+        return difDias <= 1;
       });
 
       if (conflicto) {
         const fechaConflicto = String(conflicto.fecha).split('T')[0];
-        alert(`❌ SOLICITUD RECHAZADA: No se puede agendar "${nombre}".\n\nMotivo: Ya existe un 'Foto Gif con Impresora' el ${fechaConflicto}.\nEl servicio requiere un margen de descanso de 3 días (día previo, día del evento y día posterior).`);
-        return;
+        alert(`❌ SOLICITUD RECHAZADA:\n\nYa existe un evento de 'Foto Gif con Impresora' el día ${fechaConflicto}.\nEl servicio requiere un margen de descanso de 3 días (día previo, día del evento y día posterior).`);
+        return; 
       }
     }
 
     payloadItems.push({
-      numEvento: idEventoEditando,
+      numEvento: idEventoEditando, 
       tipoEvento: nombre,
       area: document.getElementById('area').value,
       solicita: currentUser.name,
@@ -315,16 +371,18 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
       centroCostos: document.getElementById('costos').value,
       tipoServicio: servicioFinal,
       estado: "Confirmado",
-      fecha: fecha,
-      observaciones: document.getElementById('observaciones').value,
       tablet: (currentUser.role === 'SUPERADMIN' && idEventoEditando) ? document.getElementById('tablet').value : "",
+      fecha: fecha, 
+      cantPersonas: 1, // <- Se mantiene tu lógica original
       cantFotos: (currentUser.role === 'SUPERADMIN' && idEventoEditando) ? document.getElementById('fotos').value : "",
-      link: (currentUser.role === 'SUPERADMIN' && idEventoEditando) ? document.getElementById('link').value : ""
+      costo: 899,      // <- Se mantiene tu lógica original
+      link: (currentUser.role === 'SUPERADMIN' && idEventoEditando) ? document.getElementById('link').value : "", 
+      observaciones: document.getElementById('observaciones').value
     });
   }
 
   const btn = document.getElementById('btnGuardar');
-  btn.innerText = "Procesando...";
+  btn.innerText = `Procesando...`;
   btn.disabled = true;
 
   try {
@@ -334,21 +392,20 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
       body: JSON.stringify({ action: idEventoEditando ? 'update' : 'create_multiple', items: payloadItems })
     });
 
-    mostrarToast("Guardado con éxito");
+    mostrarToast("Procesado correctamente");
     await cargarDatosDesdeGoogle();
     cerrarModal();
-  } catch (err) {
-    mostrarToast("Error al guardar en el servidor", "error");
+  } catch (error) {
+    mostrarToast("Error de conexión al guardar.", "error");
   } finally {
     btn.innerText = "Guardar";
     btn.disabled = false;
   }
 });
 
-// --- REPARACIÓN BOTÓN CANCELAR REGISTRO ---
-async function cancelarRegistro() {
+// --- CANCELAR EVENTO ---
+window.cancelarRegistro = async function() {
   if (!idEventoEditando) return;
-
   if (!confirm("¿Seguro que deseas cancelar/eliminar este evento?")) return;
 
   const btn = document.getElementById('btnCancelar');
@@ -361,7 +418,6 @@ async function cancelarRegistro() {
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: 'delete', numEvento: idEventoEditando })
     });
-
     mostrarToast("Evento cancelado correctamente");
     await cargarDatosDesdeGoogle();
     cerrarModal();
@@ -371,18 +427,51 @@ async function cancelarRegistro() {
     btn.innerText = "Cancelar Evento";
     btn.disabled = false;
   }
+};
+
+// --- GESTIÓN DE ADMINS ---
+window.abrirModalAdmins = function() {
+  document.getElementById('modalAdminsOverlay').classList.remove('hidden');
+  renderizarListaAdmins();
+};
+
+window.cerrarModalAdmins = function() {
+  document.getElementById('modalAdminsOverlay').classList.add('hidden');
+};
+
+function renderizarListaAdmins() {
+  const lista = document.getElementById('listaAdmins');
+  lista.innerHTML = listaAdmins.map(adm => `
+    <li class="py-2 flex justify-between items-center">
+      <span>${adm}</span>
+      ${adm !== 'mtello@esan.edu.pe' ? `<button onclick="eliminarAdmin('${adm}')" class="text-red-500 font-bold hover:underline">Eliminar</button>` : '<span class="text-gray-400 font-bold">Principal</span>'}
+    </li>
+  `).join('');
 }
 
-// --- FILTROS Y TOASTS ---
-function aplicarFiltros() {
-  if (!calendarObj) return;
-  calendarObj.refetchEvents();
-}
+window.agregarAdmin = async function() {
+  const input = document.getElementById('nuevoAdminEmail');
+  const email = input.value.trim().toLowerCase();
+  if (!email.endsWith('@esan.edu.pe')) return mostrarToast("Debe ser un correo @esan.edu.pe", "error");
 
-function mostrarToast(msg, tipo = "success") {
-  const toast = document.createElement('div');
-  toast.className = `p-3 rounded-lg text-white text-xs font-bold shadow-lg transition-all ${tipo === 'error' ? 'bg-red-600' : 'bg-black'}`;
-  toast.innerText = msg;
-  document.getElementById('toastContainer').appendChild(toast);
-  setTimeout(() => toast.remove(), 3500);
-}
+  await fetch(GOOGLE_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'add_admin', email: email })
+  });
+
+  input.value = '';
+  await cargarDatosDesdeGoogle();
+  renderizarListaAdmins();
+};
+
+window.eliminarAdmin = async function(email) {
+  await fetch(GOOGLE_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'remove_admin', email: email })
+  });
+
+  await cargarDatosDesdeGoogle();
+  renderizarListaAdmins();
+};
