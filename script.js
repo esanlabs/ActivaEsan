@@ -69,13 +69,16 @@ async function cargarDatosDesdeGoogle() {
 
     configurarInterfazSegunRol();
 
-    // PRIMERO: Hacemos visible el contenedor en el DOM
+    // 1. Mostrar contenedor primero
     document.getElementById('loader').classList.add('hidden');
     document.getElementById('calendarContainer').classList.remove('hidden');
 
-    // SEGUNDO: Inicializamos el calendario cuando ya es visible
-    inicializarCalendario();
+    // 2. Inicializar en el siguiente ciclo de renderizado para dimensiones correctas
+    requestAnimationFrame(() => {
+      inicializarCalendario();
+    });
   } catch (error) {
+    console.error("Error al cargar datos:", error);
     mostrarToast("Error al cargar datos desde el servidor.", "error");
     document.getElementById('loader').classList.add('hidden');
   }
@@ -83,16 +86,25 @@ async function cargarDatosDesdeGoogle() {
 
 function configurarInterfazSegunRol() {
   const badge = document.getElementById('badgeRol');
+  const filtroArea = document.getElementById('filtroArea');
+  const filtroServicio = document.getElementById('filtroServicio');
+
   if (currentUser.role === 'SUPERADMIN') {
     badge.innerText = 'Super Admin';
     badge.className = 'text-xs bg-red-100 text-marca-rojo px-2 py-0.5 rounded-full uppercase ml-2 font-bold';
     document.getElementById('btnGestionAdmins').classList.remove('hidden');
     document.getElementById('btnExcel').classList.remove('hidden');
+
+    if (filtroArea) filtroArea.classList.remove('hidden');
+    if (filtroServicio) filtroServicio.classList.remove('hidden');
   } else {
     badge.innerText = 'Cliente';
     badge.className = 'text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full uppercase ml-2 font-bold';
     document.getElementById('btnGestionAdmins').classList.add('hidden');
     document.getElementById('btnExcel').classList.add('hidden');
+
+    if (filtroArea) filtroArea.classList.add('hidden');
+    if (filtroServicio) filtroServicio.classList.add('hidden');
   }
 }
 
@@ -103,16 +115,15 @@ function generarEventosProcesados() {
   const busquedaTexto = (document.getElementById('buscadorTexto')?.value || '').toLowerCase().trim();
 
   return registrosCargados
-    .filter(r => r.fecha)
+    .filter(r => r && r.fecha)
     .filter(r => {
-      // Regla de vista de cliente
       if (currentUser.role === 'CLIENTE') {
         const correoReg = (r.correoSolicitante || '').toLowerCase().trim();
         if (correoReg !== currentUser.email) return false;
       }
 
-      if (areaFiltro !== 'TODAS' && r.area !== areaFiltro) return false;
-      if (servicioFiltro !== 'TODOS' && r.tipoServicio !== servicioFiltro) return false;
+      if (areaFiltro !== 'TODAS' && (r.area || '') !== areaFiltro) return false;
+      if (servicioFiltro !== 'TODOS' && (r.tipoServicio || '') !== servicioFiltro) return false;
       
       if (busquedaTexto) {
         const matchEvento = (r.tipoEvento || '').toLowerCase().includes(busquedaTexto);
@@ -124,21 +135,22 @@ function generarEventosProcesados() {
     .map(r => {
       const fechaISO = String(r.fecha).split('T')[0];
       const esCancelado = r.estado === 'Cancelado';
+      const servicio = r.tipoServicio || '';
       let color = '#000000'; 
 
       if (esCancelado) {
         color = '#000000'; 
-      } else if (r.tipoServicio.includes('Foto Gif')) {
+      } else if (servicio.includes('Foto Gif')) {
         color = '#E3173E'; 
-      } else if (r.tipoServicio === 'Foto Booth') {
+      } else if (servicio === 'Foto Booth') {
         color = '#2563EB'; 
-      } else if (r.tipoServicio === '360°') {
+      } else if (servicio === '360°') {
         color = '#16A34A'; 
       }
 
       return {
         id: r.numEvento,
-        title: `${r.tipoEvento} [${r.tipoServicio}]`,
+        title: `${r.tipoEvento || 'Sin título'} [${servicio}]`,
         start: fechaISO,
         backgroundColor: color,
         borderColor: color,
@@ -154,7 +166,8 @@ function inicializarCalendario() {
   calendarObj = new FullCalendar.Calendar(calendarEl, {
     initialView: 'dayGridMonth',
     locale: 'es',
-    height: 'auto', // <- EVITA QUE EL CALENDARIO COLAPSE O SE ENCOJA
+    contentHeight: 'auto',
+    handleWindowResize: true,
     headerToolbar: { 
       left: 'prev,next today', 
       center: 'title', 
@@ -193,7 +206,7 @@ function inicializarCalendario() {
 
       document.getElementById('contenedorBloques').innerHTML = "";
       contadorFilas = 0;
-      agregarFilaActivacion(String(p.fecha).split('T')[0], p.tipoServicio, p.tipoEvento);
+      agregarFilaActivacion(String(p.fecha).split('T')[0], p.tipoServicio || "", p.tipoEvento || "");
 
       if (currentUser.role === 'SUPERADMIN') {
         document.getElementById('tablet').value = p.tablet || "";
@@ -207,10 +220,9 @@ function inicializarCalendario() {
 
   calendarObj.render();
 
-  // Asegura el ajuste correcto de dimensiones en pantalla
   setTimeout(() => {
     calendarObj.updateSize();
-  }, 50);
+  }, 100);
 }
 
 window.aplicarFiltros = () => {
@@ -287,7 +299,6 @@ window.eliminarFila = function(index) {
   const elem = document.getElementById(`fila_${index}`);
   if (elem) elem.remove();
   
-  // Renumerar títulos
   const container = document.getElementById('contenedorBloques');
   Array.from(container.children).forEach((child, i) => {
     child.querySelector('span.uppercase').innerText = `Activación #${i + 1}`;
@@ -304,7 +315,6 @@ window.abrirModalNuevo = function(fechaInicial = "") {
   document.getElementById('solicita').value = currentUser.name;
   document.getElementById('contenedorEdicion').classList.add('hidden');
   document.getElementById('btnCancelar').classList.add('hidden');
-  document.getElementById('btnAgregarFila').classList.remove('hidden');
   
   document.getElementById('contenedorBloques').innerHTML = "";
   contadorFilas = 0;
@@ -353,13 +363,12 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
       servicioFinal = quiereImpresora ? 'Foto Gif Impresión' : 'Foto Gif Virtual';
     }
 
-    // Regla de 3 días para Foto Gif Impresión
     if (currentUser.role !== 'SUPERADMIN' && servicioFinal === 'Foto Gif Impresión' && fecha) {
       const fechaElegida = new Date(fecha + 'T00:00:00').getTime();
       const unDiaMs = 24 * 60 * 60 * 1000;
 
       const conflicto = registrosCargados.find(r => {
-        if (r.tipoServicio !== 'Foto Gif Impresión' || r.estado === 'Cancelado' || r.numEvento === idEventoEditando) {
+        if (!r.tipoServicio || r.tipoServicio !== 'Foto Gif Impresión' || r.estado === 'Cancelado' || r.numEvento === idEventoEditando) {
           return false;
         }
         const fechaExistente = new Date(String(r.fecha).split('T')[0] + 'T00:00:00').getTime();
@@ -385,9 +394,9 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
       estado: "Confirmado",
       tablet: (currentUser.role === 'SUPERADMIN' && idEventoEditando) ? document.getElementById('tablet').value : "",
       fecha: fecha, 
-      cantPersonas: 1, // <- Se mantiene tu lógica original
+      cantPersonas: 1,
       cantFotos: (currentUser.role === 'SUPERADMIN' && idEventoEditando) ? document.getElementById('fotos').value : "",
-      costo: 899,      // <- Se mantiene tu lógica original
+      costo: 899,
       link: (currentUser.role === 'SUPERADMIN' && idEventoEditando) ? document.getElementById('link').value : "", 
       observaciones: document.getElementById('observaciones').value
     });
