@@ -235,13 +235,17 @@ window.aplicarFiltros = () => {
   }
 };
 
-// --- GESTIÓN DINÁMICA DE BLOQUES (FILAS) ---
-function agregarFilaActivacion(fechaPorDefecto = "", servicioDef = "", nombreDef = "") {
+function agregarFilaActivacion(fechaPorDefecto = "", servicioDef = "", nombreDef = "", costoDef = "", obsDef = "") {
   const container = document.getElementById('contenedorBloques');
   const index = contadorFilas++;
   const esEdicion = idEventoEditando !== null;
   const hoyISO = new Date().toISOString().split('T')[0];
   const minAttr = (esEdicion || currentUser.role === 'SUPERADMIN') ? '' : `min="${hoyISO}"`;
+
+  // Verificar el estado actual del checkbox general
+  const unificado = document.getElementById('chkUnificarCostos') ? document.getElementById('chkUnificarCostos').checked : true;
+  const estadoDisabled = unificado ? 'disabled' : '';
+  const opacidad = unificado ? 'opacity-50' : '';
 
   const div = document.createElement('div');
   div.className = "bg-white p-4 rounded-xl border border-gray-200 space-y-3 relative fila-activacion";
@@ -281,10 +285,20 @@ function agregarFilaActivacion(fechaPorDefecto = "", servicioDef = "", nombreDef
         <input type="date" id="fechaEvento_${index}" onchange="validarImpresorasEnTiempoReal()" ${minAttr} value="${fechaPorDefecto}" required class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo">
       </div>
     </div>
+
+    <!-- SECCIÓN UNITARIA DE COSTOS Y OBSERVACIONES -->
+    <div id="divCostosUnitario_${index}" class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2 pt-2 border-t border-gray-100 transition-opacity ${opacidad}">
+      <div>
+        <label class="block text-xs font-bold text-gray-600 mb-1">Centro de Costos (Unitario)</label>
+        <input type="text" id="costos_${index}" value="${costoDef}" ${estadoDisabled} class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo disabled:bg-gray-100">
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-gray-600 mb-1">Observaciones (Unitario)</label>
+        <textarea id="observaciones_${index}" rows="1" ${estadoDisabled} class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo disabled:bg-gray-100">${obsDef}</textarea>
+      </div>
+    </div>
   `;
   container.appendChild(div);
-  
-  // Ejecutamos la validación inmediatamente al crear una nueva fila
   setTimeout(validarImpresorasEnTiempoReal, 50);
 }
 
@@ -353,7 +367,7 @@ window.cerrarModal = function() {
   setTimeout(() => overlay.classList.add('hidden'), 300);
 };
 
-// --- GUARDADO Y VALIDACIÓN DE LÍMITE GLOBAL (2 IMPRESORAS) ---
+// --- GUARDADO ---
 document.getElementById('formActivacion').addEventListener('submit', async (e) => {
   e.preventDefault();
   
@@ -361,6 +375,11 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
   if (filas.length === 0) return mostrarToast("Agrega al menos una activación.", "error");
 
   let payloadItems = [];
+  
+  // Saber si está marcado el check general
+  const unificarCostos = document.getElementById('chkUnificarCostos') ? document.getElementById('chkUnificarCostos').checked : false;
+  const costoGeneral = document.getElementById('costos').value;
+  const obsGeneral = document.getElementById('observaciones').value;
 
   for (let i = 0; i < filas.length; i++) {
     const divId = filas[i].id;
@@ -371,7 +390,10 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
     const servicioBase = document.getElementById(`servicio_${index}`).value;
     const checkObj = document.getElementById(`checkImpresora_${index}`);
     
-    // Si está bloqueado por validación y alguien intentó burlarlo (hack de HTML), lo forzamos a apagado
+    // Obtener los datos unitarios
+    const costoUnitario = document.getElementById(`costos_${index}`) ? document.getElementById(`costos_${index}`).value : "";
+    const obsUnitaria = document.getElementById(`observaciones_${index}`) ? document.getElementById(`observaciones_${index}`).value : "";
+
     const quiereImpresora = !checkObj.disabled && checkObj.checked;
 
     let servicioFinal = servicioBase;
@@ -385,7 +407,11 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
       area: document.getElementById('area').value,
       solicita: currentUser.name,
       correoSolicitante: currentUser.email,
-      centroCostos: document.getElementById('costos').value,
+      
+      // LA MAGIA: Si el check está marcado, usa el General; si no, usa el Unitario
+      centroCostos: unificarCostos ? costoGeneral : costoUnitario,
+      observaciones: unificarCostos ? obsGeneral : obsUnitaria,
+      
       tipoServicio: servicioFinal,
       estado: "Confirmado",
       tablet: (currentUser.role === 'SUPERADMIN' && idEventoEditando) ? document.getElementById('tablet').value : "",
@@ -393,10 +419,11 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
       cantPersonas: 1,
       cantFotos: (currentUser.role === 'SUPERADMIN' && idEventoEditando) ? document.getElementById('fotos').value : "",
       costo: 899,
-      link: (currentUser.role === 'SUPERADMIN' && idEventoEditando) ? document.getElementById('link').value : "", 
-      observaciones: document.getElementById('observaciones').value
+      link: (currentUser.role === 'SUPERADMIN' && idEventoEditando) ? document.getElementById('link').value : ""
     });
   }
+
+  /* ... A partir de aquí sigue igual tu código (Validación de impresoras, Fetch a Google Script, etc.) ... */
 
   const btn = document.getElementById('btnGuardar');
   btn.innerText = `Procesando...`;
@@ -595,4 +622,29 @@ window.validarImpresorasEnTiempoReal = function() {
       checkImpresora.parentElement.classList.remove('opacity-50', 'cursor-not-allowed');
     }
   });
+};
+
+window.toggleUnificarCostos = function() {
+  const unificado = document.getElementById('chkUnificarCostos').checked;
+  const contenedorGeneral = document.getElementById('contenedorCostosGeneral');
+  
+  // Opacidad visual para el contenedor general
+  contenedorGeneral.classList.toggle('opacity-50', !unificado);
+  document.getElementById('costos').disabled = !unificado;
+  document.getElementById('observaciones').disabled = !unificado;
+
+  // Habilitar/Deshabilitar los inputs unitarios en cada fila
+  const filas = document.getElementById('contenedorBloques').children;
+  for (let i = 0; i < filas.length; i++) {
+    const index = filas[i].id.split('_')[1];
+    const divUnitario = document.getElementById(`divCostosUnitario_${index}`);
+    const inputCosto = document.getElementById(`costos_${index}`);
+    const inputObs = document.getElementById(`observaciones_${index}`);
+    
+    if (divUnitario && inputCosto && inputObs) {
+      divUnitario.classList.toggle('opacity-50', unificado);
+      inputCosto.disabled = unificado;
+      inputObs.disabled = unificado;
+    }
+  }
 };
