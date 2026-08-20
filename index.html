@@ -139,6 +139,11 @@
 
       <div class="p-8">
         <form id="formActivacion" class="space-y-6">
+          
+          <!-- CAMPOS OCULTOS AGREGADOS PARA CONTROL DE EDICIÓN -->
+          <input type="hidden" id="eventoId" value="">
+          <input type="hidden" id="esActualizacion" value="false">
+
           <!-- DATOS GENERALES (OBLIGATORIOS) -->
           <div class="bg-gray-50 p-5 rounded-xl border border-gray-200">
             <h3 class="text-sm font-bold text-marca-negro mb-4 uppercase tracking-wider">Datos Generales</h3>
@@ -194,6 +199,12 @@
               </button>
             </div>
             <div id="contenedorBloques" class="space-y-3"></div>
+          </div>
+
+          <!-- HISTORIAL DE CAMBIOS AGREGADO -->
+          <div id="contenedorHistorial" class="hidden bg-gray-50 p-4 rounded-xl border border-gray-200">
+            <h3 class="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">Historial de Cambios</h3>
+            <div id="listaHistorial" class="space-y-1 text-xs text-gray-600 max-h-32 overflow-y-auto"></div>
           </div>
 
           <!-- MODO SUPER ADMIN -->
