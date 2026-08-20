@@ -314,12 +314,6 @@ function agregarFilaActivacion(fechaPorDefecto = "", servicioDef = "", nombreDef
       </div>
     </div>
 
-      <div>
-        <label class="block text-xs font-bold text-gray-600 mb-1">Fecha *</label>
-        <input type="date" id="fechaEvento_${index}" onchange="validarImpresorasEnTiempoReal()" ${minAttr} value="${fechaPorDefecto}" required class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo">
-      </div>
-    </div>
-
     <div id="divCostosUnitario_${index}" class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2 pt-2 border-t border-gray-100 transition-opacity ${opacidad}">
       <div>
         <label class="block text-xs font-bold text-gray-600 mb-1">Centro de Costos (Unitario)</label>
