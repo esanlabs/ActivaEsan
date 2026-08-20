@@ -165,14 +165,22 @@
                 </select>
               </div>
 
-              <div class="col-span-1 md:col-span-2">
-                <label class="block text-xs font-bold text-marca-gris mb-1">Centro de Costos *</label>
-                <input type="text" id="costos" required placeholder="Ej: CC-10293" class="w-full border-gray-300 rounded-lg p-2.5 text-sm border focus:outline-none focus:border-marca-rojo">
-              </div>
-
-              <div class="col-span-1 md:col-span-2">
-                <label class="block text-xs font-bold text-marca-gris mb-1">Observaciones / Comentarios *</label>
-                <textarea id="observaciones" required rows="2" placeholder="Detalles de la solicitud..." class="w-full border-gray-300 rounded-lg p-2.5 text-sm border focus:outline-none focus:border-marca-rojo"></textarea>
+              <!-- BLOQUE GENERAL: CENTRO DE COSTOS Y OBSERVACIONES -->
+            <div class="col-span-1 md:col-span-2 bg-gray-50 p-4 rounded-xl border border-gray-200 mb-4 mt-2">
+              <label class="inline-flex items-center gap-2 text-sm font-bold text-marca-rojo cursor-pointer mb-3">
+                <input type="checkbox" id="chkUnificarCostos" onchange="toggleUnificarCostos()" checked class="rounded text-marca-rojo focus:ring-marca-rojo w-4 h-4">
+                Usar el mismo Centro de Costos y Observaciones para todas las activaciones
+              </label>
+              
+              <div id="contenedorCostosGeneral" class="grid grid-cols-1 md:grid-cols-2 gap-3 transition-opacity">
+                <div>
+                  <label class="block text-xs font-bold text-gray-600 mb-1">Centro de Costos (General)</label>
+                  <input type="text" id="costos" class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-gray-600 mb-1">Observaciones (General)</label>
+                  <textarea id="observaciones" rows="1" class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo"></textarea>
+                </div>
               </div>
             </div>
           </div>
