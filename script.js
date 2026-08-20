@@ -47,7 +47,7 @@ function mostrarToast(mensaje, tipo = 'exito') {
   if (!container) return;
   const toast = document.createElement('div');
   const bgColor = tipo === 'exito' ? 'bg-emerald-600' : 'bg-marca-rojo';
-  toast.className = `${bgColor} text-white px-4 py-3 rounded-xl shadow-xl text-xs font-medium flex items-center gap-3 pointer-events-auto transition-all`;
+  toast.className = `${bgColor} text-white px-4 py-3 rounded-xl shadow-xl text-xs font-medium flex items-center gap-3 pointer-events-auto transition-all z-50`;
   toast.innerHTML = `<span>${mensaje}</span><button onclick="this.parentElement.remove()" class="ml-auto font-bold">✕</button>`;
   container.appendChild(toast);
   setTimeout(() => toast.remove(), 4000);
@@ -61,7 +61,6 @@ async function cargarDatosDesdeGoogle() {
     const respuesta = await fetch(GOOGLE_SCRIPT_URL);
     const resData = await respuesta.json();
 
-    // Si Apps Script capturó un error interno en el servidor:
     if (resData.status === 'error') {
       throw new Error(`[Google Apps Script] ${resData.error || resData.errorDetallado}`);
     }
@@ -202,6 +201,10 @@ function inicializarCalendario() {
         document.getElementById('contenedorEdicion').classList.add('hidden');
       }
 
+      // Reiniciar lógica visual de Costos unificados para edición
+      document.getElementById('chkUnificarCostos').checked = true;
+      toggleUnificarCostos();
+
       document.getElementById('area').value = p.area || "DPA";
       document.getElementById('solicita').value = p.solicita || currentUser.name;
       document.getElementById('costos').value = p.centroCostos || "";
@@ -209,7 +212,9 @@ function inicializarCalendario() {
 
       document.getElementById('contenedorBloques').innerHTML = "";
       contadorFilas = 0;
-      agregarFilaActivacion(String(p.fecha).split('T')[0], p.tipoServicio || "", p.tipoEvento || "");
+      
+      // Enviamos también los costos y observaciones para que se pinten en la fila unitaria por si el admin desmarca el check
+      agregarFilaActivacion(String(p.fecha).split('T')[0], p.tipoServicio || "", p.tipoEvento || "", p.centroCostos || "", p.observaciones || "");
 
       if (currentUser.role === 'SUPERADMIN') {
         document.getElementById('tablet').value = p.tablet || "";
@@ -242,7 +247,6 @@ function agregarFilaActivacion(fechaPorDefecto = "", servicioDef = "", nombreDef
   const hoyISO = new Date().toISOString().split('T')[0];
   const minAttr = (esEdicion || currentUser.role === 'SUPERADMIN') ? '' : `min="${hoyISO}"`;
 
-  // Verificar el estado actual del checkbox general
   const unificado = document.getElementById('chkUnificarCostos') ? document.getElementById('chkUnificarCostos').checked : true;
   const estadoDisabled = unificado ? 'disabled' : '';
   const opacidad = unificado ? 'opacity-50' : '';
@@ -286,7 +290,6 @@ function agregarFilaActivacion(fechaPorDefecto = "", servicioDef = "", nombreDef
       </div>
     </div>
 
-    <!-- SECCIÓN UNITARIA DE COSTOS Y OBSERVACIONES -->
     <div id="divCostosUnitario_${index}" class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2 pt-2 border-t border-gray-100 transition-opacity ${opacidad}">
       <div>
         <label class="block text-xs font-bold text-gray-600 mb-1">Centro de Costos (Unitario)</label>
@@ -314,7 +317,6 @@ window.toggleImpresora = function(index) {
     check.checked = false;
   }
   
-  // Al cambiar el servicio, reevaluamos reglas
   validarImpresorasEnTiempoReal();
 };
 
@@ -327,7 +329,6 @@ window.eliminarFila = function(index) {
     child.querySelector('span.uppercase').innerText = `Activación #${i + 1}`;
   });
 
-  // Al eliminar una fila, liberamos posibles impresoras bloqueadas
   validarImpresorasEnTiempoReal();
 }
 
@@ -335,6 +336,11 @@ window.eliminarFila = function(index) {
 window.abrirModalNuevo = function(fechaInicial = "") {
   idEventoEditando = null; 
   document.getElementById('formActivacion').reset();
+  
+  // Reiniciar estado visual de los checkboxes de costos
+  document.getElementById('chkUnificarCostos').checked = true;
+  toggleUnificarCostos();
+
   document.getElementById('modalTitulo').innerText = "Registrar Nueva Solicitud";
   document.getElementById('btnGuardar').innerText = "Guardar Solicitud";
   
@@ -375,8 +381,8 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
   if (filas.length === 0) return mostrarToast("Agrega al menos una activación.", "error");
 
   let payloadItems = [];
-  
-  // Saber si está marcado el check general
+  let conteoImpresorasForm = {}; // ← Reparado: Faltaba este array para contar
+
   const unificarCostos = document.getElementById('chkUnificarCostos') ? document.getElementById('chkUnificarCostos').checked : false;
   const costoGeneral = document.getElementById('costos').value;
   const obsGeneral = document.getElementById('observaciones').value;
@@ -390,7 +396,6 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
     const servicioBase = document.getElementById(`servicio_${index}`).value;
     const checkObj = document.getElementById(`checkImpresora_${index}`);
     
-    // Obtener los datos unitarios
     const costoUnitario = document.getElementById(`costos_${index}`) ? document.getElementById(`costos_${index}`).value : "";
     const obsUnitaria = document.getElementById(`observaciones_${index}`) ? document.getElementById(`observaciones_${index}`).value : "";
 
@@ -399,6 +404,11 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
     let servicioFinal = servicioBase;
     if (servicioBase === 'Foto Gif') {
       servicioFinal = quiereImpresora ? 'Foto Gif Impresión' : 'Foto Gif Virtual';
+      
+      // Contar impresoras solicitadas en este formulario
+      if (quiereImpresora) {
+        conteoImpresorasForm[fecha] = (conteoImpresorasForm[fecha] || 0) + 1;
+      }
     }
 
     payloadItems.push({
@@ -408,7 +418,6 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
       solicita: currentUser.name,
       correoSolicitante: currentUser.email,
       
-      // LA MAGIA: Si el check está marcado, usa el General; si no, usa el Unitario
       centroCostos: unificarCostos ? costoGeneral : costoUnitario,
       observaciones: unificarCostos ? obsGeneral : obsUnitaria,
       
@@ -423,30 +432,6 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
     });
   }
 
-  /* ... A partir de aquí sigue igual tu código (Validación de impresoras, Fetch a Google Script, etc.) ... */
-
-  const btn = document.getElementById('btnGuardar');
-  btn.innerText = `Procesando...`;
-  btn.disabled = true;
-
-  try {
-    await fetch(GOOGLE_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: idEventoEditando ? 'update' : 'create_multiple', items: payloadItems })
-    });
-
-    mostrarToast("Procesado correctamente");
-    await cargarDatosDesdeGoogle();
-    cerrarModal();
-  } catch (error) {
-    mostrarToast("Error de conexión al guardar.", "error");
-  } finally {
-    btn.innerText = "Guardar";
-    btn.disabled = false;
-  }
-});
-
   // Validación: Máximo 2 impresoras en total (Formulario + Base de datos) considerando los 3 días
   for (const [fechaStr, countInForm] of Object.entries(conteoImpresorasForm)) {
     const fechaElegida = new Date(fechaStr + 'T00:00:00').getTime();
@@ -454,11 +439,10 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
     let countInDB = 0;
 
     registrosCargados.forEach(r => {
-      // Ignoramos eventos cancelados y el mismo evento si lo estamos editando
       if (r.tipoServicio === 'Foto Gif Impresión' && r.estado !== 'Cancelado' && r.numEvento !== idEventoEditando) {
         const fechaExistente = new Date(String(r.fecha).split('T')[0] + 'T00:00:00').getTime();
         const difDias = Math.abs((fechaElegida - fechaExistente) / unDiaMs);
-        if (difDias <= 1) countInDB++; // Cuenta si choca con el día antes, el mismo día o el día después
+        if (difDias <= 1) countInDB++; 
       }
     });
 
@@ -490,7 +474,7 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
   }
 });
 
-// --- CANCELAR EVENTO (CAMBIAR ESTADO A CANCELADO) ---
+// --- CANCELAR EVENTO ---
 window.cancelarRegistro = async function() {
   if (!idEventoEditando) return;
   if (!confirm("¿Seguro que deseas cancelar este evento? (Pasará a color negro)")) return;
@@ -503,7 +487,6 @@ window.cancelarRegistro = async function() {
     await fetch(GOOGLE_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      // Cambiamos 'delete' por 'cancel'
       body: JSON.stringify({ action: 'cancel', numEvento: idEventoEditando })
     });
     mostrarToast("Evento cancelado correctamente");
@@ -575,25 +558,22 @@ window.validarImpresorasEnTiempoReal = function() {
     const servicio = document.getElementById(`servicio_${index}`).value;
     const checkImpresora = document.getElementById(`checkImpresora_${index}`);
     
-    // Si no es Foto Gif o no hay fecha seleccionada, no hacemos cálculo
     if (servicio !== 'Foto Gif' || !fechaInput) return;
 
     const fechaElegida = new Date(fechaInput + 'T00:00:00').getTime();
     
-    // 1. Contar cuántas impresoras están ocupadas en la Base de Datos (Regla de 3 días)
     let countDB = 0;
     registrosCargados.forEach(r => {
       if (r.tipoServicio === 'Foto Gif Impresión' && r.estado !== 'Cancelado' && r.numEvento !== idEventoEditando) {
         const fechaExistente = new Date(String(r.fecha).split('T')[0] + 'T00:00:00').getTime();
         const difDias = Math.abs((fechaElegida - fechaExistente) / unDiaMs);
-        if (difDias <= 1) countDB++; // Día previo, mismo día, día posterior
+        if (difDias <= 1) countDB++; 
       }
     });
 
-    // 2. Contar cuántas impresoras se están pidiendo en las OTRAS filas de este mismo formulario
     let countForm = 0;
     filas.forEach(otraFila => {
-      if (otraFila.id === fila.id) return; // Ignoramos la fila actual
+      if (otraFila.id === fila.id) return; 
       
       const otroIndex = otraFila.id.split('_')[1];
       const otraFecha = document.getElementById(`fechaEvento_${otroIndex}`).value;
@@ -609,7 +589,6 @@ window.validarImpresorasEnTiempoReal = function() {
 
     const totalOcupadas = countDB + countForm;
 
-    // 3. Bloquear o desbloquear en base al límite (Máximo 2)
     if (totalOcupadas >= 2) {
       if (!checkImpresora.checked) {
         checkImpresora.disabled = true;
@@ -625,15 +604,21 @@ window.validarImpresorasEnTiempoReal = function() {
 };
 
 window.toggleUnificarCostos = function() {
-  const unificado = document.getElementById('chkUnificarCostos').checked;
+  const chkElement = document.getElementById('chkUnificarCostos');
+  if (!chkElement) return;
+
+  const unificado = chkElement.checked;
   const contenedorGeneral = document.getElementById('contenedorCostosGeneral');
   
-  // Opacidad visual para el contenedor general
-  contenedorGeneral.classList.toggle('opacity-50', !unificado);
-  document.getElementById('costos').disabled = !unificado;
-  document.getElementById('observaciones').disabled = !unificado;
+  if(contenedorGeneral) {
+    contenedorGeneral.classList.toggle('opacity-50', !unificado);
+  }
+  
+  const costoGeneral = document.getElementById('costos');
+  const obsGeneral = document.getElementById('observaciones');
+  if(costoGeneral) costoGeneral.disabled = !unificado;
+  if(obsGeneral) obsGeneral.disabled = !unificado;
 
-  // Habilitar/Deshabilitar los inputs unitarios en cada fila
   const filas = document.getElementById('contenedorBloques').children;
   for (let i = 0; i < filas.length; i++) {
     const index = filas[i].id.split('_')[1];
