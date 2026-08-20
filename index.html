@@ -134,23 +134,25 @@
       
       <div class="sticky top-0 bg-marca-blanco px-8 py-5 border-b border-gray-100 flex justify-between items-center z-10">
         <h2 id="modalTitulo" class="text-2xl font-bold text-marca-negro">Registrar Activación</h2>
-        <button onclick="cerrarModal()" class="text-marca-gris hover:text-marca-rojo bg-gray-100 p-2 rounded-full">✕</button>
+        <button type="button" onclick="cerrarModal()" class="text-marca-gris hover:text-marca-rojo bg-gray-100 p-2 rounded-full">✕</button>
       </div>
 
       <div class="p-8">
         <form id="formActivacion" class="space-y-6">
+          <!-- DATOS GENERALES (OBLIGATORIOS) -->
           <div class="bg-gray-50 p-5 rounded-xl border border-gray-200">
             <h3 class="text-sm font-bold text-marca-negro mb-4 uppercase tracking-wider">Datos Generales</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               
-              <div id="contenedorCantidad">
-                <label class="block text-xs font-bold text-marca-gris mb-1">N° de Activaciones</label>
-                <input type="number" id="cantActivaciones" min="1" max="10" value="1" onchange="renderizarBloques()" class="w-full border-gray-300 rounded-lg p-2.5 text-sm border focus:outline-none focus:border-marca-rojo">
+              <div>
+                <label class="block text-xs font-bold text-marca-gris mb-1">Solicita (Nombre)</label>
+                <input type="text" id="solicita" readonly class="w-full border-gray-200 bg-gray-100 text-gray-700 font-medium rounded-lg p-2.5 text-sm border focus:outline-none cursor-not-allowed">
               </div>
 
               <div>
                 <label class="block text-xs font-bold text-marca-gris mb-1">Área Solicitante *</label>
                 <select id="area" required class="w-full border-gray-300 rounded-lg p-2.5 text-sm border focus:outline-none focus:border-marca-rojo">
+                  <option value="">-- Seleccionar Área --</option>
                   <option value="DPA">DPA</option>
                   <option value="MKT Postgrado">MKT Postgrado</option>
                   <option value="MKT Pregrado">MKT Pregrado</option>
@@ -163,24 +165,28 @@
                 </select>
               </div>
 
-              <div>
-                <label class="block text-xs font-bold text-marca-gris mb-1">Solicita (Nombre)</label>
-                <input type="text" id="solicita" readonly class="w-full border-gray-200 bg-gray-100 text-gray-700 font-medium rounded-lg p-2.5 text-sm border focus:outline-none cursor-not-allowed">
-              </div>
-
-              <div>
-                <label class="block text-xs font-bold text-marca-gris mb-1">Centro Costos</label>
-                <input type="text" id="costos" class="w-full border-gray-300 rounded-lg p-2.5 text-sm border focus:outline-none focus:border-marca-rojo">
+              <div class="col-span-1 md:col-span-2">
+                <label class="block text-xs font-bold text-marca-gris mb-1">Centro de Costos *</label>
+                <input type="text" id="costos" required placeholder="Ej: CC-10293" class="w-full border-gray-300 rounded-lg p-2.5 text-sm border focus:outline-none focus:border-marca-rojo">
               </div>
 
               <div class="col-span-1 md:col-span-2">
-                <label class="block text-xs font-bold text-marca-gris mb-1">Observaciones Generales</label>
-                <textarea id="observaciones" rows="2" class="w-full border-gray-300 rounded-lg p-2.5 text-sm border focus:outline-none focus:border-marca-rojo"></textarea>
+                <label class="block text-xs font-bold text-marca-gris mb-1">Observaciones / Comentarios *</label>
+                <textarea id="observaciones" required rows="2" placeholder="Detalles de la solicitud..." class="w-full border-gray-300 rounded-lg p-2.5 text-sm border focus:outline-none focus:border-marca-rojo"></textarea>
               </div>
             </div>
           </div>
 
-          <div id="contenedorBloques" class="space-y-4"></div>
+          <!-- TABLA / BLOQUE DINÁMICO DE ACTIVACIONES -->
+          <div class="space-y-3">
+            <div class="flex justify-between items-center">
+              <h3 class="text-sm font-bold text-marca-negro uppercase tracking-wider">Detalle de Activaciones</h3>
+              <button type="button" id="btnAgregarFila" onclick="agregarFilaActivacion()" class="bg-gray-800 hover:bg-black text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm">
+                + Nueva Activación
+              </button>
+            </div>
+            <div id="contenedorBloques" class="space-y-3"></div>
+          </div>
 
           <!-- MODO SUPER ADMIN -->
           <div id="contenedorEdicion" class="hidden bg-red-50 p-5 rounded-xl border border-red-100">
@@ -212,7 +218,7 @@
           </div>
 
           <div class="flex justify-between items-center mt-6 pt-6 border-t border-gray-100">
-            <button type="button" id="btnCancelar" onclick="cancelarRegistro()" class="hidden px-4 py-2 rounded-full bg-amber-500 hover:bg-amber-600 text-white font-medium text-xs shadow-sm">
+            <button type="button" id="btnCancelar" onclick="cancelarRegistro()" class="hidden px-4 py-2 rounded-full bg-red-600 hover:bg-red-700 text-white font-medium text-xs shadow-sm">
               Cancelar Evento
             </button>
 
@@ -233,12 +239,12 @@
     <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
       <div class="flex justify-between items-center border-b pb-3">
         <h3 class="font-bold text-lg text-gray-800">Administrar Super Admins</h3>
-        <button onclick="cerrarModalAdmins()" class="text-gray-400 hover:text-black">✕</button>
+        <button type="button" onclick="cerrarModalAdmins()" class="text-gray-400 hover:text-black">✕</button>
       </div>
       
       <div class="flex gap-2">
         <input type="email" id="nuevoAdminEmail" placeholder="correo@esan.edu.pe" class="flex-1 border p-2 rounded-lg text-xs">
-        <button onclick="agregarAdmin()" class="bg-marca-rojo text-white px-3 py-2 rounded-lg text-xs font-bold">+ Agregar</button>
+        <button type="button" onclick="agregarAdmin()" class="bg-marca-rojo text-white px-3 py-2 rounded-lg text-xs font-bold">+ Agregar</button>
       </div>
 
       <ul id="listaAdmins" class="divide-y text-xs max-h-48 overflow-y-auto"></ul>
