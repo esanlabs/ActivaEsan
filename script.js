@@ -56,7 +56,6 @@ function mostrarToast(mensaje, tipo = 'exito') {
 // --- CARGA DE DATOS ---
 async function cargarDatosDesdeGoogle() {
   document.getElementById('loader').classList.remove('hidden');
-  document.getElementById('calendarContainer').classList.add('hidden');
 
   try {
     const respuesta = await fetch(GOOGLE_SCRIPT_URL);
@@ -69,12 +68,16 @@ async function cargarDatosDesdeGoogle() {
     currentUser.role = esAdmin ? 'SUPERADMIN' : 'CLIENTE';
 
     configurarInterfazSegunRol();
+
+    // PRIMERO: Hacemos visible el contenedor en el DOM
+    document.getElementById('loader').classList.add('hidden');
+    document.getElementById('calendarContainer').classList.remove('hidden');
+
+    // SEGUNDO: Inicializamos el calendario cuando ya es visible
     inicializarCalendario();
   } catch (error) {
     mostrarToast("Error al cargar datos desde el servidor.", "error");
-  } finally {
     document.getElementById('loader').classList.add('hidden');
-    document.getElementById('calendarContainer').classList.remove('hidden');
   }
 }
 
@@ -151,7 +154,12 @@ function inicializarCalendario() {
   calendarObj = new FullCalendar.Calendar(calendarEl, {
     initialView: 'dayGridMonth',
     locale: 'es',
-    headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,listWeek' },
+    height: 'auto', // <- EVITA QUE EL CALENDARIO COLAPSE O SE ENCOJA
+    headerToolbar: { 
+      left: 'prev,next today', 
+      center: 'title', 
+      right: 'dayGridMonth,timeGridWeek,listWeek' 
+    },
     events: generarEventosProcesados(),
     
     dateClick: function(info) {
@@ -171,7 +179,6 @@ function inicializarCalendario() {
       document.getElementById('modalTitulo').innerText = "Editar Activación";
       document.getElementById('btnGuardar').innerText = "Actualizar";
       document.getElementById('btnCancelar').classList.remove('hidden');
-      document.getElementById('btnAgregarFila').classList.add('hidden');
 
       if (currentUser.role === 'SUPERADMIN') {
         document.getElementById('contenedorEdicion').classList.remove('hidden');
@@ -184,7 +191,6 @@ function inicializarCalendario() {
       document.getElementById('costos').value = p.centroCostos || "";
       document.getElementById('observaciones').value = p.observaciones || "";
 
-      // Limpiar y crear única fila para edición
       document.getElementById('contenedorBloques').innerHTML = "";
       contadorFilas = 0;
       agregarFilaActivacion(String(p.fecha).split('T')[0], p.tipoServicio, p.tipoEvento);
@@ -198,7 +204,13 @@ function inicializarCalendario() {
       abrirModal();
     }
   });
+
   calendarObj.render();
+
+  // Asegura el ajuste correcto de dimensiones en pantalla
+  setTimeout(() => {
+    calendarObj.updateSize();
+  }, 50);
 }
 
 window.aplicarFiltros = () => {
