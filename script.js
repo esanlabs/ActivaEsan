@@ -1,4 +1,4 @@
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzdEBj55fO1ZvkxL2o-6Fyrry2w5fP7KeJ-dupAWd_MNpsr-ela-FiTEtgocGnVvREX/exec'; 
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwB3Bcy9QcSyab5DJ-Qv1foyKCodlLDt5vvs3vlVyXAkxTHkhhbc7eCSw0CCGByQDYL/exec'; 
 
 let currentUser = null; 
 let registrosCargados = [];
@@ -61,6 +61,11 @@ async function cargarDatosDesdeGoogle() {
     const respuesta = await fetch(GOOGLE_SCRIPT_URL);
     const resData = await respuesta.json();
 
+    // Si Apps Script capturó un error interno en el servidor:
+    if (resData.status === 'error') {
+      throw new Error(`[Google Apps Script] ${resData.error || resData.errorDetallado}`);
+    }
+
     registrosCargados = resData.registros || [];
     listaAdmins = resData.admins || ['mtello@esan.edu.pe'];
 
@@ -69,17 +74,15 @@ async function cargarDatosDesdeGoogle() {
 
     configurarInterfazSegunRol();
 
-    // 1. Mostrar contenedor primero
     document.getElementById('loader').classList.add('hidden');
     document.getElementById('calendarContainer').classList.remove('hidden');
 
-    // 2. Inicializar en el siguiente ciclo de renderizado para dimensiones correctas
     requestAnimationFrame(() => {
       inicializarCalendario();
     });
   } catch (error) {
     console.error("Error al cargar datos:", error);
-    mostrarToast("Error al cargar datos desde el servidor.", "error");
+    mostrarToast(`Error: ${error.message}`, "error");
     document.getElementById('loader').classList.add('hidden');
   }
 }
