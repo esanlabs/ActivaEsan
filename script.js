@@ -344,6 +344,7 @@ window.cerrarModal = function() {
   setTimeout(() => overlay.classList.add('hidden'), 300);
 };
 
+// --- GUARDADO Y VALIDACIÓN DE LÍMITE GLOBAL (2 IMPRESORAS) ---
 document.getElementById('formActivacion').addEventListener('submit', async (e) => {
   e.preventDefault();
   
@@ -351,6 +352,7 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
   if (filas.length === 0) return mostrarToast("Agrega al menos una activación.", "error");
 
   let payloadItems = [];
+  let conteoImpresorasForm = {}; // Para sumar lo que se pide en este mismo formulario
 
   for (let i = 0; i < filas.length; i++) {
     const divId = filas[i].id;
@@ -366,24 +368,8 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
       servicioFinal = quiereImpresora ? 'Foto Gif Impresión' : 'Foto Gif Virtual';
     }
 
-    if (currentUser.role !== 'SUPERADMIN' && servicioFinal === 'Foto Gif Impresión' && fecha) {
-      const fechaElegida = new Date(fecha + 'T00:00:00').getTime();
-      const unDiaMs = 24 * 60 * 60 * 1000;
-
-      const conflicto = registrosCargados.find(r => {
-        if (!r.tipoServicio || r.tipoServicio !== 'Foto Gif Impresión' || r.estado === 'Cancelado' || r.numEvento === idEventoEditando) {
-          return false;
-        }
-        const fechaExistente = new Date(String(r.fecha).split('T')[0] + 'T00:00:00').getTime();
-        const difDias = Math.abs((fechaElegida - fechaExistente) / unDiaMs);
-        return difDias <= 1;
-      });
-
-      if (conflicto) {
-        const fechaConflicto = String(conflicto.fecha).split('T')[0];
-        alert(`❌ SOLICITUD RECHAZADA:\n\nYa existe un evento de 'Foto Gif con Impresora' el día ${fechaConflicto}.\nEl servicio requiere un margen de descanso de 3 días (día previo, día del evento y día posterior).`);
-        return; 
-      }
+    if (servicioFinal === 'Foto Gif Impresión' && fecha) {
+      conteoImpresorasForm[fecha] = (conteoImpresorasForm[fecha] || 0) + 1;
     }
 
     payloadItems.push({
@@ -403,6 +389,27 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
       link: (currentUser.role === 'SUPERADMIN' && idEventoEditando) ? document.getElementById('link').value : "", 
       observaciones: document.getElementById('observaciones').value
     });
+  }
+
+  // Validación: Máximo 2 impresoras en total (Formulario + Base de datos) considerando los 3 días
+  for (const [fechaStr, countInForm] of Object.entries(conteoImpresorasForm)) {
+    const fechaElegida = new Date(fechaStr + 'T00:00:00').getTime();
+    const unDiaMs = 24 * 60 * 60 * 1000;
+    let countInDB = 0;
+
+    registrosCargados.forEach(r => {
+      // Ignoramos eventos cancelados y el mismo evento si lo estamos editando
+      if (r.tipoServicio === 'Foto Gif Impresión' && r.estado !== 'Cancelado' && r.numEvento !== idEventoEditando) {
+        const fechaExistente = new Date(String(r.fecha).split('T')[0] + 'T00:00:00').getTime();
+        const difDias = Math.abs((fechaElegida - fechaExistente) / unDiaMs);
+        if (difDias <= 1) countInDB++; // Cuenta si choca con el día antes, el mismo día o el día después
+      }
+    });
+
+    if ((countInForm + countInDB) > 2) {
+      alert(`❌ SOLICITUD RECHAZADA:\n\nSolo contamos con un máximo de 2 impresoras físicas globales.\nPara el ${fechaStr} estás solicitando ${countInForm} y ya hay ${countInDB} programadas/bloqueadas.\nPor favor, ajusta tus fechas o quita la opción de impresora.`);
+      return; 
+    }
   }
 
   const btn = document.getElementById('btnGuardar');
@@ -427,10 +434,10 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
   }
 });
 
-// --- CANCELAR EVENTO ---
+// --- CANCELAR EVENTO (CAMBIAR ESTADO A CANCELADO) ---
 window.cancelarRegistro = async function() {
   if (!idEventoEditando) return;
-  if (!confirm("¿Seguro que deseas cancelar/eliminar este evento?")) return;
+  if (!confirm("¿Seguro que deseas cancelar este evento? (Pasará a color negro)")) return;
 
   const btn = document.getElementById('btnCancelar');
   btn.innerText = "Cancelando...";
@@ -440,7 +447,8 @@ window.cancelarRegistro = async function() {
     await fetch(GOOGLE_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'delete', numEvento: idEventoEditando })
+      // Cambiamos 'delete' por 'cancel'
+      body: JSON.stringify({ action: 'cancel', numEvento: idEventoEditando })
     });
     mostrarToast("Evento cancelado correctamente");
     await cargarDatosDesdeGoogle();
