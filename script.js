@@ -442,7 +442,7 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
       fecha: fecha, 
       cantPersonas: 1,
       cantFotos: (currentUser.role === 'SUPERADMIN' && idEventoEditando) ? document.getElementById('fotos').value : "",
-      costo: 899,
+      costo: calcularCostoServicio(servicioFinal),,
       link: (currentUser.role === 'SUPERADMIN' && idEventoEditando) ? document.getElementById('link').value : ""
     });
   }
@@ -710,3 +710,10 @@ window.manejarCambioFecha = function(index) {
   }
   validarImpresorasEnTiempoReal();
 };
+
+function calcularCostoServicio(tipoServicio) {
+  if (tipoServicio === 'Foto Booth') {
+    return 600;
+  }
+  return 899; // Para '360°', 'Foto Gif Impresión', 'Foto Gif Virtual' y 'Foto Gif'
+}
