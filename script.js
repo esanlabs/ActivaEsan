@@ -276,9 +276,7 @@ function agregarFilaActivacion(fechaPorDefecto = "", servicioDef = "", nombreDef
   div.className = "bg-white p-4 rounded-xl border border-gray-200 space-y-3 relative fila-activacion";
   div.id = `fila_${index}`;
 
-  // Verifica si hay fecha predeterminada para saber si el selector arranca bloqueado o no
   const tieneFecha = !!fechaPorDefecto;
-  const servicioDisabledAttr = tieneFecha ? '' : 'disabled';
 
   div.innerHTML = `
     <div class="flex justify-between items-center border-b pb-2">
@@ -299,10 +297,10 @@ function agregarFilaActivacion(fechaPorDefecto = "", servicioDef = "", nombreDef
         <input type="date" id="fechaEvento_${index}" onchange="manejarCambioFecha(${index})" ${minAttr} value="${fechaPorDefecto}" required class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo">
       </div>
 
-      <!-- 3. Servicio (Bloqueado hasta elegir Fecha) -->
+      <!-- 3. Servicio -->
       <div>
         <label class="block text-xs font-bold text-gray-600 mb-1">Servicio *</label>
-        <select id="servicio_${index}" onchange="toggleImpresora(${index})" ${servicioDisabledAttr} required class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo disabled:bg-gray-100 disabled:cursor-not-allowed">
+        <select id="servicio_${index}" onchange="toggleImpresora(${index})" required class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo disabled:bg-gray-100 disabled:opacity-60 disabled:cursor-not-allowed">
           <option value="">-- Seleccionar --</option>
           <option value="Foto Booth" ${servicioDef === 'Foto Booth' ? 'selected' : ''}>Foto Booth</option>
           <option value="Foto Gif" ${servicioDef.includes('Foto Gif') ? 'selected' : ''}>Foto Gif</option>
@@ -329,7 +327,15 @@ function agregarFilaActivacion(fechaPorDefecto = "", servicioDef = "", nombreDef
       </div>
     </div>
   `;
+
   container.appendChild(div);
+
+  // Forzar el estado de deshabilitado directamente por JS en el DOM
+  const selectServicio = document.getElementById(`servicio_${index}`);
+  if (selectServicio) {
+    selectServicio.disabled = !tieneFecha;
+  }
+
   setTimeout(validarImpresorasEnTiempoReal, 50);
 }
 
@@ -662,7 +668,7 @@ window.toggleUnificarCostos = function() {
   }
 };
 
-function manejarCambioFecha(index) {
+window.manejarCambioFecha = function(index) {
   const inputFecha = document.getElementById(`fechaEvento_${index}`);
   const selectServicio = document.getElementById(`servicio_${index}`);
 
@@ -672,8 +678,8 @@ function manejarCambioFecha(index) {
     } else {
       selectServicio.disabled = true;
       selectServicio.value = "";
-      toggleImpresora(index); // Oculta opción de impresora si se limpia la fecha
+      toggleImpresora(index);
     }
   }
   validarImpresorasEnTiempoReal();
-}
+};
