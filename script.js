@@ -444,7 +444,7 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
       fecha: fecha, 
       cantPersonas: 1,
       cantFotos: (currentUser.role === 'SUPERADMIN' && idEventoEditando) ? document.getElementById('fotos').value : "",
-      costo: calcularCostoServicio(servicioFinal),,
+      costo: calcularCostoServicio(servicioFinal),
       link: (currentUser.role === 'SUPERADMIN' && idEventoEditando) ? document.getElementById('link').value : ""
     });
   }
