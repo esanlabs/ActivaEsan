@@ -1,4 +1,4 @@
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw7IHfqvTtV7L-T5tXoP-RBgwtVfUDLUK-fC-Tk4R1Wc686J71-M06_7Db6d6Z3hu69/exec'; 
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxl4CwfeigjFjCKmjSw35JutUrgg0nau9_XkCbVqiCNeteyjBg_i-cAItAai6u2v4qM/exec'; 
 
 let datosPendientesGuardar = [];
 let intervaloConfirmacion = null;
