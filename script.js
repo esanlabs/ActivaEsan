@@ -119,7 +119,6 @@ function generarEventosProcesados() {
   return registrosCargados
     .filter(r => r && r.fecha)
     .filter(r => {
-      // Ya no ocultamos los eventos si es cliente, todos ven todo
       if (areaFiltro !== 'TODAS' && (r.area || '') !== areaFiltro) return false;
       if (servicioFiltro !== 'TODOS' && (r.tipoServicio || '') !== servicioFiltro) return false;
       
@@ -135,26 +134,23 @@ function generarEventosProcesados() {
       const esCancelado = r.estado === 'Cancelado';
       const servicio = r.tipoServicio || '';
       
-      // Validar si el evento le pertenece al usuario o si es superadmin
       const correoReg = (r.correoSolicitante || '').toLowerCase().trim();
       const esMiEvento = correoReg === currentUser.email;
       const esSuperUsuario = currentUser.role === 'SUPERADMIN';
       const tienePermiso = esSuperUsuario || esMiEvento;
 
       if (!tienePermiso) {
-        // EVENTO AJENO: Color negro, solo nombre, sin clic
         return {
           id: r.numEvento,
-          title: r.tipoEvento || 'Sin título', // Solo nombre
+          title: r.tipoEvento || 'Sin título',
           start: fechaISO,
           backgroundColor: '#000000',
           borderColor: '#000000',
           textColor: '#ffffff',
-          extendedProps: { permitirClick: false } // Bloqueamos el clic
+          extendedProps: { permitirClick: false }
         };
       }
 
-      // EVENTO PROPIO O SUPERADMIN: Colores normales y clic habilitado
       let color = '#000000'; 
       if (esCancelado) {
         color = '#000000'; 
@@ -200,9 +196,7 @@ function inicializarCalendario() {
     eventClick: (info) => {
       const p = info.event.extendedProps;
       
-      if (!p.permitirClick) {
-        return; 
-      }
+      if (!p.permitirClick) return; 
       
       const esDuenio = (p.correoSolicitante || '').toLowerCase().trim() === currentUser.email;
       
@@ -222,7 +216,6 @@ function inicializarCalendario() {
         document.getElementById('contenedorEdicion').classList.add('hidden');
       }
 
-      // Reiniciar lógica visual de Costos unificados para edición
       document.getElementById('chkUnificarCostos').checked = true;
       toggleUnificarCostos();
 
@@ -234,7 +227,6 @@ function inicializarCalendario() {
       document.getElementById('contenedorBloques').innerHTML = "";
       contadorFilas = 0;
       
-      // Enviamos también los costos y observaciones para que se pinten en la fila unitaria por si el admin desmarca el check
       agregarFilaActivacion(String(p.fecha).split('T')[0], p.tipoServicio || "", p.tipoEvento || "", p.centroCostos || "", p.observaciones || "");
 
       if (currentUser.role === 'SUPERADMIN') {
@@ -285,19 +277,16 @@ function agregarFilaActivacion(fechaPorDefecto = "", servicioDef = "", nombreDef
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
-      <!-- 1. Nombre del Evento -->
       <div>
         <label class="block text-xs font-bold text-gray-600 mb-1">Nombre del Evento *</label>
         <input type="text" id="nombreEvento_${index}" value="${nombreDef}" required class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo">
       </div>
 
-      <!-- 2. Fecha -->
       <div>
         <label class="block text-xs font-bold text-gray-600 mb-1">Fecha *</label>
         <input type="date" id="fechaEvento_${index}" onchange="manejarCambioFecha(${index})" ${minAttr} value="${fechaPorDefecto}" required class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo">
       </div>
 
-      <!-- 3. Servicio -->
       <div>
         <label class="block text-xs font-bold text-gray-600 mb-1">Servicio *</label>
         <select id="servicio_${index}" onchange="toggleImpresora(${index})" required class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo disabled:bg-gray-100 disabled:opacity-60 disabled:cursor-not-allowed">
@@ -330,7 +319,6 @@ function agregarFilaActivacion(fechaPorDefecto = "", servicioDef = "", nombreDef
 
   container.appendChild(div);
 
-  // Forzar el estado de deshabilitado directamente por JS en el DOM
   const selectServicio = document.getElementById(`servicio_${index}`);
   if (selectServicio) {
     selectServicio.disabled = !tieneFecha;
@@ -364,14 +352,13 @@ window.eliminarFila = function(index) {
   });
 
   validarImpresorasEnTiempoReal();
-}
+};
 
 // --- MODALES Y GUARDADO ---
 window.abrirModalNuevo = function(fechaInicial = "") {
   idEventoEditando = null; 
   document.getElementById('formActivacion').reset();
   
-  // Reiniciar estado visual de los checkboxes de costos
   document.getElementById('chkUnificarCostos').checked = true;
   toggleUnificarCostos();
 
@@ -415,7 +402,6 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
   if (filas.length === 0) return mostrarToast("Agrega al menos una activación.", "error");
 
   let payloadItems = [];
-  let conteoImpresorasForm = {}; // ← Reparado: Faltaba este array para contar
 
   const unificarCostos = document.getElementById('chkUnificarCostos') ? document.getElementById('chkUnificarCostos').checked : false;
   const costoGeneral = document.getElementById('costos').value;
@@ -438,11 +424,6 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
     let servicioFinal = servicioBase;
     if (servicioBase === 'Foto Gif') {
       servicioFinal = quiereImpresora ? 'Foto Gif Impresión' : 'Foto Gif Virtual';
-      
-      // Contar impresoras solicitadas en este formulario
-      if (quiereImpresora) {
-        conteoImpresorasForm[fecha] = (conteoImpresorasForm[fecha] || 0) + 1;
-      }
     }
 
     payloadItems.push({
@@ -466,24 +447,49 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
     });
   }
 
-  // Validación: Máximo 2 impresoras en total (Formulario + Base de datos) considerando los 3 días
-  for (const [fechaStr, countInForm] of Object.entries(conteoImpresorasForm)) {
-    const fechaElegida = new Date(fechaStr + 'T00:00:00').getTime();
-    const unDiaMs = 24 * 60 * 60 * 1000;
-    let countInDB = 0;
-
-    registrosCargados.forEach(r => {
-      if (r.tipoServicio === 'Foto Gif Impresión' && r.estado !== 'Cancelado' && r.numEvento !== idEventoEditando) {
-        const fechaExistente = new Date(String(r.fecha).split('T')[0] + 'T00:00:00').getTime();
-        const difDias = Math.abs((fechaElegida - fechaExistente) / unDiaMs);
-        if (difDias <= 1) countInDB++; 
-      }
-    });
-
-    if ((countInForm + countInDB) > 2) {
-      alert(`Atención\nNo contamos con la cantidad de impresoras para atender su fotogif`);
-      return; 
+  // VALIDACIÓN DE SEGURIDAD PREVIA A GUARDAR (Evaluación de Rango de Impresoras)
+  let impresorasBD = [];
+  registrosCargados.forEach(r => {
+    if (r.tipoServicio === 'Foto Gif Impresión' && r.estado !== 'Cancelado' && r.numEvento !== idEventoEditando) {
+      const idx = obtenerDiaIndex(String(r.fecha));
+      if (idx !== null) impresorasBD.push(idx);
     }
+  });
+
+  let impresorasForm = [];
+  payloadItems.forEach(item => {
+    if (item.tipoServicio === 'Foto Gif Impresión') {
+      const idx = obtenerDiaIndex(item.fecha);
+      if (idx !== null) impresorasForm.push(idx);
+    }
+  });
+
+  let hayConflicto = false;
+  let impresorasProcesadasForm = [];
+
+  for (let fIdx of impresorasForm) {
+    const diasAProbar = [fIdx - 1, fIdx, fIdx + 1];
+    const todasMenosEsta = [...impresorasBD, ...impresorasProcesadasForm];
+
+    for (let d of diasAProbar) {
+      let conteo = 0;
+      todasMenosEsta.forEach(eIdx => {
+        if (Math.abs(d - eIdx) <= 1) conteo++;
+      });
+
+      if (conteo >= 2) {
+        hayConflicto = true;
+        break;
+      }
+    }
+
+    if (hayConflicto) break;
+    impresorasProcesadasForm.push(fIdx);
+  }
+
+  if (hayConflicto) {
+    alert(`Atención\nNo contamos con la cantidad de impresoras para atender su fotogif`);
+    return;
   }
 
   const btn = document.getElementById('btnGuardar');
@@ -582,51 +588,72 @@ window.eliminarAdmin = async function(email) {
 };
 
 // --- VALIDACIÓN EN TIEMPO REAL DE IMPRESORAS ---
+function obtenerDiaIndex(fechaStr) {
+  if (!fechaStr) return null;
+  const parts = fechaStr.split('T')[0].split('-');
+  if (parts.length !== 3) return null;
+  return Math.floor(Date.UTC(parts[0], parts[1] - 1, parts[2]) / 86400000);
+}
+
 window.validarImpresorasEnTiempoReal = function() {
   const filas = Array.from(document.getElementById('contenedorBloques').children);
-  const unDiaMs = 24 * 60 * 60 * 1000;
+
+  let listaImpresorasDB = [];
+  registrosCargados.forEach(r => {
+    if (r.tipoServicio === 'Foto Gif Impresión' && r.estado !== 'Cancelado' && r.numEvento !== idEventoEditando) {
+      const idx = obtenerDiaIndex(String(r.fecha));
+      if (idx !== null) listaImpresorasDB.push(idx);
+    }
+  });
 
   filas.forEach(fila => {
     const index = fila.id.split('_')[1];
-    const fechaInput = document.getElementById(`fechaEvento_${index}`).value;
-    const servicio = document.getElementById(`servicio_${index}`).value;
+    const fechaInput = document.getElementById(`fechaEvento_${index}`)?.value;
+    const servicio = document.getElementById(`servicio_${index}`)?.value;
     const checkImpresora = document.getElementById(`checkImpresora_${index}`);
-    
+
+    if (!checkImpresora) return;
     if (servicio !== 'Foto Gif' || !fechaInput) return;
 
-    const fechaElegida = new Date(fechaInput + 'T00:00:00').getTime();
-    
-    let countDB = 0;
-    registrosCargados.forEach(r => {
-      if (r.tipoServicio === 'Foto Gif Impresión' && r.estado !== 'Cancelado' && r.numEvento !== idEventoEditando) {
-        const fechaExistente = new Date(String(r.fecha).split('T')[0] + 'T00:00:00').getTime();
-        const difDias = Math.abs((fechaElegida - fechaExistente) / unDiaMs);
-        if (difDias <= 1) countDB++; 
-      }
-    });
+    const candidatoDiaIdx = obtenerDiaIndex(fechaInput);
+    if (candidatoDiaIdx === null) return;
 
-    let countForm = 0;
+    let listaImpresorasForm = [];
     filas.forEach(otraFila => {
-      if (otraFila.id === fila.id) return; 
-      
+      if (otraFila.id === fila.id) return;
       const otroIndex = otraFila.id.split('_')[1];
-      const otraFecha = document.getElementById(`fechaEvento_${otroIndex}`).value;
-      const otroServicio = document.getElementById(`servicio_${otroIndex}`).value;
-      const otroCheck = document.getElementById(`checkImpresora_${otroIndex}`).checked;
+      const otraFecha = document.getElementById(`fechaEvento_${otroIndex}`)?.value;
+      const otroServicio = document.getElementById(`servicio_${otroIndex}`)?.value;
+      const otroCheck = document.getElementById(`checkImpresora_${otroIndex}`)?.checked;
 
       if (otroServicio === 'Foto Gif' && otroCheck && otraFecha) {
-        const fechaOtra = new Date(otraFecha + 'T00:00:00').getTime();
-        const difDias = Math.abs((fechaElegida - fechaOtra) / unDiaMs);
-        if (difDias <= 1) countForm++;
+        const oIdx = obtenerDiaIndex(otraFecha);
+        if (oIdx !== null) listaImpresorasForm.push(oIdx);
       }
     });
 
-    const totalOcupadas = countDB + countForm;
+    const todasImpresoras = [...listaImpresorasDB, ...listaImpresorasForm];
+    const diasAProbar = [candidatoDiaIdx - 1, candidatoDiaIdx, candidatoDiaIdx + 1];
 
-    if (totalOcupadas >= 2) {
+    let bloqueado = false;
+    for (let d of diasAProbar) {
+      let conteoEnDia = 0;
+      todasImpresoras.forEach(eDiaIdx => {
+        if (Math.abs(d - eDiaIdx) <= 1) {
+          conteoEnDia++;
+        }
+      });
+
+      if (conteoEnDia >= 2) {
+        bloqueado = true;
+        break;
+      }
+    }
+
+    if (bloqueado) {
       if (!checkImpresora.checked) {
         checkImpresora.disabled = true;
-        checkImpresora.title = "Ya se agotaron las 2 impresoras para esta fecha (o días cercanos).";
+        checkImpresora.title = "Agotado: Las impresoras están al límite en este rango de fechas.";
         checkImpresora.parentElement.classList.add('opacity-50', 'cursor-not-allowed');
       }
     } else {
