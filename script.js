@@ -276,6 +276,10 @@ function agregarFilaActivacion(fechaPorDefecto = "", servicioDef = "", nombreDef
   div.className = "bg-white p-4 rounded-xl border border-gray-200 space-y-3 relative fila-activacion";
   div.id = `fila_${index}`;
 
+  // Verifica si hay fecha predeterminada para saber si el selector arranca bloqueado o no
+  const tieneFecha = !!fechaPorDefecto;
+  const servicioDisabledAttr = tieneFecha ? '' : 'disabled';
+
   div.innerHTML = `
     <div class="flex justify-between items-center border-b pb-2">
       <span class="text-xs font-bold text-gray-500 uppercase">Activación #${container.children.length + 1}</span>
@@ -289,16 +293,16 @@ function agregarFilaActivacion(fechaPorDefecto = "", servicioDef = "", nombreDef
         <input type="text" id="nombreEvento_${index}" value="${nombreDef}" required class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo">
       </div>
 
-      <!-- 2. Fecha (Movida al medio) -->
+      <!-- 2. Fecha -->
       <div>
         <label class="block text-xs font-bold text-gray-600 mb-1">Fecha *</label>
-        <input type="date" id="fechaEvento_${index}" onchange="validarImpresorasEnTiempoReal()" ${minAttr} value="${fechaPorDefecto}" required class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo">
+        <input type="date" id="fechaEvento_${index}" onchange="manejarCambioFecha(${index})" ${minAttr} value="${fechaPorDefecto}" required class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo">
       </div>
 
-      <!-- 3. Servicio y Checkbox -->
+      <!-- 3. Servicio (Bloqueado hasta elegir Fecha) -->
       <div>
         <label class="block text-xs font-bold text-gray-600 mb-1">Servicio *</label>
-        <select id="servicio_${index}" onchange="toggleImpresora(${index})" required class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo">
+        <select id="servicio_${index}" onchange="toggleImpresora(${index})" ${servicioDisabledAttr} required class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo disabled:bg-gray-100 disabled:cursor-not-allowed">
           <option value="">-- Seleccionar --</option>
           <option value="Foto Booth" ${servicioDef === 'Foto Booth' ? 'selected' : ''}>Foto Booth</option>
           <option value="Foto Gif" ${servicioDef.includes('Foto Gif') ? 'selected' : ''}>Foto Gif</option>
