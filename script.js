@@ -657,3 +657,19 @@ window.toggleUnificarCostos = function() {
     }
   }
 };
+
+function manejarCambioFecha(index) {
+  const inputFecha = document.getElementById(`fechaEvento_${index}`);
+  const selectServicio = document.getElementById(`servicio_${index}`);
+
+  if (inputFecha && selectServicio) {
+    if (inputFecha.value) {
+      selectServicio.disabled = false;
+    } else {
+      selectServicio.disabled = true;
+      selectServicio.value = "";
+      toggleImpresora(index); // Oculta opción de impresora si se limpia la fecha
+    }
+  }
+  validarImpresorasEnTiempoReal();
+}
