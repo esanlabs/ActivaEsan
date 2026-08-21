@@ -1,5 +1,7 @@
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwtCB66dij-pTgxM7D9fDuXZV4E1x2pSmbEZODgIjkwg5L64jiOLbbGbGT2737vUdjn/exec'; 
 
+let datosPendientesGuardar = [];
+let intervaloConfirmacion = null;
 let currentUser = null; 
 let registrosCargados = [];
 let listaAdmins = [];
@@ -492,26 +494,9 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
     return;
   }
 
-  const btn = document.getElementById('btnGuardar');
-  btn.innerText = `Procesando...`;
-  btn.disabled = true;
-
-  try {
-    await fetch(GOOGLE_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: idEventoEditando ? 'update' : 'create_multiple', items: payloadItems })
-    });
-
-    mostrarToast("Procesado correctamente");
-    await cargarDatosDesdeGoogle();
-    cerrarModal();
-  } catch (error) {
-    mostrarToast("Error de conexión al guardar.", "error");
-  } finally {
-    btn.innerText = "Guardar";
-    btn.disabled = false;
-  }
+  // --- NUEVA LÓGICA: Enviar al modal de confirmación ---
+  datosPendientesGuardar = payloadItems; // Guardamos en memoria
+  abrirModalConfirmacion();              // Abrimos la pantalla de resumen
 });
 
 // --- CANCELAR EVENTO ---
@@ -716,4 +701,88 @@ function calcularCostoServicio(tipoServicio) {
     return 600;
   }
   return 899; // Para '360°', 'Foto Gif Impresión', 'Foto Gif Virtual' y 'Foto Gif'
+}
+
+// --- LÓGICA DE CONFIRMACIÓN DE GUARDADO ---
+window.abrirModalConfirmacion = function() {
+  const lista = document.getElementById('listaConfirmacion');
+  
+  // Renderizar la lista de resumen
+  lista.innerHTML = datosPendientesGuardar.map((item, i) => `
+    <div class="bg-white p-4 rounded-lg mb-3 border border-gray-200 shadow-sm">
+      <p class="text-sm font-bold text-gray-800 mb-2 border-b pb-1">Activación #${i + 1}: ${item.tipoEvento}</p>
+      <ul class="text-xs text-gray-600 space-y-1.5 mt-2">
+        <li><span class="font-bold">Fecha:</span> ${item.fecha}</li>
+        <li><span class="font-bold">Servicio:</span> ${item.tipoServicio}</li>
+        <li><span class="font-bold">Centro Costos:</span> ${item.centroCostos || '<span class="text-gray-400 italic">No especificado</span>'}</li>
+        <li><span class="font-bold">Observaciones:</span> ${item.observaciones || '<span class="text-gray-400 italic">Ninguna</span>'}</li>
+        <li><span class="font-bold">Costo Asignado:</span> S/ ${item.costo}</li>
+      </ul>
+    </div>
+  `).join('');
+
+  // Mostrar el modal con animación
+  const overlay = document.getElementById('modalConfirmacion');
+  const box = document.getElementById('modalConfirmacionBox');
+  overlay.classList.remove('hidden');
+  setTimeout(() => {
+    overlay.classList.remove('opacity-0');
+    box.classList.remove('scale-95');
+  }, 10);
+
+  // Configurar el botón de 5 segundos
+  const btn = document.getElementById('btnConfirmarGuardado');
+  btn.disabled = true;
+  let segundos = 5;
+  btn.innerText = `Confirmar (${segundos})`;
+  btn.onclick = null; // Limpiar eventos anteriores
+
+  clearInterval(intervaloConfirmacion);
+  intervaloConfirmacion = setInterval(() => {
+    segundos--;
+    if (segundos <= 0) {
+      clearInterval(intervaloConfirmacion);
+      btn.disabled = false;
+      btn.innerText = "Sí, Confirmar Guardado";
+      btn.onclick = ejecutarGuardado;
+    } else {
+      btn.innerText = `Confirmar (${segundos})`;
+    }
+  }, 1000);
+};
+
+window.cerrarModalConfirmacion = function() {
+  clearInterval(intervaloConfirmacion);
+  const overlay = document.getElementById('modalConfirmacion');
+  const box = document.getElementById('modalConfirmacionBox');
+  overlay.classList.add('opacity-0');
+  box.classList.add('scale-95');
+  setTimeout(() => overlay.classList.add('hidden'), 300);
+};
+
+// --- EJECUCIÓN REAL DEL GUARDADO ---
+async function ejecutarGuardado() {
+  const btn = document.getElementById('btnConfirmarGuardado');
+  btn.innerText = `Procesando...`;
+  btn.disabled = true;
+
+  try {
+    await fetch(GOOGLE_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ 
+        action: idEventoEditando ? 'update' : 'create_multiple', 
+        items: datosPendientesGuardar 
+      })
+    });
+
+    mostrarToast("Guardado correctamente", "exito");
+    await cargarDatosDesdeGoogle();
+    cerrarModalConfirmacion();
+    cerrarModal(); // Cierra el modal principal de edición
+  } catch (error) {
+    mostrarToast("Error de conexión al guardar.", "error");
+    btn.innerText = "Intentar nuevamente";
+    btn.disabled = false;
+  }
 }
