@@ -407,6 +407,7 @@ window.abrirModalAdmins = function() {
   const overlay = document.getElementById('modalAdminsOverlay');
   if (overlay) {
     overlay.classList.remove('hidden');
+    overlay.classList.add('flex'); // Agregamos el flex por JS para evitar conflictos
   }
   renderizarListaAdmins();
 };
@@ -415,6 +416,7 @@ window.cerrarModalAdmins = function() {
   const overlay = document.getElementById('modalAdminsOverlay');
   if (overlay) {
     overlay.classList.add('hidden');
+    overlay.classList.remove('flex'); // Lo quitamos al cerrar
   }
 };
 
