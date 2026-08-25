@@ -401,22 +401,38 @@ window.cerrarModal = function() {
 };
 
 // --- GESTIÓN DE ADMINS ---
-window.abrirModalAdmins = function() {
-  cerrarModal(); // Cierra el modal de nueva solicitud si estaba abierto
 
-  const overlay = document.getElementById('modalAdminsOverlay');
-  if (overlay) {
-    overlay.classList.remove('hidden');
-    overlay.classList.add('flex'); // Agregamos el flex por JS para evitar conflictos
+// Asignar el click directamente por Javascript para asegurar que funcione
+const btnGestorAdmins = document.getElementById('btnGestionAdmins');
+if (btnGestorAdmins) {
+  btnGestorAdmins.addEventListener('click', function(e) {
+    e.preventDefault();
+    abrirModalAdmins();
+  });
+}
+
+window.abrirModalAdmins = function() {
+  console.log("Abriendo gestión de admins..."); // Ayuda a depurar
+  
+  // 1. Cierra el modal principal si está abierto (quitándole opacidad)
+  const overlayPrincipal = document.getElementById('modalOverlay');
+  if (overlayPrincipal) overlayPrincipal.classList.add('hidden');
+
+  // 2. Fuerzo la aparición del modal de Admins usando CSS directo
+  const overlayAdmins = document.getElementById('modalAdminsOverlay');
+  if (overlayAdmins) {
+    overlayAdmins.classList.remove('hidden');
+    overlayAdmins.style.display = 'flex'; // ESTO FUERZA A QUE SE VEA SÍ O SÍ
   }
+  
   renderizarListaAdmins();
 };
 
 window.cerrarModalAdmins = function() {
-  const overlay = document.getElementById('modalAdminsOverlay');
-  if (overlay) {
-    overlay.classList.add('hidden');
-    overlay.classList.remove('flex'); // Lo quitamos al cerrar
+  const overlayAdmins = document.getElementById('modalAdminsOverlay');
+  if (overlayAdmins) {
+    overlayAdmins.style.display = 'none'; // Lo oculta forzosamente
+    overlayAdmins.classList.add('hidden');
   }
 };
 
