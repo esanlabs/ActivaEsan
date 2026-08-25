@@ -297,6 +297,48 @@
 
   <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
-  <script src="script.js?v=2" defer></script>
+  <!-- SCRIPT A PRUEBA DE BALAS PARA EL MODAL -->
+  <script>
+    function abrirModalAdminsFuerza() {
+      const modal = document.getElementById('modalAdminsOverlay');
+      const content = document.getElementById('modalAdminsContent');
+      
+      // 1. Lo mostramos en bloque
+      modal.style.display = 'flex';
+      
+      // 2. Le damos un mini respiro al navegador y lanzamos la animación
+      setTimeout(() => {
+        modal.style.opacity = '1';
+        content.classList.remove('scale-95');
+        content.classList.add('scale-100');
+      }, 10);
+
+      // 3. Intenta cargar la lista (si esta función falla, el modal igual se abrirá)
+      try {
+        if (typeof renderizarListaAdmins === 'function') {
+          renderizarListaAdmins();
+        }
+      } catch (error) {
+        console.error("Error al renderizar admins:", error);
+      }
+    }
+
+    function cerrarModalAdminsFuerza() {
+      const modal = document.getElementById('modalAdminsOverlay');
+      const content = document.getElementById('modalAdminsContent');
+      
+      // 1. Quitamos opacidad y encogemos
+      modal.style.opacity = '0';
+      content.classList.remove('scale-100');
+      content.classList.add('scale-95');
+      
+      // 2. Esperamos que termine la animación y lo ocultamos
+      setTimeout(() => {
+        modal.style.display = 'none';
+      }, 300);
+    }
+  </script>
+
+  <script src="script.js?v=3" defer></script>
 </body>
 </html>
