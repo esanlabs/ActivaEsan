@@ -716,7 +716,6 @@ window.abrirModalConfirmacion = function() {
         <li><span class="font-bold">Servicio:</span> ${item.tipoServicio}</li>
         <li><span class="font-bold">Centro Costos:</span> ${item.centroCostos || '<span class="text-gray-400 italic">No especificado</span>'}</li>
         <li><span class="font-bold">Observaciones:</span> ${item.observaciones || '<span class="text-gray-400 italic">Ninguna</span>'}</li>
-        <li><span class="font-bold">Costo Asignado:</span> S/ ${item.costo}</li>
       </ul>
     </div>
   `).join('');
