@@ -527,18 +527,25 @@ window.cancelarRegistro = async function() {
 
 // --- GESTIÓN DE ADMINS ---
 window.abrirModalAdmins = function() {
-  document.getElementById('modalAdminsOverlay').classList.remove('hidden');
+  const modal = document.getElementById('modalAdminsOverlay');
+  if (modal) {
+    modal.classList.remove('hidden');
+  }
   renderizarListaAdmins();
 };
 
 window.cerrarModalAdmins = function() {
-  document.getElementById('modalAdminsOverlay').classList.add('hidden');
+  const modal = document.getElementById('modalAdminsOverlay');
+  if (modal) {
+    modal.classList.add('hidden');
+  }
 };
 
 function renderizarListaAdmins() {
   const lista = document.getElementById('listaAdmins');
+  if (!lista) return; // Si no existe en la pantalla, evita que el código falle
   lista.innerHTML = listaAdmins.map(adm => `
-    <li class="py-2 flex justify-between items-center">
+    <li class="py-2 flex justify-between items-center border-b border-gray-100 text-xs">
       <span>${adm}</span>
       ${adm !== 'mtello@esan.edu.pe' ? `<button onclick="eliminarAdmin('${adm}')" class="text-red-500 font-bold hover:underline">Eliminar</button>` : '<span class="text-gray-400 font-bold">Principal</span>'}
     </li>
