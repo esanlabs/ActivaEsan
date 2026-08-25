@@ -357,7 +357,10 @@ window.eliminarFila = function(index) {
 };
 
 // --- MODALES Y GUARDADO ---
+// --- CONTROL DE MODALES ---
 window.abrirModalNuevo = function(fechaInicial = "") {
+  cerrarModalAdmins(); // Garantiza que la ventana de admins esté cerrada
+
   idEventoEditando = null; 
   document.getElementById('formActivacion').reset();
   
@@ -367,7 +370,7 @@ window.abrirModalNuevo = function(fechaInicial = "") {
   document.getElementById('modalTitulo').innerText = "Registrar Nueva Solicitud";
   document.getElementById('btnGuardar').innerText = "Guardar Solicitud";
   
-  document.getElementById('solicita').value = currentUser.name;
+  document.getElementById('solicita').value = currentUser ? currentUser.name : '';
   document.getElementById('contenedorEdicion').classList.add('hidden');
   document.getElementById('btnCancelar').classList.add('hidden');
   
@@ -381,20 +384,51 @@ window.abrirModalNuevo = function(fechaInicial = "") {
 window.abrirModal = function() {
   const overlay = document.getElementById('modalOverlay');
   const box = document.getElementById('modalBox');
+  if (!overlay) return;
   overlay.classList.remove('hidden');
   setTimeout(() => {
     overlay.classList.remove('opacity-0');
-    box.classList.remove('scale-95');
+    box?.classList.remove('scale-95');
   }, 10);
 };
 
 window.cerrarModal = function() {
   const overlay = document.getElementById('modalOverlay');
   const box = document.getElementById('modalBox');
+  if (!overlay) return;
   overlay.classList.add('opacity-0');
-  box.classList.add('scale-95');
+  box?.classList.add('scale-95');
   setTimeout(() => overlay.classList.add('hidden'), 300);
 };
+
+// --- GESTIÓN DE ADMINS ---
+window.abrirModalAdmins = function() {
+  cerrarModal(); // Garantiza que la ventana de solicitudes esté cerrada
+
+  const overlay = document.getElementById('modalAdminsOverlay');
+  if (overlay) {
+    overlay.classList.remove('hidden');
+  }
+  renderizarListaAdmins();
+};
+
+window.cerrarModalAdmins = function() {
+  const overlay = document.getElementById('modalAdminsOverlay');
+  if (overlay) {
+    overlay.classList.add('hidden');
+  }
+};
+
+function renderizarListaAdmins() {
+  const lista = document.getElementById('listaAdmins');
+  if (!lista) return;
+  lista.innerHTML = listaAdmins.map(adm => `
+    <li class="py-2 flex justify-between items-center border-b border-gray-100 text-xs">
+      <span>${adm}</span>
+      ${adm !== 'mtello@esan.edu.pe' ? `<button onclick="eliminarAdmin('${adm}')" class="text-red-500 font-bold hover:underline">Eliminar</button>` : '<span class="text-gray-400 font-bold">Principal</span>'}
+    </li>
+  `).join('');
+}
 
 // --- GUARDADO ---
 document.getElementById('formActivacion').addEventListener('submit', async (e) => {
