@@ -356,10 +356,9 @@ window.eliminarFila = function(index) {
   validarImpresorasEnTiempoReal();
 };
 
-// --- MODALES Y GUARDADO ---
 // --- CONTROL DE MODALES ---
 window.abrirModalNuevo = function(fechaInicial = "") {
-  cerrarModalAdmins(); // Garantiza que la ventana de admins esté cerrada
+  cerrarModalAdmins(); // Cierra el modal de admins si estaba abierto
 
   idEventoEditando = null; 
   document.getElementById('formActivacion').reset();
@@ -403,7 +402,7 @@ window.cerrarModal = function() {
 
 // --- GESTIÓN DE ADMINS ---
 window.abrirModalAdmins = function() {
-  cerrarModal(); // Garantiza que la ventana de solicitudes esté cerrada
+  cerrarModal(); // Cierra el modal de nueva solicitud si estaba abierto
 
   const overlay = document.getElementById('modalAdminsOverlay');
   if (overlay) {
@@ -430,7 +429,34 @@ function renderizarListaAdmins() {
   `).join('');
 }
 
-// --- GUARDADO ---
+window.agregarAdmin = async function() {
+  const input = document.getElementById('nuevoAdminEmail');
+  const email = input.value.trim().toLowerCase();
+  if (!email.endsWith('@esan.edu.pe')) return mostrarToast("Debe ser un correo @esan.edu.pe", "error");
+
+  await fetch(GOOGLE_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'add_admin', email: email })
+  });
+
+  input.value = '';
+  await cargarDatosDesdeGoogle();
+  renderizarListaAdmins();
+};
+
+window.eliminarAdmin = async function(email) {
+  await fetch(GOOGLE_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'remove_admin', email: email })
+  });
+
+  await cargarDatosDesdeGoogle();
+  renderizarListaAdmins();
+};
+
+// --- GUARDADO DE SOLICITUDES ---
 document.getElementById('formActivacion').addEventListener('submit', async (e) => {
   e.preventDefault();
   
@@ -483,7 +509,7 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
     });
   }
 
-  // VALIDACIÓN DE SEGURIDAD PREVIA A GUARDAR (Evaluación de Rango de Impresoras)
+  // VALIDACIÓN DE SEGURIDAD PREVIA A GUARDAR
   let impresorasBD = [];
   registrosCargados.forEach(r => {
     if (r.tipoServicio === 'Foto Gif Impresión' && r.estado !== 'Cancelado' && r.numEvento !== idEventoEditando) {
@@ -528,9 +554,8 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
     return;
   }
 
-  // --- NUEVA LÓGICA: Enviar al modal de confirmación ---
-  datosPendientesGuardar = payloadItems; // Guardamos en memoria
-  abrirModalConfirmacion();              // Abrimos la pantalla de resumen
+  datosPendientesGuardar = payloadItems;
+  abrirModalConfirmacion();
 });
 
 // --- CANCELAR EVENTO ---
@@ -557,60 +582,6 @@ window.cancelarRegistro = async function() {
     btn.innerText = "Cancelar Evento";
     btn.disabled = false;
   }
-};
-
-// --- GESTIÓN DE ADMINS ---
-window.abrirModalAdmins = function() {
-  const modal = document.getElementById('modalAdminsOverlay');
-  if (modal) {
-    modal.classList.remove('hidden');
-  }
-  renderizarListaAdmins();
-};
-
-window.cerrarModalAdmins = function() {
-  const modal = document.getElementById('modalAdminsOverlay');
-  if (modal) {
-    modal.classList.add('hidden');
-  }
-};
-
-function renderizarListaAdmins() {
-  const lista = document.getElementById('listaAdmins');
-  if (!lista) return; // Si no existe en la pantalla, evita que el código falle
-  lista.innerHTML = listaAdmins.map(adm => `
-    <li class="py-2 flex justify-between items-center border-b border-gray-100 text-xs">
-      <span>${adm}</span>
-      ${adm !== 'mtello@esan.edu.pe' ? `<button onclick="eliminarAdmin('${adm}')" class="text-red-500 font-bold hover:underline">Eliminar</button>` : '<span class="text-gray-400 font-bold">Principal</span>'}
-    </li>
-  `).join('');
-}
-
-window.agregarAdmin = async function() {
-  const input = document.getElementById('nuevoAdminEmail');
-  const email = input.value.trim().toLowerCase();
-  if (!email.endsWith('@esan.edu.pe')) return mostrarToast("Debe ser un correo @esan.edu.pe", "error");
-
-  await fetch(GOOGLE_SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action: 'add_admin', email: email })
-  });
-
-  input.value = '';
-  await cargarDatosDesdeGoogle();
-  renderizarListaAdmins();
-};
-
-window.eliminarAdmin = async function(email) {
-  await fetch(GOOGLE_SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action: 'remove_admin', email: email })
-  });
-
-  await cargarDatosDesdeGoogle();
-  renderizarListaAdmins();
 };
 
 // --- VALIDACIÓN EN TIEMPO REAL DE IMPRESORAS ---
@@ -741,14 +712,13 @@ function calcularCostoServicio(tipoServicio) {
   if (tipoServicio === 'Foto Booth') {
     return 600;
   }
-  return 899; // Para '360°', 'Foto Gif Impresión', 'Foto Gif Virtual' y 'Foto Gif'
+  return 899;
 }
 
 // --- LÓGICA DE CONFIRMACIÓN DE GUARDADO ---
 window.abrirModalConfirmacion = function() {
   const lista = document.getElementById('listaConfirmacion');
   
-  // Renderizar la lista de resumen
   lista.innerHTML = datosPendientesGuardar.map((item, i) => `
     <div class="bg-white p-4 rounded-lg mb-3 border border-gray-200 shadow-sm">
       <p class="text-sm font-bold text-gray-800 mb-2 border-b pb-1">Activación #${i + 1}: ${item.tipoEvento}</p>
@@ -761,7 +731,6 @@ window.abrirModalConfirmacion = function() {
     </div>
   `).join('');
 
-  // Mostrar el modal con animación
   const overlay = document.getElementById('modalConfirmacion');
   const box = document.getElementById('modalConfirmacionBox');
   overlay.classList.remove('hidden');
@@ -770,12 +739,11 @@ window.abrirModalConfirmacion = function() {
     box.classList.remove('scale-95');
   }, 10);
 
-  // Configurar el botón de 5 segundos
   const btn = document.getElementById('btnConfirmarGuardado');
   btn.disabled = true;
   let segundos = 5;
   btn.innerText = `Confirmar (${segundos})`;
-  btn.onclick = null; // Limpiar eventos anteriores
+  btn.onclick = null;
 
   clearInterval(intervaloConfirmacion);
   intervaloConfirmacion = setInterval(() => {
@@ -819,7 +787,7 @@ async function ejecutarGuardado() {
     mostrarToast("Guardado correctamente", "exito");
     await cargarDatosDesdeGoogle();
     cerrarModalConfirmacion();
-    cerrarModal(); // Cierra el modal principal de edición
+    cerrarModal();
   } catch (error) {
     mostrarToast("Error de conexión al guardar.", "error");
     btn.innerText = "Intentar nuevamente";
