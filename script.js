@@ -412,20 +412,30 @@ if (btnGestorAdmins) {
 }
 
 window.abrirModalAdmins = function() {
-  console.log("Abriendo gestión de admins..."); // Ayuda a depurar
+  console.log("Abriendo gestión de admins... ¡ahora con visibilidad forzada!"); 
   
-  // 1. Cierra el modal principal si está abierto (quitándole opacidad)
+  // 1. Cierra el modal principal si está abierto
   const overlayPrincipal = document.getElementById('modalOverlay');
-  if (overlayPrincipal) overlayPrincipal.classList.add('hidden');
+  if (overlayPrincipal) {
+    overlayPrincipal.classList.add('hidden');
+    overlayPrincipal.style.display = 'none';
+  }
 
-  // 2. Fuerzo la aparición del modal de Admins usando CSS directo
+  // 2. Forzamos la aparición del modal de Admins (sin Tailwind)
   const overlayAdmins = document.getElementById('modalAdminsOverlay');
   if (overlayAdmins) {
     overlayAdmins.classList.remove('hidden');
-    overlayAdmins.style.display = 'flex'; // ESTO FUERZA A QUE SE VEA SÍ O SÍ
+    overlayAdmins.style.setProperty('display', 'flex', 'important');
+    overlayAdmins.style.setProperty('opacity', '1', 'important'); 
+    overlayAdmins.style.setProperty('z-index', '9999', 'important');
   }
   
-  renderizarListaAdmins();
+  // 3. Intentamos cargar la lista (con try-catch por si hay algún error oculto)
+  try {
+    renderizarListaAdmins();
+  } catch (error) {
+    console.warn("Hubo un detalle al cargar la lista, pero el modal ya es visible:", error);
+  }
 };
 
 window.cerrarModalAdmins = function() {
