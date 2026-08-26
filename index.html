@@ -274,11 +274,13 @@
   </div>
 
   <!-- MODAL GESTION ADMINS -->
-    <div id="modalAdminsOverlay" class="fixed inset-0 bg-marca-negro/40 backdrop-blur-sm hidden z-50 items-center justify-center">
-      <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+    <div id="modalAdminsOverlay" class="fixed inset-0 bg-marca-negro/40 backdrop-blur-sm hidden z-50 flex items-center justify-center">
+      <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4 relative">
+        
         <div class="flex justify-between items-center border-b pb-3">
           <h3 class="font-bold text-lg text-gray-800">Administrar Super Admins</h3>
-          <button type="button" onclick="cerrarModalAdmins()" class="text-gray-400 hover:text-black">✕</button>
+          <!-- Botón X con llamada directa a la función -->
+          <button type="button" onclick="cerrarModalAdmins()" class="text-gray-400 hover:text-black font-bold text-xl p-1">✕</button>
         </div>
         
         <div class="flex gap-2">
