@@ -357,25 +357,43 @@ window.eliminarFila = function(index) {
 };
 
 // --- CONTROL DE MODALES ---
+
 window.abrirModalNuevo = function(fechaInicial = "") {
   cerrarModalAdmins(); // Cierra el modal de admins si estaba abierto
 
   idEventoEditando = null; 
-  document.getElementById('formActivacion').reset();
   
-  document.getElementById('chkUnificarCostos').checked = true;
-  toggleUnificarCostos();
+  const form = document.getElementById('formActivacion');
+  if (form) form.reset();
+  
+  const chk = document.getElementById('chkUnificarCostos');
+  if (chk) {
+    chk.checked = true;
+    if (typeof toggleUnificarCostos === 'function') toggleUnificarCostos();
+  }
 
-  document.getElementById('modalTitulo').innerText = "Registrar Nueva Solicitud";
-  document.getElementById('btnGuardar').innerText = "Guardar Solicitud";
+  const titulo = document.getElementById('modalTitulo');
+  if (titulo) titulo.innerText = "Registrar Nueva Solicitud";
   
-  document.getElementById('solicita').value = currentUser ? currentUser.name : '';
-  document.getElementById('contenedorEdicion').classList.add('hidden');
-  document.getElementById('btnCancelar').classList.add('hidden');
+  const btnG = document.getElementById('btnGuardar');
+  if (btnG) btnG.innerText = "Guardar Solicitud";
   
-  document.getElementById('contenedorBloques').innerHTML = "";
+  const solicita = document.getElementById('solicita');
+  if (solicita) solicita.value = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.name : '';
+  
+  const contenedorEdic = document.getElementById('contenedorEdicion');
+  if (contenedorEdic) contenedorEdic.classList.add('hidden');
+  
+  const btnCanc = document.getElementById('btnCancelar');
+  if (btnCanc) btnCanc.classList.add('hidden');
+  
+  const contenedorBloques = document.getElementById('contenedorBloques');
+  if (contenedorBloques) contenedorBloques.innerHTML = "";
+  
   contadorFilas = 0;
-  agregarFilaActivacion(fechaInicial);
+  if (typeof agregarFilaActivacion === 'function') {
+    agregarFilaActivacion(fechaInicial);
+  }
   
   abrirModal();
 };
@@ -384,6 +402,7 @@ window.abrirModal = function() {
   const overlay = document.getElementById('modalOverlay');
   const box = document.getElementById('modalBox');
   if (!overlay) return;
+  overlay.removeAttribute('style');
   overlay.classList.remove('hidden');
   setTimeout(() => {
     overlay.classList.remove('opacity-0');
@@ -400,24 +419,20 @@ window.cerrarModal = function() {
   setTimeout(() => overlay.classList.add('hidden'), 300);
 };
 
-// --- GESTIÓN DE ADMINS (CÓDIGO LIMPIO) ---
+// --- GESTIÓN DE ADMINS (CÓDIGO CORREGIDO Y SEGURO) ---
 
 window.abrirModalAdmins = function() {
-  console.log("Abriendo gestión de admins (modo limpio)..."); 
+  console.log("Abriendo gestión de admins..."); 
   
-  // 1. Cerramos el modal principal de forma limpia
-  const overlayPrincipal = document.getElementById('modalOverlay');
-  if (overlayPrincipal) {
-    overlayPrincipal.classList.add('hidden');
-    overlayPrincipal.removeAttribute('style'); // ESTO ARREGLA EL BOTÓN DE NUEVA ACTIVACIÓN
-  }
+  // Cerramos modal principal si estuviera abierto
+  cerrarModal();
 
-  // 2. Mostramos el modal de admins
+  // Abrimos modal de admins de forma limpia
   const overlayAdmins = document.getElementById('modalAdminsOverlay');
   if (overlayAdmins) {
-    overlayAdmins.removeAttribute('style'); // Limpiamos la fuerza bruta
+    overlayAdmins.removeAttribute('style');
     overlayAdmins.classList.remove('hidden');
-    overlayAdmins.classList.add('flex'); // Lo volvemos flexbox para centrarlo
+    overlayAdmins.classList.add('flex');
   }
   
   try {
@@ -425,13 +440,14 @@ window.abrirModalAdmins = function() {
       renderizarListaAdmins();
     }
   } catch (error) {
-    console.error("Error al cargar la lista:", error);
+    console.error("Error al cargar la lista de admins:", error);
   }
 };
 
 window.cerrarModalAdmins = function() {
   const overlayAdmins = document.getElementById('modalAdminsOverlay');
   if (overlayAdmins) {
+    overlayAdmins.removeAttribute('style');
     overlayAdmins.classList.add('hidden');
     overlayAdmins.classList.remove('flex');
   }
