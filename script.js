@@ -400,49 +400,40 @@ window.cerrarModal = function() {
   setTimeout(() => overlay.classList.add('hidden'), 300);
 };
 
-// --- GESTIÓN DE ADMINS ---
-
-// Asignar el click directamente por Javascript para asegurar que funcione
-const btnGestorAdmins = document.getElementById('btnGestionAdmins');
-if (btnGestorAdmins) {
-  btnGestorAdmins.addEventListener('click', function(e) {
-    e.preventDefault();
-    abrirModalAdmins();
-  });
-}
+// --- GESTIÓN DE ADMINS (CÓDIGO LIMPIO) ---
 
 window.abrirModalAdmins = function() {
-  console.log("Abriendo gestión de admins... ¡ahora con visibilidad forzada!"); 
+  console.log("Abriendo gestión de admins (modo limpio)..."); 
   
-  // 1. Cierra el modal principal si está abierto
+  // 1. Cerramos el modal principal de forma limpia
   const overlayPrincipal = document.getElementById('modalOverlay');
   if (overlayPrincipal) {
     overlayPrincipal.classList.add('hidden');
-    overlayPrincipal.style.display = 'none';
+    overlayPrincipal.removeAttribute('style'); // ESTO ARREGLA EL BOTÓN DE NUEVA ACTIVACIÓN
   }
 
-  // 2. Forzamos la aparición del modal de Admins (sin Tailwind)
+  // 2. Mostramos el modal de admins
   const overlayAdmins = document.getElementById('modalAdminsOverlay');
   if (overlayAdmins) {
+    overlayAdmins.removeAttribute('style'); // Limpiamos la fuerza bruta
     overlayAdmins.classList.remove('hidden');
-    overlayAdmins.style.setProperty('display', 'flex', 'important');
-    overlayAdmins.style.setProperty('opacity', '1', 'important'); 
-    overlayAdmins.style.setProperty('z-index', '9999', 'important');
+    overlayAdmins.classList.add('flex'); // Lo volvemos flexbox para centrarlo
   }
   
-  // 3. Intentamos cargar la lista (con try-catch por si hay algún error oculto)
   try {
-    renderizarListaAdmins();
+    if (typeof renderizarListaAdmins === 'function') {
+      renderizarListaAdmins();
+    }
   } catch (error) {
-    console.warn("Hubo un detalle al cargar la lista, pero el modal ya es visible:", error);
+    console.error("Error al cargar la lista:", error);
   }
 };
 
 window.cerrarModalAdmins = function() {
   const overlayAdmins = document.getElementById('modalAdminsOverlay');
   if (overlayAdmins) {
-    overlayAdmins.style.display = 'none'; // Lo oculta forzosamente
     overlayAdmins.classList.add('hidden');
+    overlayAdmins.classList.remove('flex');
   }
 };
 
