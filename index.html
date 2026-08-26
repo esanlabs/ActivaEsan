@@ -274,23 +274,19 @@
   </div>
 
   <!-- MODAL GESTION ADMINS -->
-    <!-- MODAL GESTION ADMINS LIMPIO -->
-    <div id="modalAdminsOverlay" class="fixed inset-0 bg-marca-negro/60 backdrop-blur-sm z-[9999] flex items-center justify-center transition-opacity duration-300" style="display: none; opacity: 0;">
-      <div id="modalAdminsContent" class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4 transform scale-95 transition-transform duration-300">
-        
-        <div class="flex justify-between items-center border-b border-gray-100 pb-3">
+    <div id="modalAdminsOverlay" class="fixed inset-0 bg-marca-negro/40 backdrop-blur-sm hidden z-50 items-center justify-center">
+      <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+        <div class="flex justify-between items-center border-b pb-3">
           <h3 class="font-bold text-lg text-gray-800">Administrar Super Admins</h3>
-          <button type="button" onclick="cerrarModalAdminsFuerza()" class="text-gray-400 hover:text-marca-rojo font-bold text-xl">✕</button>
+          <button type="button" onclick="cerrarModalAdmins()" class="text-gray-400 hover:text-black">✕</button>
         </div>
         
         <div class="flex gap-2">
-          <input type="email" id="nuevoAdminEmail" placeholder="correo@esan.edu.pe" class="flex-1 border border-gray-300 p-2 rounded-lg text-sm focus:outline-none focus:border-marca-rojo">
-          <button type="button" onclick="agregarAdmin()" class="bg-marca-rojo hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md">+ Agregar</button>
+          <input type="email" id="nuevoAdminEmail" placeholder="correo@esan.edu.pe" class="flex-1 border p-2 rounded-lg text-xs">
+          <button type="button" onclick="agregarAdmin()" class="bg-marca-rojo text-white px-3 py-2 rounded-lg text-xs font-bold">+ Agregar</button>
         </div>
     
-        <ul id="listaAdmins" class="divide-y text-sm max-h-48 overflow-y-auto mt-4">
-          <!-- Aquí se cargarán los admins -->
-        </ul>
+        <ul id="listaAdmins" class="divide-y text-xs max-h-48 overflow-y-auto mt-4"></ul>
       </div>
     </div>
   </div>
