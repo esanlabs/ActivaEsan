@@ -423,33 +423,32 @@ window.cerrarModal = function() {
 
 window.abrirModalAdmins = function() {
   console.log("Abriendo gestión de admins..."); 
-  
-  // Cerramos modal principal si estuviera abierto
-  cerrarModal();
-
-  // Abrimos modal de admins de forma limpia
-  const overlayAdmins = document.getElementById('modalAdminsOverlay');
-  if (overlayAdmins) {
-    overlayAdmins.removeAttribute('style');
-    overlayAdmins.classList.remove('hidden');
-    overlayAdmins.classList.add('flex');
+  const modal = document.getElementById('modalAdminsOverlay');
+  if (!modal) {
+    console.error("No se encontró el elemento #modalAdminsOverlay en el HTML");
+    return;
   }
+  
+  // Rescata el modal mandándolo directamente a la raíz del body
+  document.body.appendChild(modal);
+  
+  modal.classList.remove('hidden');
+  modal.style.cssText = "display: flex !important; position: fixed !important; inset: 0 !important; z-index: 99999 !important; background-color: rgba(0,0,0,0.5) !important;";
   
   try {
     if (typeof renderizarListaAdmins === 'function') {
       renderizarListaAdmins();
     }
   } catch (error) {
-    console.error("Error al cargar la lista de admins:", error);
+    console.error("Error al renderizar la lista de admins:", error);
   }
 };
 
 window.cerrarModalAdmins = function() {
-  const overlayAdmins = document.getElementById('modalAdminsOverlay');
-  if (overlayAdmins) {
-    overlayAdmins.removeAttribute('style');
-    overlayAdmins.classList.add('hidden');
-    overlayAdmins.classList.remove('flex');
+  const modal = document.getElementById('modalAdminsOverlay');
+  if (modal) {
+    modal.style.cssText = "";
+    modal.classList.add('hidden');
   }
 };
 
