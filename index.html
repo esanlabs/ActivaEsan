@@ -33,7 +33,7 @@
   <!-- PANTALLA DE LOGIN CON GOOGLE -->
   <div id="loginScreen" class="fixed inset-0 bg-gray-900 z-50 flex items-center justify-center p-4">
     <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full text-center space-y-6">
-      <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto text-marca-rojo text-2xl font-bold">ESAN</div>
+      <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto text-marca-rojo text-2xl font-bold">Esan Labs</div>
       <div>
         <h2 class="text-2xl font-bold text-gray-800">Registro de Activaciones</h2>
         <p class="text-sm text-gray-500 mt-1">Inicia sesión con tu cuenta institucional para ingresar.</p>
@@ -73,6 +73,13 @@
         <a id="btnExcel" href="https://docs.google.com/spreadsheets/d/1sOXUQEd9q5zTfRL0VZJOL70aBeCgB14Sl0HkVhbTdMw/edit?gid=694076798#gid=694076798" target="_blank" class="hidden bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-full font-medium text-xs transition-all shadow-md">
           Ver Excel
         </a>
+
+        <button type="button" onclick="actualizarCalendario()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2.5 rounded-full font-medium text-xs transition-all shadow-md flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+          </svg>
+          Actualizar
+        </button>
 
         <button id="btnNuevaActivacion" onclick="abrirModalNuevo()" class="bg-marca-rojo hover:bg-red-700 text-white px-5 py-2.5 rounded-full font-medium transition-all shadow-md text-xs">
           Nueva Activación
