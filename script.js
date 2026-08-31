@@ -236,7 +236,7 @@ function inicializarCalendario() {
       document.getElementById('contenedorBloques').innerHTML = "";
       contadorFilas = 0;
       
-      agregarFilaActivacion(String(p.fecha).split('T')[0], p.tipoServicio || "", p.tipoEvento || "", p.centroCostos || "", p.observaciones || "");
+      agregarFilaActivacion(String(p.fecha).split('T')[0], p.tipoServicio || "", p.tipoEvento || "", p.centroCostos || "", p.observaciones || "", p.diasServicio || 1);
 
       if (currentUser.role === 'SUPERADMIN') {
         document.getElementById('tablet').value = p.tablet || "";
