@@ -262,7 +262,7 @@ window.aplicarFiltros = () => {
   }
 };
 
-function agregarFilaActivacion(fechaPorDefecto = "", servicioDef = "", nombreDef = "", costoDef = "", obsDef = "") {
+function agregarFilaActivacion(fechaPorDefecto = "", servicioDef = "", nombreDef = "", costoDef = "", obsDef = "", diasDef = 1) {
   const container = document.getElementById('contenedorBloques');
   const index = contadorFilas++;
   const esEdicion = idEventoEditando !== null;
@@ -292,8 +292,11 @@ function agregarFilaActivacion(fechaPorDefecto = "", servicioDef = "", nombreDef
       </div>
 
       <div>
-        <label class="block text-xs font-bold text-gray-600 mb-1">Fecha *</label>
-        <input type="date" id="fechaEvento_${index}" onchange="manejarCambioFecha(${index})" ${minAttr} value="${fechaPorDefecto}" required class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo">
+        <label class="block text-xs font-bold text-gray-600 mb-1">Fecha y Días *</label>
+        <div class="flex gap-2">
+          <input type="date" id="fechaEvento_${index}" onchange="manejarCambioFecha(${index})" ${minAttr} value="${fechaPorDefecto}" required class="w-2/3 border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo">
+          <input type="number" id="diasServicio_${index}" min="1" value="${diasDef}" onchange="validarImpresorasEnTiempoReal()" class="w-1/3 border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo" title="Días de servicio">
+        </div>
       </div>
 
       <div>
@@ -516,6 +519,7 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
 
     const nombre = document.getElementById(`nombreEvento_${index}`).value;
     const fecha = document.getElementById(`fechaEvento_${index}`).value;
+    const diasServicio = parseInt(document.getElementById(`diasServicio_${index}`).value) || 1;
     const servicioBase = document.getElementById(`servicio_${index}`).value;
     const checkObj = document.getElementById(`checkImpresora_${index}`);
     
@@ -523,7 +527,6 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
     const obsUnitaria = document.getElementById(`observaciones_${index}`) ? document.getElementById(`observaciones_${index}`).value : "";
 
     const quiereImpresora = !checkObj.disabled && checkObj.checked;
-
     let servicioFinal = servicioBase;
     if (servicioBase === 'Foto Gif') {
       servicioFinal = quiereImpresora ? 'Foto Gif Impresión' : 'Foto Gif Virtual';
@@ -535,14 +538,13 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
       area: document.getElementById('area').value,
       solicita: currentUser.name,
       correoSolicitante: currentUser.email,
-      
       centroCostos: unificarCostos ? costoGeneral : costoUnitario,
       observaciones: unificarCostos ? obsGeneral : obsUnitaria,
-      
       tipoServicio: servicioFinal,
       estado: "Confirmado",
       tablet: (currentUser.role === 'SUPERADMIN' && idEventoEditando) ? document.getElementById('tablet').value : "",
       fecha: fecha, 
+      diasServicio: diasServicio, 
       cantPersonas: 1,
       cantFotos: (currentUser.role === 'SUPERADMIN' && idEventoEditando) ? document.getElementById('fotos').value : "",
       costo: calcularCostoServicio(servicioFinal),
@@ -550,48 +552,38 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
     });
   }
 
-  // VALIDACIÓN DE SEGURIDAD PREVIA A GUARDAR
-  let impresorasBD = [];
+  const getRango = (fechaStr, dias) => {
+    const idx = obtenerDiaIndex(fechaStr);
+    if (idx === null) return [];
+    let arr = [];
+    for (let i = idx - 1; i <= idx + (parseInt(dias) || 1); i++) arr.push(i);
+    return arr;
+  };
+
+  let usoPorDia = {};
   registrosCargados.forEach(r => {
     if (r.tipoServicio === 'Foto Gif Impresión' && r.estado !== 'Cancelado' && r.numEvento !== idEventoEditando) {
-      const idx = obtenerDiaIndex(String(r.fecha));
-      if (idx !== null) impresorasBD.push(idx);
-    }
-  });
-
-  let impresorasForm = [];
-  payloadItems.forEach(item => {
-    if (item.tipoServicio === 'Foto Gif Impresión') {
-      const idx = obtenerDiaIndex(item.fecha);
-      if (idx !== null) impresorasForm.push(idx);
+      getRango(String(r.fecha), r.diasServicio || 1).forEach(d => usoPorDia[d] = (usoPorDia[d] || 0) + 1);
     }
   });
 
   let hayConflicto = false;
-  let impresorasProcesadasForm = [];
-
-  for (let fIdx of impresorasForm) {
-    const diasAProbar = [fIdx - 1, fIdx, fIdx + 1];
-    const todasMenosEsta = [...impresorasBD, ...impresorasProcesadasForm];
-
-    for (let d of diasAProbar) {
-      let conteo = 0;
-      todasMenosEsta.forEach(eIdx => {
-        if (Math.abs(d - eIdx) <= 1) conteo++;
-      });
-
-      if (conteo >= 2) {
-        hayConflicto = true;
-        break;
+  for (let item of payloadItems) {
+    if (item.tipoServicio === 'Foto Gif Impresión') {
+      const rangoItem = getRango(item.fecha, item.diasServicio);
+      for (let d of rangoItem) {
+        if ((usoPorDia[d] || 0) >= 2) {
+          hayConflicto = true;
+          break;
+        }
       }
+      if (hayConflicto) break;
+      rangoItem.forEach(d => usoPorDia[d] = (usoPorDia[d] || 0) + 1);
     }
-
-    if (hayConflicto) break;
-    impresorasProcesadasForm.push(fIdx);
   }
 
   if (hayConflicto) {
-    alert(`Atención\nNo contamos con la cantidad de impresoras para atender su fotogif`);
+    alert("Atención\nNo contamos con la cantidad de impresoras para atender su fotogif en el rango de fechas seleccionado.");
     return;
   }
 
@@ -636,53 +628,53 @@ function obtenerDiaIndex(fechaStr) {
 window.validarImpresorasEnTiempoReal = function() {
   const filas = Array.from(document.getElementById('contenedorBloques').children);
 
-  let listaImpresorasDB = [];
-  registrosCargados.forEach(r => {
-    if (r.tipoServicio === 'Foto Gif Impresión' && r.estado !== 'Cancelado' && r.numEvento !== idEventoEditando) {
-      const idx = obtenerDiaIndex(String(r.fecha));
-      if (idx !== null) listaImpresorasDB.push(idx);
-    }
-  });
+  const getRango = (fechaStr, dias) => {
+    const idx = obtenerDiaIndex(fechaStr);
+    if (idx === null) return [];
+    const numDias = parseInt(dias) || 1;
+    let arr = [];
+    for (let i = idx - 1; i <= idx + numDias; i++) arr.push(i);
+    return arr;
+  };
 
   filas.forEach(fila => {
     const index = fila.id.split('_')[1];
-    const fechaInput = document.getElementById(`fechaEvento_${index}`)?.value;
-    const servicio = document.getElementById(`servicio_${index}`)?.value;
     const checkImpresora = document.getElementById(`checkImpresora_${index}`);
-
     if (!checkImpresora) return;
+
+    const servicio = document.getElementById(`servicio_${index}`)?.value;
+    const fechaInput = document.getElementById(`fechaEvento_${index}`)?.value;
+    const diasInput = document.getElementById(`diasServicio_${index}`)?.value || 1;
+
     if (servicio !== 'Foto Gif' || !fechaInput) return;
 
-    const candidatoDiaIdx = obtenerDiaIndex(fechaInput);
-    if (candidatoDiaIdx === null) return;
+    const rangoCandidato = getRango(fechaInput, diasInput);
+    if (rangoCandidato.length === 0) return;
 
-    let listaImpresorasForm = [];
-    filas.forEach(otraFila => {
-      if (otraFila.id === fila.id) return;
-      const otroIndex = otraFila.id.split('_')[1];
-      const otraFecha = document.getElementById(`fechaEvento_${otroIndex}`)?.value;
-      const otroServicio = document.getElementById(`servicio_${otroIndex}`)?.value;
-      const otroCheck = document.getElementById(`checkImpresora_${otroIndex}`)?.checked;
+    let usoPorDia = {};
 
-      if (otroServicio === 'Foto Gif' && otroCheck && otraFecha) {
-        const oIdx = obtenerDiaIndex(otraFecha);
-        if (oIdx !== null) listaImpresorasForm.push(oIdx);
+    registrosCargados.forEach(r => {
+      if (r.tipoServicio === 'Foto Gif Impresión' && r.estado !== 'Cancelado' && r.numEvento !== idEventoEditando) {
+        getRango(String(r.fecha), r.diasServicio || 1).forEach(d => usoPorDia[d] = (usoPorDia[d] || 0) + 1);
       }
     });
 
-    const todasImpresoras = [...listaImpresorasDB, ...listaImpresorasForm];
-    const diasAProbar = [candidatoDiaIdx - 1, candidatoDiaIdx, candidatoDiaIdx + 1];
+    filas.forEach(otraFila => {
+      if (otraFila.id === fila.id) return;
+      const oIndex = otraFila.id.split('_')[1];
+      const oServicio = document.getElementById(`servicio_${oIndex}`)?.value;
+      const oCheck = document.getElementById(`checkImpresora_${oIndex}`)?.checked;
+      const oFecha = document.getElementById(`fechaEvento_${oIndex}`)?.value;
+      const oDias = document.getElementById(`diasServicio_${oIndex}`)?.value || 1;
+
+      if (oServicio === 'Foto Gif' && oCheck && oFecha) {
+        getRango(oFecha, oDias).forEach(d => usoPorDia[d] = (usoPorDia[d] || 0) + 1);
+      }
+    });
 
     let bloqueado = false;
-    for (let d of diasAProbar) {
-      let conteoEnDia = 0;
-      todasImpresoras.forEach(eDiaIdx => {
-        if (Math.abs(d - eDiaIdx) <= 1) {
-          conteoEnDia++;
-        }
-      });
-
-      if (conteoEnDia >= 2) {
+    for (let d of rangoCandidato) {
+      if ((usoPorDia[d] || 0) >= 2) {
         bloqueado = true;
         break;
       }
@@ -691,7 +683,7 @@ window.validarImpresorasEnTiempoReal = function() {
     if (bloqueado) {
       if (!checkImpresora.checked) {
         checkImpresora.disabled = true;
-        checkImpresora.title = "Agotado: Las impresoras están al límite en este rango de fechas.";
+        checkImpresora.title = "Agotado: Impresoras al límite en este rango.";
         checkImpresora.parentElement.classList.add('opacity-50', 'cursor-not-allowed');
       }
     } else {
