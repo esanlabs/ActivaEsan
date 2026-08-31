@@ -827,3 +827,9 @@ async function ejecutarGuardado() {
     btn.disabled = false;
   }
 }
+
+// --- BOTON ACTUALIZAR --- 
+window.actualizarCalendario = async function() {
+  await cargarDatosDesdeGoogle();
+  mostrarToast("Calendario actualizado correctamente", "exito");
+};
