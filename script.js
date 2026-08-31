@@ -118,6 +118,10 @@ function generarEventosProcesados() {
   const servicioFiltro = document.getElementById('filtroServicio')?.value || 'TODOS';
   const busquedaTexto = (document.getElementById('buscadorTexto')?.value || '').toLowerCase().trim();
 
+  // Obtener fecha actual en formato YYYY-MM-DD
+  const hoy = new Date();
+  const hoyStr = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+
   return registrosCargados
     .filter(r => r && r.fecha)
     .filter(r => {
@@ -153,15 +157,18 @@ function generarEventosProcesados() {
         };
       }
 
-      let color = '#000000'; 
+      // ASIGNACIÓN DE COLORES
+      let color = '#6B7280'; 
       if (esCancelado) {
-        color = '#000000'; 
+        color = '#000000'; // Negro: Eventos cancelados
+      } else if (fechaISO < hoyStr) {
+        color = '#6B7280'; // Gris: Eventos anteriores al día actual
       } else if (servicio.includes('Foto Gif')) {
-        color = '#E3173E'; 
+        color = '#E3173E'; // Rojo
       } else if (servicio === 'Foto Booth') {
-        color = '#2563EB'; 
+        color = '#2563EB'; // Azul
       } else if (servicio === '360°') {
-        color = '#16A34A'; 
+        color = '#16A34A'; // Verde
       }
 
       return {
