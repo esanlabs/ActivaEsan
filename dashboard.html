@@ -112,22 +112,31 @@
       </div>
     </div>
 
-    <!-- SECCIÓN DE GRÁFICOS -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- Tarjeta 1: Activaciones -->
       <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-80 flex flex-col">
         <h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Distribución por Activaciones</h3>
         <div class="relative flex-1">
           <canvas id="chartServicios"></canvas>
         </div>
       </div>
+    
+      <!-- Tarjeta 2: Área -->
       <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-80 flex flex-col">
         <h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Activaciones por Área</h3>
         <div class="relative flex-1">
           <canvas id="chartAreas"></canvas>
         </div>
       </div>
+    
+      <!-- Tarjeta 3: Dinero (Ancho completo) -->
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-80 flex flex-col md:col-span-2">
+        <h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Dinero Recaudado por Mes (S/)</h3>
+        <div class="relative flex-1">
+          <canvas id="graficaDinero"></canvas>
+        </div>
+      </div>
     </div>
-
   </main>
 
   <script src="dashboard.js"></script>
