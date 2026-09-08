@@ -141,7 +141,20 @@ function renderizarGraficoServicios(datos) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'bottom' }
+        legend: { 
+          position: 'bottom',
+          labels: {
+            boxWidth: 12,
+            padding: 12,
+            font: { size: 11 }
+          }
+        }
+      },
+      layout: {
+        padding: {
+          bottom: 10,
+          top: 5
+        }
       }
     }
   });
