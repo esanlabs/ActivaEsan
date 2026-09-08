@@ -847,23 +847,36 @@ window.actualizarCalendario = async function() {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-  // 1. Revisar si hay una sesión activa guardada
-  const sesionGuardada = sessionStorage.getItem('currentUser');
+  // 1. Verificar si hay un usuario guardado en sessionStorage
+  const sesion = sessionStorage.getItem('currentUser');
 
-  if (sesionGuardada) {
-    const usuario = JSON.parse(sesionGuardada);
+  if (sesion) {
+    const usuario = JSON.parse(sesion);
+
+    // 2. Ocultar la pantalla de Login y mostrar el Header y Contenido principal
+    document.getElementById('loginScreen')?.classList.add('hidden');
+    document.getElementById('mainHeader')?.classList.remove('hidden');
+    document.getElementById('mainContent')?.classList.remove('hidden');
+
+    // 3. Colocar el nombre del usuario y su rol
+    const elemNombre = document.getElementById('userNombre');
+    const elemRol = document.getElementById('badgeRol');
+
+    if (elemNombre) elemNombre.innerText = usuario.nombre || usuario.email;
+    if (elemRol) elemRol.innerText = usuario.role;
+
+    // 4. Mostrar u ocultar botones exclusivos de SUPERADMIN
+    const esAdmin = usuario.role === 'SUPERADMIN';
     
-    // 2. Ocultar el botón/modal de Login y mostrar el Calendario
-    const loginOverlay = document.getElementById('loginOverlay'); // O el ID de tu contenedor de login
-    const appContent = document.getElementById('appContent');     // O el ID de tu contenedor del calendario
+    document.getElementById('btnDashboard')?.classList.toggle('hidden', !esAdmin);
+    document.getElementById('btnGestionAdmins')?.classList.toggle('hidden', !esAdmin);
+    document.getElementById('btnExcel')?.classList.toggle('hidden', !esAdmin);
 
-    if (loginOverlay) loginOverlay.classList.add('hidden');
-    if (appContent) appContent.classList.remove('hidden');
-
-    // 3. (Opcional) Mostrar el botón de Dashboard si es admin
-    if (usuario.role === 'SUPERADMIN') {
-      const btnDashboard = document.getElementById('btnDashboard');
-      if (btnDashboard) btnDashboard.classList.remove('hidden');
+    // 5. Cargar los eventos en el calendario
+    if (typeof cargarEventosCalendario === 'function') {
+      cargarEventosCalendario();
+    } else if (typeof cargarDatos === 'function') {
+      cargarDatos();
     }
   }
 });
