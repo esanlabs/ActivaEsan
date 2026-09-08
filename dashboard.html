@@ -2,103 +2,134 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard de Control</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard de Control - Activaciones</title>
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js para Gráficos -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body class="bg-gray-100 p-6">
-
-  <!-- BARRA DE FILTROS DESPLEGABLES -->
-  <div class="bg-white p-4 rounded-xl shadow mb-6 flex flex-wrap gap-4">
-    <div>
-      <label class="block text-xs font-bold text-gray-500 mb-1">Mes</label>
-      <select id="fMes" onchange="filtrarDashboard()" class="border p-2 rounded text-xs">
-        <option value="TODOS">Todos</option>
-        <option value="01">Enero</option>
-        <option value="02">Febrero</option>
-        <!-- Agregar resto de meses -->
-      </select>
-    </div>
-
-    <div>
-      <label class="block text-xs font-bold text-gray-500 mb-1">Activación</label>
-      <select id="fServicio" onchange="filtrarDashboard()" class="border p-2 rounded text-xs">
-        <option value="TODOS">Todas</option>
-        <option value="Foto Booth">Foto Booth</option>
-        <option value="Foto Gif Virtual">Foto Gif Virtual</option>
-        <option value="360°">360°</option>
-      </select>
-    </div>
-
-    <div>
-      <label class="block text-xs font-bold text-gray-500 mb-1">Área</label>
-      <select id="fArea" onchange="filtrarDashboard()" class="border p-2 rounded text-xs">
-        <option value="TODOS">Todas</option>
-        <option value="DPA">DPA</option>
-        <option value="Pregrado">Pregrado</option>
-      </select>
-    </div>
-
-    <div>
-      <label class="block text-xs font-bold text-gray-500 mb-1">Estado</label>
-      <select id="fEstado" onchange="filtrarDashboard()" class="border p-2 rounded text-xs">
-        <option value="TODOS">Todos</option>
-        <option value="Confirmado">Confirmado</option>
-        <option value="Pendiente">Pendiente</option>
-        <option value="Cancelado">Cancelado</option>
-      </select>
-    </div>
-  </div>
-
-  <!-- TARJETAS DE RESUMEN -->
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-blue-500">
-      <p class="text-xs text-gray-500 font-bold uppercase">Total Eventos</p>
-      <p id="totalEventos" class="text-2xl font-bold">0</p>
-    </div>
-    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-green-500">
-      <p class="text-xs text-gray-500 font-bold uppercase">Confirmados</p>
-      <p id="totalConfirmados" class="text-2xl font-bold">0</p>
-    </div>
-    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-red-500">
-      <p class="text-xs text-gray-500 font-bold uppercase">Cancelados</p>
-      <p id="totalCancelados" class="text-2xl font-bold">0</p>
-    </div>
-  </div>
-
   <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbzoxLf6Au7NsKGunDpDcl_4sUCbZZVZ_vuz5DenBjzw6l4WOCiFH8CvPxGtpEpzNkqy/exec';
-    let datosOriginales = [];
-
-    async function cargarDatos() {
-      const res = await fetch(API_URL);
-      const data = await res.json();
-      datosOriginales = data.registros || [];
-      filtrarDashboard();
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'marca-rojo': '#E3173E',
+          }
+        }
+      }
     }
-
-    function filtrarDashboard() {
-      const mes = document.getElementById('fMes').value;
-      const servicio = document.getElementById('fServicio').value;
-      const area = document.getElementById('fArea').value;
-      const estado = document.getElementById('fEstado').value;
-
-      const filtrados = datosOriginales.filter(r => {
-        const fechaMes = r.fecha ? String(r.fecha).split('-')[1] : '';
-        if (mes !== 'TODOS' && fechaMes !== mes) return false;
-        if (servicio !== 'TODOS' && r.tipoServicio !== servicio) return false;
-        if (area !== 'TODOS' && r.area !== area) return false;
-        if (estado !== 'TODOS' && r.estado !== estado) return false;
-        return true;
-      });
-
-      // Actualizar Métricas
-      document.getElementById('totalEventos').innerText = filtrados.length;
-      document.getElementById('totalConfirmados').innerText = filtrados.filter(f => f.estado === 'Confirmado').length;
-      document.getElementById('totalCancelados').innerText = filtrados.filter(f => f.estado === 'Cancelado').length;
-    }
-
-    cargarDatos();
   </script>
+</head>
+<body class="bg-gray-100 min-h-screen text-gray-800 font-sans p-4 md:p-6">
+
+  <!-- CABECERA DE NAVEGACIÓN -->
+  <header class="bg-white p-4 rounded-xl shadow-sm mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+    <div class="flex items-center gap-3">
+      <h1 class="text-lg font-bold text-gray-800">📊 Dashboard de Métricas</h1>
+      <span class="text-xs bg-red-100 text-marca-rojo font-bold px-2.5 py-1 rounded-full uppercase">Super Admin</span>
+    </div>
+    <a href="index.html" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all">
+      📅 Volver al Calendario
+    </a>
+  </header>
+
+  <!-- LOADER METRICAS -->
+  <div id="loaderDashboard" class="flex justify-center items-center py-12">
+    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-marca-rojo"></div>
+    <span class="ml-3 text-xs font-bold text-gray-500">Cargando métricas...</span>
+  </div>
+
+  <main id="contenidoDashboard" class="space-y-6">
+
+    <!-- BARRA DE FILTROS DESPLEGABLES -->
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+      <h2 class="text-xs font-bold text-gray-400 uppercase mb-3">Filtros de Búsqueda</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        
+        <div>
+          <label class="block text-xs font-bold text-gray-600 mb-1">Mes</label>
+          <select id="fMes" onchange="filtrarYRenderizar()" class="w-full border border-gray-300 rounded-lg p-2 text-xs focus:outline-none focus:border-marca-rojo">
+            <option value="TODOS">Todos los meses</option>
+            <option value="01">Enero</option>
+            <option value="02">Febrero</option>
+            <option value="03">Marzo</option>
+            <option value="04">Abril</option>
+            <option value="05">Mayo</option>
+            <option value="06">Junio</option>
+            <option value="07">Julio</option>
+            <option value="08">Agosto</option>
+            <option value="09">Septiembre</option>
+            <option value="10">Octubre</option>
+            <option value="11">Noviembre</option>
+            <option value="12">Diciembre</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-600 mb-1">Activación</label>
+          <select id="fServicio" onchange="filtrarYRenderizar()" class="w-full border border-gray-300 rounded-lg p-2 text-xs focus:outline-none focus:border-marca-rojo">
+            <option value="TODOS">Cargando...</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-600 mb-1">Área</label>
+          <select id="fArea" onchange="filtrarYRenderizar()" class="w-full border border-gray-300 rounded-lg p-2 text-xs focus:outline-none focus:border-marca-rojo">
+            <option value="TODOS">Cargando...</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-600 mb-1">Estado</label>
+          <select id="fEstado" onchange="filtrarYRenderizar()" class="w-full border border-gray-300 rounded-lg p-2 text-xs focus:outline-none focus:border-marca-rojo">
+            <option value="TODOS">Todos los estados</option>
+            <option value="Confirmado">Confirmado</option>
+            <option value="Pendiente">Pendiente</option>
+            <option value="Cancelado">Cancelado</option>
+          </select>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- TARJETAS KPIS DE ESTADOS -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-slate-700">
+        <p class="text-xs text-gray-500 font-bold uppercase">Total Solicitudes</p>
+        <p id="kpiTotal" class="text-2xl font-black text-slate-800 mt-1">0</p>
+      </div>
+      <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-emerald-500">
+        <p class="text-xs text-emerald-600 font-bold uppercase">Confirmados</p>
+        <p id="kpiConfirmados" class="text-2xl font-black text-emerald-700 mt-1">0</p>
+      </div>
+      <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-amber-500">
+        <p class="text-xs text-amber-600 font-bold uppercase">Pendientes</p>
+        <p id="kpiPendientes" class="text-2xl font-black text-amber-700 mt-1">0</p>
+      </div>
+      <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-marca-rojo">
+        <p class="text-xs text-red-600 font-bold uppercase">Cancelados</p>
+        <p id="kpiCancelados" class="text-2xl font-black text-red-700 mt-1">0</p>
+      </div>
+    </div>
+
+    <!-- SECCIÓN DE GRÁFICOS -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-80 flex flex-col">
+        <h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Distribución por Activaciones</h3>
+        <div class="relative flex-1">
+          <canvas id="chartServicios"></canvas>
+        </div>
+      </div>
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-80 flex flex-col">
+        <h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Activaciones por Área</h3>
+        <div class="relative flex-1">
+          <canvas id="chartAreas"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="dashboard.js"></script>
 </body>
 </html>
