@@ -215,7 +215,7 @@ function renderizarGraficaDinero(registros) {
     data: {
       labels: Object.keys(ingresosPorMes),
       datasets: [{
-        label: 'Ingresos (S/)',
+        label: 'Ahorro (S/)',
         data: Object.values(ingresosPorMes),
         backgroundColor: '#10b981',
         borderRadius: 6
