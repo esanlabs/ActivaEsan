@@ -118,6 +118,7 @@ function filtrarYRenderizar() {
   renderizarGraficaDinero(filtrados);
 }
 
+// 1. Gráfico de Distribución por Activaciones (Dona)
 function renderizarGraficoServicios(datos) {
   const ctx = document.getElementById('chartServicios')?.getContext('2d');
   if (!ctx) return;
@@ -143,25 +144,23 @@ function renderizarGraficoServicios(datos) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
+        // Configuración para mostrar número dentro de la dona
+        datalabels: {
+          color: '#ffffff',
+          font: { weight: 'bold', size: 12 },
+          formatter: (val) => val > 0 ? val : ''
+        },
         legend: { 
           position: 'bottom',
-          labels: {
-            boxWidth: 12,
-            padding: 12,
-            font: { size: 11 }
-          }
+          labels: { boxWidth: 12, padding: 12, font: { size: 11 } }
         }
       },
-      layout: {
-        padding: {
-          bottom: 10,
-          top: 5
-        }
-      }
+      layout: { padding: { bottom: 10, top: 5 } }
     }
   });
 }
 
+// 2. Gráfico de Activaciones por Área (Barras)
 function renderizarGraficoAreas(datos) {
   const ctx = document.getElementById('chartAreas')?.getContext('2d');
   if (!ctx) return;
@@ -187,13 +186,28 @@ function renderizarGraficoAreas(datos) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      plugins: {
+        // Configuración para mostrar el número encima de cada barra
+        datalabels: {
+          anchor: 'end',
+          align: 'top',
+          color: '#333333',
+          font: { weight: 'bold', size: 11 },
+          formatter: (val) => val > 0 ? val : ''
+        }
+      },
       scales: {
-        y: { beginAtZero: true, ticks: { precision: 0 } }
+        y: { 
+          beginAtZero: true, 
+          grace: '10%', // Deja espacio arriba de las barras para que el número no se corte
+          ticks: { precision: 0 } 
+        }
       }
     }
   });
 }
 
+// 3. Gráfico de Ahorro por Mes (Barras con monto en Soles)
 function renderizarGraficaDinero(registros) {
   const ctx = document.getElementById('graficaDinero')?.getContext('2d');
   if (!ctx) return;
@@ -227,6 +241,14 @@ function renderizarGraficaDinero(registros) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
+        // Configuración para mostrar S/ Monto arriba de cada barra verde
+        datalabels: {
+          anchor: 'end',
+          align: 'top',
+          color: '#047857',
+          font: { weight: 'bold', size: 10 },
+          formatter: (val) => val > 0 ? `S/ ${val.toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : ''
+        },
         tooltip: {
           callbacks: {
             label: (context) => ` Total: S/ ${context.raw.toFixed(2)}`
@@ -236,6 +258,7 @@ function renderizarGraficaDinero(registros) {
       scales: {
         y: {
           beginAtZero: true,
+          grace: '15%', // Espacio extra para que quepa el texto "S/ 14.000" arriba
           ticks: { precision: 0 }
         }
       }
