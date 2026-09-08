@@ -165,3 +165,46 @@ function renderizarGraficoAreas(datos) {
     }
   });
 }
+
+function renderizarGraficaDinero(registros) {
+  const ingresosPorMes = {};
+
+  registros.forEach(r => {
+    // Ignorar eventos cancelados o sin costo registrado
+    if (!r.costo || r.estado === "Cancelado") return;
+
+    // Convertir el texto (ej: "S/ 150.00") a un número decimal
+    const textoLimpio = String(r.costo).replace(/[^0-9.]/g, '');
+    const monto = parseFloat(textoLimpio) || 0;
+
+    // Extraer año y mes (YYYY-MM) de la fecha
+    const mes = r.fecha ? r.fecha.substring(0, 7) : "Sin fecha";
+
+    ingresosPorMes[mes] = (ingresosPorMes[mes] || 0) + monto;
+  });
+
+  const ctx = document.getElementById('graficaDinero').getContext('2d');
+  
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: Object.keys(ingresosPorMes),
+      datasets: [{
+        label: 'Ingresos (S/)',
+        data: Object.values(ingresosPorMes),
+        backgroundColor: '#10b981', // Verde esmeralda
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: (context) => ` Total: S/ ${context.raw.toFixed(2)}`
+          }
+        }
+      }
+    }
+  });
+}
