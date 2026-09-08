@@ -88,6 +88,7 @@
             <option value="TODOS">Todos los estados</option>
             <option value="Confirmado">Confirmado</option>
             <option value="Pendiente">Pendiente</option>
+            <option value="Culminado">Culminado</option>
             <option value="Cancelado">Cancelado</option>
           </select>
         </div>
@@ -96,7 +97,7 @@
     </div>
 
     <!-- TARJETAS KPIS DE ESTADOS Y DINERO -->
-    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
       <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-slate-700">
         <p class="text-xs text-gray-500 font-bold uppercase">Total Solicitudes</p>
         <p id="kpiTotal" class="text-2xl font-black text-slate-800 mt-1">0</p>
@@ -109,11 +110,15 @@
         <p class="text-xs text-amber-600 font-bold uppercase">Pendientes</p>
         <p id="kpiPendientes" class="text-2xl font-black text-amber-700 mt-1">0</p>
       </div>
+      <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-blue-500">
+        <p class="text-xs text-blue-600 font-bold uppercase">Culminados</p>
+        <p id="kpiCulminados" class="text-2xl font-black text-blue-700 mt-1">0</p>
+      </div>
       <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-marca-rojo">
         <p class="text-xs text-red-600 font-bold uppercase">Cancelados</p>
         <p id="kpiCancelados" class="text-2xl font-black text-red-700 mt-1">0</p>
       </div>
-      <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-teal-600 col-span-2 sm:col-span-1">
+      <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-teal-600">
         <p class="text-xs text-teal-600 font-bold uppercase">Total Ahorrado</p>
         <p id="kpiRecaudado" class="text-2xl font-black text-teal-800 mt-1">S/ 0.00</p>
       </div>
