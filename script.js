@@ -29,6 +29,7 @@ window.handleCredentialResponse = async function(response) {
   }
 
   currentUser = { email: email, name: data.name };
+  sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
 
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('mainHeader').classList.remove('hidden');
@@ -92,12 +93,17 @@ function configurarInterfazSegunRol() {
   const badge = document.getElementById('badgeRol');
   const filtroArea = document.getElementById('filtroArea');
   const filtroServicio = document.getElementById('filtroServicio');
+  const btnDashboard = document.getElementById('btnDashboard'); // 🟢 AGREGAR
+
+  // 🟢 AGREGAR: Actualiza el almacenamiento con el rol verificado
+  sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
 
   if (currentUser.role === 'SUPERADMIN') {
     badge.innerText = 'Super Admin';
     badge.className = 'text-xs bg-red-100 text-marca-rojo px-2 py-0.5 rounded-full uppercase ml-2 font-bold';
     document.getElementById('btnGestionAdmins').classList.remove('hidden');
     document.getElementById('btnExcel').classList.remove('hidden');
+    if (btnDashboard) btnDashboard.classList.remove('hidden'); // 🟢 Muestra botón a SuperAdmin
 
     if (filtroArea) filtroArea.classList.remove('hidden');
     if (filtroServicio) filtroServicio.classList.remove('hidden');
@@ -106,6 +112,7 @@ function configurarInterfazSegunRol() {
     badge.className = 'text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full uppercase ml-2 font-bold';
     document.getElementById('btnGestionAdmins').classList.add('hidden');
     document.getElementById('btnExcel').classList.add('hidden');
+    if (btnDashboard) btnDashboard.classList.add('hidden'); // 🔴 Oculta botón a Clientes
 
     if (filtroArea) filtroArea.classList.add('hidden');
     if (filtroServicio) filtroServicio.classList.add('hidden');
