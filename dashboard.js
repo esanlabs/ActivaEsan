@@ -1,9 +1,9 @@
-
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzoxLf6Au7NsKGunDpDcl_4sUCbZZVZ_vuz5DenBjzw6l4WOCiFH8CvPxGtpEpzNkqy/exec';
 
 let datosOriginales = [];
 let chartServicios = null;
 let chartAreas = null;
+let chartDinero = null; // Instancia para la gráfica de dinero
 
 document.addEventListener('DOMContentLoaded', () => {
   if (verificarAcceso()) {
@@ -92,15 +92,28 @@ function filtrarYRenderizar() {
     return true;
   });
 
+  // Cálculo del Total Recaudado (S/)
+  const totalDinero = filtrados.reduce((acc, r) => {
+    if (r.estado === 'Cancelado' || !r.costo) return acc;
+    const monto = parseFloat(String(r.costo).replace(/[^0-9.]/g, '')) || 0;
+    return acc + monto;
+  }, 0);
+
   // 1. Actualizar Tarjetas de Métricas (KPIs)
   document.getElementById('kpiTotal').innerText = filtrados.length;
   document.getElementById('kpiConfirmados').innerText = filtrados.filter(r => r.estado === 'Confirmado' || !r.estado).length;
   document.getElementById('kpiPendientes').innerText = filtrados.filter(r => r.estado === 'Pendiente').length;
   document.getElementById('kpiCancelados').innerText = filtrados.filter(r => r.estado === 'Cancelado').length;
+  
+  const elemRecaudado = document.getElementById('kpiRecaudado');
+  if (elemRecaudado) {
+    elemRecaudado.innerText = `S/ ${totalDinero.toFixed(2)}`;
+  }
 
-  // 2. Renderizar Gráficos
+  // 2. Renderizar los 3 Gráficos
   renderizarGraficoServicios(filtrados);
   renderizarGraficoAreas(filtrados);
+  renderizarGraficaDinero(filtrados);
 }
 
 function renderizarGraficoServicios(datos) {
@@ -167,42 +180,48 @@ function renderizarGraficoAreas(datos) {
 }
 
 function renderizarGraficaDinero(registros) {
+  const ctx = document.getElementById('graficaDinero')?.getContext('2d');
+  if (!ctx) return;
+
   const ingresosPorMes = {};
 
   registros.forEach(r => {
-    // Ignorar eventos cancelados o sin costo registrado
     if (!r.costo || r.estado === "Cancelado") return;
 
-    // Convertir el texto (ej: "S/ 150.00") a un número decimal
     const textoLimpio = String(r.costo).replace(/[^0-9.]/g, '');
     const monto = parseFloat(textoLimpio) || 0;
-
-    // Extraer año y mes (YYYY-MM) de la fecha
-    const mes = r.fecha ? r.fecha.substring(0, 7) : "Sin fecha";
+    const mes = r.fecha ? String(r.fecha).substring(0, 7) : "Sin fecha";
 
     ingresosPorMes[mes] = (ingresosPorMes[mes] || 0) + monto;
   });
 
-  const ctx = document.getElementById('graficaDinero').getContext('2d');
-  
-  new Chart(ctx, {
+  if (chartDinero) chartDinero.destroy();
+
+  chartDinero = new Chart(ctx, {
     type: 'bar',
     data: {
       labels: Object.keys(ingresosPorMes),
       datasets: [{
         label: 'Ingresos (S/)',
         data: Object.values(ingresosPorMes),
-        backgroundColor: '#10b981', // Verde esmeralda
+        backgroundColor: '#10b981',
         borderRadius: 6
       }]
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       plugins: {
         tooltip: {
           callbacks: {
             label: (context) => ` Total: S/ ${context.raw.toFixed(2)}`
           }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { precision: 0 }
         }
       }
     }
