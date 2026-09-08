@@ -1,3 +1,5 @@
+// Registrar plugin para mostrar siempre las etiquetas en los gráficos
+Chart.register(ChartDataLabels);
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzoxLf6Au7NsKGunDpDcl_4sUCbZZVZ_vuz5DenBjzw6l4WOCiFH8CvPxGtpEpzNkqy/exec';
 
 let datosOriginales = [];
