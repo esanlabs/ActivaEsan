@@ -532,8 +532,13 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
       servicioFinal = quiereImpresora ? 'Foto Gif Impresión' : 'Foto Gif Virtual';
     }
 
+    // 🟢 CLAVE DE LA SOLUCIÓN:
+    // La 1ª activación (i === 0) mantiene el ID original para actualizar esa fila en Excel.
+    // Las nuevas activaciones agregadas en el modal (i > 0) llevan null para que el Excel cree una fila NUEVA.
+    const idParaEsteItem = (idEventoEditando !== null && i === 0) ? idEventoEditando : null;
+
     payloadItems.push({
-      numEvento: idEventoEditando, 
+      numEvento: idParaEsteItem, // <-- Se asigna null a la nueva activación
       tipoEvento: nombre,
       area: document.getElementById('area').value,
       solicita: currentUser.name,
@@ -542,13 +547,13 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
       observaciones: unificarCostos ? obsGeneral : obsUnitaria,
       tipoServicio: servicioFinal,
       estado: "Confirmado",
-      tablet: (currentUser.role === 'SUPERADMIN' && idEventoEditando) ? document.getElementById('tablet').value : "",
+      tablet: (currentUser.role === 'SUPERADMIN' && idEventoEditando && i === 0) ? document.getElementById('tablet').value : "",
       fecha: fecha, 
       diasServicio: diasServicio, 
       cantPersonas: 1,
-      cantFotos: (currentUser.role === 'SUPERADMIN' && idEventoEditando) ? document.getElementById('fotos').value : "",
+      cantFotos: (currentUser.role === 'SUPERADMIN' && idEventoEditando && i === 0) ? document.getElementById('fotos').value : "",
       costo: calcularCostoServicio(servicioFinal),
-      link: (currentUser.role === 'SUPERADMIN' && idEventoEditando) ? document.getElementById('link').value : ""
+      link: (currentUser.role === 'SUPERADMIN' && idEventoEditando && i === 0) ? document.getElementById('link').value : ""
     });
   }
 
