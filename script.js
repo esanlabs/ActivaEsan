@@ -845,3 +845,25 @@ window.actualizarCalendario = async function() {
   await cargarDatosDesdeGoogle();
   mostrarToast("Calendario actualizado correctamente", "exito");
 };
+
+document.addEventListener('DOMContentLoaded', () => {
+  // 1. Revisar si hay una sesión activa guardada
+  const sesionGuardada = sessionStorage.getItem('currentUser');
+
+  if (sesionGuardada) {
+    const usuario = JSON.parse(sesionGuardada);
+    
+    // 2. Ocultar el botón/modal de Login y mostrar el Calendario
+    const loginOverlay = document.getElementById('loginOverlay'); // O el ID de tu contenedor de login
+    const appContent = document.getElementById('appContent');     // O el ID de tu contenedor del calendario
+
+    if (loginOverlay) loginOverlay.classList.add('hidden');
+    if (appContent) appContent.classList.remove('hidden');
+
+    // 3. (Opcional) Mostrar el botón de Dashboard si es admin
+    if (usuario.role === 'SUPERADMIN') {
+      const btnDashboard = document.getElementById('btnDashboard');
+      if (btnDashboard) btnDashboard.classList.remove('hidden');
+    }
+  }
+});
