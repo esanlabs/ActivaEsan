@@ -40,7 +40,9 @@ window.handleCredentialResponse = async function(response) {
   await cargarDatosDesdeGoogle();
 };
 
+// --- CERRAR SESIÓN ---
 function cerrarSesion() {
+  sessionStorage.removeItem('currentUser');
   location.reload();
 }
 
@@ -840,43 +842,34 @@ async function ejecutarGuardado() {
   }
 }
 
-// --- BOTON ACTUALIZAR --- 
+// --- BOTÓN ACTUALIZAR --- 
 window.actualizarCalendario = async function() {
   await cargarDatosDesdeGoogle();
   mostrarToast("Calendario actualizado correctamente", "exito");
 };
 
-document.addEventListener('DOMContentLoaded', () => {
+// --- INICIALIZACIÓN AL CARGAR LA PÁGINA ---
+document.addEventListener('DOMContentLoaded', async () => {
   // 1. Verificar si hay un usuario guardado en sessionStorage
   const sesion = sessionStorage.getItem('currentUser');
 
   if (sesion) {
-    const usuario = JSON.parse(sesion);
+    // ⚠️ CRÍTICO: Asignar a la variable global currentUser
+    currentUser = JSON.parse(sesion);
 
-    // 2. Ocultar la pantalla de Login y mostrar el Header y Contenido principal
+    // 2. Ocultar pantalla de login y mostrar contenedores principales
     document.getElementById('loginScreen')?.classList.add('hidden');
     document.getElementById('mainHeader')?.classList.remove('hidden');
     document.getElementById('mainContent')?.classList.remove('hidden');
 
-    // 3. Colocar el nombre del usuario y su rol
+    // 3. Colocar el nombre del usuario en el header y en el modal
     const elemNombre = document.getElementById('userNombre');
-    const elemRol = document.getElementById('badgeRol');
+    if (elemNombre) elemNombre.innerText = currentUser.name || currentUser.email;
 
-    if (elemNombre) elemNombre.innerText = usuario.nombre || usuario.email;
-    if (elemRol) elemRol.innerText = usuario.role;
+    const solicitaInput = document.getElementById('solicita');
+    if (solicitaInput) solicitaInput.value = currentUser.name || '';
 
-    // 4. Mostrar u ocultar botones exclusivos de SUPERADMIN
-    const esAdmin = usuario.role === 'SUPERADMIN';
-    
-    document.getElementById('btnDashboard')?.classList.toggle('hidden', !esAdmin);
-    document.getElementById('btnGestionAdmins')?.classList.toggle('hidden', !esAdmin);
-    document.getElementById('btnExcel')?.classList.toggle('hidden', !esAdmin);
-
-    // 5. Cargar los eventos en el calendario
-    if (typeof cargarEventosCalendario === 'function') {
-      cargarEventosCalendario();
-    } else if (typeof cargarDatos === 'function') {
-      cargarDatos();
-    }
+    // 4. Llamar a la función CORRECTA para traer los datos y renderizar el calendario
+    await cargarDatosDesdeGoogle();
   }
 });
