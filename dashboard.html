@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard de Control</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100 p-6">
+
+  <!-- BARRA DE FILTROS DESPLEGABLES -->
+  <div class="bg-white p-4 rounded-xl shadow mb-6 flex flex-wrap gap-4">
+    <div>
+      <label class="block text-xs font-bold text-gray-500 mb-1">Mes</label>
+      <select id="fMes" onchange="filtrarDashboard()" class="border p-2 rounded text-xs">
+        <option value="TODOS">Todos</option>
+        <option value="01">Enero</option>
+        <option value="02">Febrero</option>
+        <!-- Agregar resto de meses -->
+      </select>
+    </div>
+
+    <div>
+      <label class="block text-xs font-bold text-gray-500 mb-1">Activación</label>
+      <select id="fServicio" onchange="filtrarDashboard()" class="border p-2 rounded text-xs">
+        <option value="TODOS">Todas</option>
+        <option value="Foto Booth">Foto Booth</option>
+        <option value="Foto Gif Virtual">Foto Gif Virtual</option>
+        <option value="360°">360°</option>
+      </select>
+    </div>
+
+    <div>
+      <label class="block text-xs font-bold text-gray-500 mb-1">Área</label>
+      <select id="fArea" onchange="filtrarDashboard()" class="border p-2 rounded text-xs">
+        <option value="TODOS">Todas</option>
+        <option value="DPA">DPA</option>
+        <option value="Pregrado">Pregrado</option>
+      </select>
+    </div>
+
+    <div>
+      <label class="block text-xs font-bold text-gray-500 mb-1">Estado</label>
+      <select id="fEstado" onchange="filtrarDashboard()" class="border p-2 rounded text-xs">
+        <option value="TODOS">Todos</option>
+        <option value="Confirmado">Confirmado</option>
+        <option value="Pendiente">Pendiente</option>
+        <option value="Cancelado">Cancelado</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- TARJETAS DE RESUMEN -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-blue-500">
+      <p class="text-xs text-gray-500 font-bold uppercase">Total Eventos</p>
+      <p id="totalEventos" class="text-2xl font-bold">0</p>
+    </div>
+    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-green-500">
+      <p class="text-xs text-gray-500 font-bold uppercase">Confirmados</p>
+      <p id="totalConfirmados" class="text-2xl font-bold">0</p>
+    </div>
+    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-red-500">
+      <p class="text-xs text-gray-500 font-bold uppercase">Cancelados</p>
+      <p id="totalCancelados" class="text-2xl font-bold">0</p>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = 'https://script.google.com/macros/s/AKfycbzoxLf6Au7NsKGunDpDcl_4sUCbZZVZ_vuz5DenBjzw6l4WOCiFH8CvPxGtpEpzNkqy/exec';
+    let datosOriginales = [];
+
+    async function cargarDatos() {
+      const res = await fetch(API_URL);
+      const data = await res.json();
+      datosOriginales = data.registros || [];
+      filtrarDashboard();
+    }
+
+    function filtrarDashboard() {
+      const mes = document.getElementById('fMes').value;
+      const servicio = document.getElementById('fServicio').value;
+      const area = document.getElementById('fArea').value;
+      const estado = document.getElementById('fEstado').value;
+
+      const filtrados = datosOriginales.filter(r => {
+        const fechaMes = r.fecha ? String(r.fecha).split('-')[1] : '';
+        if (mes !== 'TODOS' && fechaMes !== mes) return false;
+        if (servicio !== 'TODOS' && r.tipoServicio !== servicio) return false;
+        if (area !== 'TODOS' && r.area !== area) return false;
+        if (estado !== 'TODOS' && r.estado !== estado) return false;
+        return true;
+      });
+
+      // Actualizar Métricas
+      document.getElementById('totalEventos').innerText = filtrados.length;
+      document.getElementById('totalConfirmados').innerText = filtrados.filter(f => f.estado === 'Confirmado').length;
+      document.getElementById('totalCancelados').innerText = filtrados.filter(f => f.estado === 'Cancelado').length;
+    }
+
+    cargarDatos();
+  </script>
+</body>
+</html>
