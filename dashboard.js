@@ -240,6 +240,11 @@ function renderizarGraficaDinero(registros) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      layout: {
+        padding: {
+          top: 25 // 👈 Otorga espacio arriba dentro del canvas para no cortar el texto
+        }
+      },
       plugins: {
         // Configuración para mostrar S/ Monto arriba de cada barra verde
         datalabels: {
@@ -258,7 +263,7 @@ function renderizarGraficaDinero(registros) {
       scales: {
         y: {
           beginAtZero: true,
-          grace: '15%', // Espacio extra para que quepa el texto "S/ 14.000" arriba
+          grace: '20%', // 👈 Eleva la escala máxima del eje Y automáticamente
           ticks: { precision: 0 }
         }
       }
