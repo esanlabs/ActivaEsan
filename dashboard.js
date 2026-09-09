@@ -5,7 +5,7 @@ const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzoxLf6Au7NsK
 let datosOriginales = [];
 let chartServicios = null;
 let chartAreas = null;
-let chartDinero = null; // Instancia para la gráfica de dinero
+let chartDinero = null;
 
 document.addEventListener('DOMContentLoaded', () => {
   if (verificarAcceso()) {
@@ -40,7 +40,7 @@ async function cargarDatosDashboard() {
 
     datosOriginales = resData.registros || [];
 
-    // Llenar dinámicamente los selectores de Filtros
+    // Llenar dinámicamente las opciones de Checkboxes
     poblarFiltros(datosOriginales);
 
     // Renderizar tarjetas y gráficos
@@ -54,42 +54,130 @@ async function cargarDatosDashboard() {
   }
 }
 
-function poblarFiltros(registros) {
-  // Poblar Áreas dinámicamente según lo registrado en el Excel
-  const selectArea = document.getElementById('fArea');
-  if (selectArea) {
-    const areas = [...new Set(registros.map(r => r.area).filter(Boolean))].sort();
-    selectArea.innerHTML = '<option value="TODOS">Todas las áreas</option>' +
-      areas.map(a => `<option value="${a}">${a}</option>`).join('');
-  }
+/* ==========================================================
+   NUEVA LÓGICA DE FILTROS MULTI-SELECCIÓN (CHECKBOXES)
+   ========================================================== */
 
-  // Poblar Servicios dinámicamente
-  const selectServicio = document.getElementById('fServicio');
-  if (selectServicio) {
-    const servicios = [...new Set(registros.map(r => r.tipoServicio).filter(Boolean))].sort();
-    selectServicio.innerHTML = '<option value="TODOS">Todas las activaciones</option>' +
-      servicios.map(s => `<option value="${s}">${s}</option>`).join('');
+// Mostrar / Ocultar menús desplegables
+function toggleDropdown(event, id) {
+  event.stopPropagation();
+  const target = document.getElementById(id);
+  const estaOculto = target.classList.contains('hidden');
+
+  // Cerrar otros desplegables abiertos
+  document.querySelectorAll('.dropdown-container > div').forEach(div => div.classList.add('hidden'));
+
+  if (estaOculto) {
+    target.classList.remove('hidden');
   }
 }
 
+// Cerrar desplegables al hacer clic fuera del contenedor
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.dropdown-container')) {
+    document.querySelectorAll('.dropdown-container > div').forEach(div => div.classList.add('hidden'));
+  }
+});
+
+// Poblar dinámicamente las listas de Checkboxes
+function poblarFiltros(registros) {
+  // 1. Meses
+  const dropMes = document.getElementById('dropMes');
+  if (dropMes) {
+    const meses = [
+      { val: '01', nombre: 'Enero' }, { val: '02', nombre: 'Febrero' },
+      { val: '03', nombre: 'Marzo' }, { val: '04', nombre: 'Abril' },
+      { val: '05', nombre: 'Mayo' }, { val: '06', nombre: 'Junio' },
+      { val: '07', nombre: 'Julio' }, { val: '08', nombre: 'Agosto' },
+      { val: '09', nombre: 'Septiembre' }, { val: '10', nombre: 'Octubre' },
+      { val: '11', nombre: 'Noviembre' }, { val: '12', nombre: 'Diciembre' }
+    ];
+    dropMes.innerHTML = meses.map(m => `
+      <label class="flex items-center gap-2 text-xs p-1.5 hover:bg-gray-50 rounded cursor-pointer select-none">
+        <input type="checkbox" value="${m.val}" class="chk-mes rounded border-gray-300 text-marca-rojo focus:ring-0" onchange="filtrarYRenderizar()">
+        <span>${m.nombre}</span>
+      </label>
+    `).join('');
+  }
+
+  // 2. Activaciones (Servicios)
+  const dropServicio = document.getElementById('dropServicio');
+  if (dropServicio) {
+    const servicios = [...new Set(registros.map(r => r.tipoServicio).filter(Boolean))].sort();
+    dropServicio.innerHTML = servicios.map(s => `
+      <label class="flex items-center gap-2 text-xs p-1.5 hover:bg-gray-50 rounded cursor-pointer select-none">
+        <input type="checkbox" value="${s}" class="chk-servicio rounded border-gray-300 text-marca-rojo focus:ring-0" onchange="filtrarYRenderizar()">
+        <span>${s}</span>
+      </label>
+    `).join('');
+  }
+
+  // 3. Áreas
+  const dropArea = document.getElementById('dropArea');
+  if (dropArea) {
+    const areas = [...new Set(registros.map(r => r.area).filter(Boolean))].sort();
+    dropArea.innerHTML = areas.map(a => `
+      <label class="flex items-center gap-2 text-xs p-1.5 hover:bg-gray-50 rounded cursor-pointer select-none">
+        <input type="checkbox" value="${a}" class="chk-area rounded border-gray-300 text-marca-rojo focus:ring-0" onchange="filtrarYRenderizar()">
+        <span>${a}</span>
+      </label>
+    `).join('');
+  }
+
+  // 4. Estados
+  const dropEstado = document.getElementById('dropEstado');
+  if (dropEstado) {
+    const estados = ['Confirmado', 'Pendiente', 'Culminado', 'Cancelado'];
+    dropEstado.innerHTML = estados.map(e => `
+      <label class="flex items-center gap-2 text-xs p-1.5 hover:bg-gray-50 rounded cursor-pointer select-none">
+        <input type="checkbox" value="${e}" class="chk-estado rounded border-gray-300 text-marca-rojo focus:ring-0" onchange="filtrarYRenderizar()">
+        <span>${e}</span>
+      </label>
+    `).join('');
+  }
+}
+
+// Leer las casillas marcadas
+function obtenerSeleccionados(selector) {
+  return Array.from(document.querySelectorAll(`${selector}:checked`)).map(cb => cb.value);
+}
+
+// Actualizar texto descriptivo del botón desplegable
+function actualizarEtiquetasFiltros(selMeses, selServicios, selAreas, selEstados) {
+  document.getElementById('labelMes').innerText = selMeses.length ? `${selMeses.length} seleccionado(s)` : 'Todos los meses';
+  document.getElementById('labelServicio').innerText = selServicios.length ? `${selServicios.length} seleccionada(s)` : 'Todas las activaciones';
+  document.getElementById('labelArea').innerText = selAreas.length ? `${selAreas.length} seleccionada(s)` : 'Todas las áreas';
+  document.getElementById('labelEstado').innerText = selEstados.length ? `${selEstados.length} seleccionado(s)` : 'Todos los estados';
+}
+
+// Botón para desmarcar todo y resetear
+function limpiarFiltros() {
+  document.querySelectorAll('.chk-mes, .chk-servicio, .chk-area, .chk-estado').forEach(chk => {
+    chk.checked = false;
+  });
+  filtrarYRenderizar();
+}
+
+// Filtrar según múltiples selecciones
 function filtrarYRenderizar() {
-  const mes = document.getElementById('fMes')?.value || 'TODOS';
-  const servicio = document.getElementById('fServicio')?.value || 'TODOS';
-  const area = document.getElementById('fArea')?.value || 'TODOS';
-  const estado = document.getElementById('fEstado')?.value || 'TODOS';
+  const selMeses = obtenerSeleccionados('.chk-mes');
+  const selServicios = obtenerSeleccionados('.chk-servicio');
+  const selAreas = obtenerSeleccionados('.chk-area');
+  const selEstados = obtenerSeleccionados('.chk-estado');
+
+  actualizarEtiquetasFiltros(selMeses, selServicios, selAreas, selEstados);
 
   const filtrados = datosOriginales.filter(r => {
     if (!r.fecha) return false;
 
-    // Extraer mes (formato YYYY-MM-DD o ISO)
     const fechaStr = String(r.fecha).split('T')[0];
     const partesFecha = fechaStr.split('-');
-    const mesRegistro = partesFecha[1]; // "01", "02", etc.
+    const mesRegistro = partesFecha[1];
 
-    if (mes !== 'TODOS' && mesRegistro !== mes) return false;
-    if (servicio !== 'TODOS' && r.tipoServicio !== servicio) return false;
-    if (area !== 'TODOS' && r.area !== area) return false;
-    if (estado !== 'TODOS' && r.estado !== estado) return false;
+    if (selMeses.length > 0 && !selMeses.includes(mesRegistro)) return false;
+    if (selServicios.length > 0 && !selServicios.includes(r.tipoServicio)) return false;
+    if (selAreas.length > 0 && !selAreas.includes(r.area)) return false;
+    if (selEstados.length > 0 && !selEstados.includes(r.estado)) return false;
 
     return true;
   });
@@ -119,7 +207,10 @@ function filtrarYRenderizar() {
   renderizarGraficaDinero(filtrados);
 }
 
-// 1. Gráfico de Distribución por Activaciones (Dona)
+/* ==========================================================
+   MANTENER FUNCIONES DE GRÁFICOS SIN CAMBIOS
+   ========================================================== */
+
 function renderizarGraficoServicios(datos) {
   const ctx = document.getElementById('chartServicios')?.getContext('2d');
   if (!ctx) return;
@@ -145,7 +236,6 @@ function renderizarGraficoServicios(datos) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        // Configuración para mostrar número dentro de la dona
         datalabels: {
           color: '#ffffff',
           font: { weight: 'bold', size: 12 },
@@ -161,7 +251,6 @@ function renderizarGraficoServicios(datos) {
   });
 }
 
-// 2. Gráfico de Activaciones por Área (Barras)
 function renderizarGraficoAreas(datos) {
   const ctx = document.getElementById('chartAreas')?.getContext('2d');
   if (!ctx) return;
@@ -188,7 +277,6 @@ function renderizarGraficoAreas(datos) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        // Configuración para mostrar el número encima de cada barra
         datalabels: {
           anchor: 'end',
           align: 'top',
@@ -200,7 +288,7 @@ function renderizarGraficoAreas(datos) {
       scales: {
         y: { 
           beginAtZero: true, 
-          grace: '10%', // Deja espacio arriba de las barras para que el número no se corte
+          grace: '10%',
           ticks: { precision: 0 } 
         }
       }
@@ -208,7 +296,6 @@ function renderizarGraficoAreas(datos) {
   });
 }
 
-// 3. Gráfico de Ahorro por Mes (Barras con monto en Soles)
 function renderizarGraficaDinero(registros) {
   const ctx = document.getElementById('graficaDinero')?.getContext('2d');
   if (!ctx) return;
@@ -243,11 +330,10 @@ function renderizarGraficaDinero(registros) {
       maintainAspectRatio: false,
       layout: {
         padding: {
-          top: 25 // 👈 Otorga espacio arriba dentro del canvas para no cortar el texto
+          top: 25
         }
       },
       plugins: {
-        // Configuración para mostrar S/ Monto arriba de cada barra verde
         datalabels: {
           anchor: 'end',
           align: 'top',
@@ -264,7 +350,7 @@ function renderizarGraficaDinero(registros) {
       scales: {
         y: {
           beginAtZero: true,
-          grace: '20%', // 👈 Eleva la escala máxima del eje Y automáticamente
+          grace: '20%',
           ticks: { precision: 0 }
         }
       }
