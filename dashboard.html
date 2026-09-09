@@ -45,67 +45,67 @@
   <main id="contenidoDashboard" class="space-y-6">
 
     <!-- BARRA DE FILTROS DESPLEGABLES CON CHECKBOXES -->
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6">
-        <div class="flex justify-between items-center mb-3">
-          <h2 class="text-xs font-bold text-gray-400 uppercase">Filtros de Búsqueda</h2>
-          <!-- Botón para limpiar todos los filtros -->
-          <button onclick="limpiarFiltros()" class="text-xs bg-gray-100 hover:bg-red-50 hover:text-marca-rojo text-gray-600 font-bold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 border border-gray-200">
-            🔄 Limpiar Filtros
-          </button>
-        </div>
-      
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-          
-          <!-- Filtro Mes -->
-          <div class="relative dropdown-container">
-            <label class="block text-xs font-bold text-gray-600 mb-1">Mes</label>
-            <button type="button" onclick="toggleDropdown(event, 'dropMes')" class="w-full border border-gray-300 rounded-lg p-2 text-xs bg-white flex justify-between items-center text-left focus:outline-none focus:border-marca-rojo">
-              <span id="labelMes" class="truncate">Todos los meses</span>
-              <span class="text-gray-400 text-[10px]">▼</span>
-            </button>
-            <div id="dropMes" class="hidden absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-2 max-h-48 overflow-y-auto space-y-1">
-              <!-- Se llena desde JS -->
-            </div>
-          </div>
-      
-          <!-- Filtro Activación -->
-          <div class="relative dropdown-container">
-            <label class="block text-xs font-bold text-gray-600 mb-1">Activación</label>
-            <button type="button" onclick="toggleDropdown(event, 'dropServicio')" class="w-full border border-gray-300 rounded-lg p-2 text-xs bg-white flex justify-between items-center text-left focus:outline-none focus:border-marca-rojo">
-              <span id="labelServicio" class="truncate">Todas las activaciones</span>
-              <span class="text-gray-400 text-[10px]">▼</span>
-            </button>
-            <div id="dropServicio" class="hidden absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-2 max-h-48 overflow-y-auto space-y-1">
-              <!-- Se llena desde JS -->
-            </div>
-          </div>
-      
-          <!-- Filtro Área -->
-          <div class="relative dropdown-container">
-            <label class="block text-xs font-bold text-gray-600 mb-1">Área</label>
-            <button type="button" onclick="toggleDropdown(event, 'dropArea')" class="w-full border border-gray-300 rounded-lg p-2 text-xs bg-white flex justify-between items-center text-left focus:outline-none focus:border-marca-rojo">
-              <span id="labelArea" class="truncate">Todas las áreas</span>
-              <span class="text-gray-400 text-[10px]">▼</span>
-            </button>
-            <div id="dropArea" class="hidden absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-2 max-h-48 overflow-y-auto space-y-1">
-              <!-- Se llena desde JS -->
-            </div>
-          </div>
-      
-          <!-- Filtro Estado -->
-          <div class="relative dropdown-container">
-            <label class="block text-xs font-bold text-gray-600 mb-1">Estado</label>
-            <button type="button" onclick="toggleDropdown(event, 'dropEstado')" class="w-full border border-gray-300 rounded-lg p-2 text-xs bg-white flex justify-between items-center text-left focus:outline-none focus:border-marca-rojo">
-              <span id="labelEstado" class="truncate">Todos los estados</span>
-              <span class="text-gray-400 text-[10px]">▼</span>
-            </button>
-            <div id="dropEstado" class="hidden absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-2 max-h-48 overflow-y-auto space-y-1">
-              <!-- Se llena desde JS -->
-            </div>
-          </div>
-      
-        </div>
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6">
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="text-xs font-bold text-gray-400 uppercase">Filtros de Búsqueda</h2>
+        <!-- Botón para limpiar todos los filtros -->
+        <button onclick="limpiarFiltros()" class="text-xs bg-gray-100 hover:bg-red-50 hover:text-marca-rojo text-gray-600 font-bold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 border border-gray-200">
+          🔄 Limpiar Filtros
+        </button>
       </div>
+    
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        
+        <!-- Filtro Mes -->
+        <div class="relative dropdown-container">
+          <label class="block text-xs font-bold text-gray-600 mb-1">Mes</label>
+          <button type="button" onclick="toggleDropdown(event, 'dropMes')" class="w-full border border-gray-300 rounded-lg p-2 text-xs bg-white flex justify-between items-center text-left focus:outline-none focus:border-marca-rojo">
+            <span id="labelMes" class="truncate">Todos los meses</span>
+            <span class="text-gray-400 text-[10px]">▼</span>
+          </button>
+          <div id="dropMes" class="hidden absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-2 max-h-48 overflow-y-auto space-y-1">
+            <!-- Se llena desde JS -->
+          </div>
+        </div>
+    
+        <!-- Filtro Activación -->
+        <div class="relative dropdown-container">
+          <label class="block text-xs font-bold text-gray-600 mb-1">Activación</label>
+          <button type="button" onclick="toggleDropdown(event, 'dropServicio')" class="w-full border border-gray-300 rounded-lg p-2 text-xs bg-white flex justify-between items-center text-left focus:outline-none focus:border-marca-rojo">
+            <span id="labelServicio" class="truncate">Todas las activaciones</span>
+            <span class="text-gray-400 text-[10px]">▼</span>
+          </button>
+          <div id="dropServicio" class="hidden absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-2 max-h-48 overflow-y-auto space-y-1">
+            <!-- Se llena desde JS -->
+          </div>
+        </div>
+    
+        <!-- Filtro Área -->
+        <div class="relative dropdown-container">
+          <label class="block text-xs font-bold text-gray-600 mb-1">Área</label>
+          <button type="button" onclick="toggleDropdown(event, 'dropArea')" class="w-full border border-gray-300 rounded-lg p-2 text-xs bg-white flex justify-between items-center text-left focus:outline-none focus:border-marca-rojo">
+            <span id="labelArea" class="truncate">Todas las áreas</span>
+            <span class="text-gray-400 text-[10px]">▼</span>
+          </button>
+          <div id="dropArea" class="hidden absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-2 max-h-48 overflow-y-auto space-y-1">
+            <!-- Se llena desde JS -->
+          </div>
+        </div>
+    
+        <!-- Filtro Estado -->
+        <div class="relative dropdown-container">
+          <label class="block text-xs font-bold text-gray-600 mb-1">Estado</label>
+          <button type="button" onclick="toggleDropdown(event, 'dropEstado')" class="w-full border border-gray-300 rounded-lg p-2 text-xs bg-white flex justify-between items-center text-left focus:outline-none focus:border-marca-rojo">
+            <span id="labelEstado" class="truncate">Todos los estados</span>
+            <span class="text-gray-400 text-[10px]">▼</span>
+          </button>
+          <div id="dropEstado" class="hidden absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-2 max-h-48 overflow-y-auto space-y-1">
+            <!-- Se llena desde JS -->
+          </div>
+        </div>
+    
+      </div>
+    </div>
 
     <!-- TARJETAS KPIS DE ESTADOS Y DINERO -->
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -135,76 +135,88 @@
       </div>
     </div>
 
-    <!-- BANNER DE AUDITORÍA DE CALIDAD DE DATOS -->
-<div id="bannerAuditoria" class="bg-slate-950 text-white p-4 rounded-xl shadow-md border border-slate-800/80 mb-6">
-  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3 pb-3 border-b border-slate-800">
-    <div class="flex items-center gap-2 text-xs md:text-sm font-semibold text-rose-400">
-      <span class="text-base">⚠️</span>
-      <span class="font-bold text-rose-500">Auditoría de Calidad de Datos:</span>
-      <span class="text-slate-300 font-normal hidden md:inline">Registros excluidos por campos nulos/incompletos según regla de negocio:</span>
-    </div>
-    
-    <!-- Botón con total de excluidos -->
-    <button type="button" onclick="abrirModalAuditoria()" class="bg-rose-900/60 hover:bg-rose-800 text-rose-200 border border-rose-700/50 text-xs font-bold px-4 py-1.5 rounded-full transition-all flex items-center gap-2 shadow-sm">
-      <span id="lblTotalExcluidos">0</span> Excluidos
-    </button>
-  </div>
+    <!-- BANNER DE AUDITORÍA DE CALIDAD DE DATOS (TEMA CLARO) -->
+    <div id="bannerAuditoria" class="bg-white text-gray-800 p-4 rounded-xl shadow-sm border border-amber-200 mb-6">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3 pb-3 border-b border-gray-100">
+        <div class="flex items-center gap-2 text-xs md:text-sm font-semibold text-amber-900">
+          <span class="text-base">⚠️</span>
+          <span class="font-bold text-amber-800">Auditoría de Calidad de Datos:</span>
+          <span class="text-gray-500 font-normal hidden md:inline">Registros excluidos por campos nulos/incompletos según regla de negocio:</span>
+        </div>
+        
+        <!-- Botón de Excluidos -->
+        <button type="button" onclick="abrirModalAuditoria()" class="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold px-3 py-1.5 rounded-full transition-all flex items-center gap-2 cursor-pointer">
+          <span id="lblTotalExcluidos" class="bg-rose-600 text-white px-2 py-0.5 rounded-full text-[11px] font-extrabold">0</span> Excluidos
+        </button>
+      </div>
 
-  <!-- Desglose de sub-métricas (estilo consola/terminal) -->
-  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-mono text-slate-400">
-    <div>REQ 2025: <span id="auditReq2025" class="font-bold text-white">0</span></div>
-    <div>REQ 2026: <span id="auditReq2026" class="font-bold text-white">0</span></div>
-    <div>SER 2025: <span id="auditSer2025" class="font-bold text-white">0</span></div>
-    <div>SER 2026: <span id="auditSer2026" class="font-bold text-white">0</span></div>
-  </div>
-</div>
-
-<!-- MODAL / PANEL FLOTANTE DE ERRORES -->
-<div id="modalAuditoria" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
-  <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[85vh] flex flex-col overflow-hidden border border-slate-200">
-    
-    <!-- Modal Header -->
-    <div class="p-4 bg-slate-900 text-white flex justify-between items-center border-b border-slate-800">
-      <div class="flex items-center gap-2">
-        <span class="text-rose-400 text-lg">⚠️</span>
-        <div>
-          <h3 class="font-bold text-sm md:text-base">Panel de Auditoría: Registros Incompletos</h3>
-          <p class="text-[11px] text-slate-400">Filas con campos vacíos o inconsistentes en el reporte</p>
+      <!-- Desglose de sub-métricas -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-gray-600 font-medium">
+        <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100 flex justify-between items-center">
+          <span>REQ 2025:</span>
+          <span id="auditReq2025" class="font-bold text-gray-900">0</span>
+        </div>
+        <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100 flex justify-between items-center">
+          <span>REQ 2026:</span>
+          <span id="auditReq2026" class="font-bold text-gray-900">0</span>
+        </div>
+        <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100 flex justify-between items-center">
+          <span>SER 2025:</span>
+          <span id="auditSer2025" class="font-bold text-gray-900">0</span>
+        </div>
+        <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100 flex justify-between items-center">
+          <span>SER 2026:</span>
+          <span id="auditSer2026" class="font-bold text-gray-900">0</span>
         </div>
       </div>
-      <button type="button" onclick="cerrarModalAuditoria()" class="text-slate-400 hover:text-white text-2xl font-bold px-2 focus:outline-none">&times;</button>
     </div>
 
-    <!-- Modal Body (Tabla con scroll) -->
-    <div class="p-4 overflow-y-auto flex-1 bg-slate-50">
-      <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-        <table class="w-full text-left text-xs border-collapse">
-          <thead>
-            <tr class="bg-slate-100 text-slate-700 uppercase font-bold border-b border-slate-200 text-[11px]">
-              <th class="p-3">Fila / ID</th>
-              <th class="p-3">Fecha</th>
-              <th class="p-3">Tipo Servicio</th>
-              <th class="p-3">Área</th>
-              <th class="p-3">Costo</th>
-              <th class="p-3">Estado</th>
-              <th class="p-3">Campos Faltantes / Fallos</th>
-            </tr>
-          </thead>
-          <tbody id="tablaAuditBody" class="divide-y divide-slate-100">
-            <!-- Filas inyectadas por JS -->
-          </tbody>
-        </table>
+    <!-- MODAL / PANEL FLOTANTE DE ERRORES (TEMA CLARO) -->
+    <div id="modalAuditoria" class="hidden fixed inset-0 z-50 bg-gray-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[85vh] flex flex-col overflow-hidden border border-gray-200">
+        
+        <!-- Modal Header -->
+        <div class="p-4 bg-white text-gray-800 flex justify-between items-center border-b border-gray-200">
+          <div class="flex items-center gap-2">
+            <span class="text-amber-500 text-lg">⚠️</span>
+            <div>
+              <h3 class="font-bold text-sm md:text-base text-gray-900">Panel de Auditoría: Registros Incompletos</h3>
+              <p class="text-[11px] text-gray-500">Filas con campos vacíos o inconsistentes en el reporte</p>
+            </div>
+          </div>
+          <button type="button" onclick="cerrarModalAuditoria()" class="text-gray-400 hover:text-gray-700 text-2xl font-bold px-2 focus:outline-none cursor-pointer">&times;</button>
+        </div>
+
+        <!-- Modal Body (Tabla con scroll) -->
+        <div class="p-4 overflow-y-auto flex-1 bg-gray-50">
+          <div class="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="bg-gray-100 text-gray-700 uppercase font-bold border-b border-gray-200 text-[11px]">
+                  <th class="p-3">Fila / ID</th>
+                  <th class="p-3">Fecha</th>
+                  <th class="p-3">Tipo Servicio</th>
+                  <th class="p-3">Área</th>
+                  <th class="p-3">Costo</th>
+                  <th class="p-3">Estado</th>
+                  <th class="p-3">Campos Faltantes / Fallos</th>
+                </tr>
+              </thead>
+              <tbody id="tablaAuditBody" class="divide-y divide-gray-100">
+                <!-- Filas inyectadas por JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="p-3 bg-white border-t border-gray-200 text-right">
+          <button type="button" onclick="cerrarModalAuditoria()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-lg transition-all cursor-pointer">
+            Cerrar Panel
+          </button>
+        </div>
       </div>
     </div>
-
-    <!-- Modal Footer -->
-    <div class="p-3 bg-white border-t border-slate-200 text-right">
-      <button type="button" onclick="cerrarModalAuditoria()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-lg transition-all">
-        Cerrar Panel
-      </button>
-    </div>
-  </div>
-</div>
 
     <!-- SECCIÓN DE GRÁFICAS -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
