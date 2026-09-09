@@ -250,5 +250,50 @@
   </main>
 
   <script src="dashboard.js"></script>
+
+  <!-- MODAL DE DETALLE POR CLIC EN GRÁFICO -->
+  <div id="modalDetalleGrafico" class="hidden fixed inset-0 z-50 bg-gray-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[85vh] flex flex-col overflow-hidden border border-gray-200">
+      
+      <!-- Modal Header -->
+      <div class="p-4 bg-white text-gray-800 flex justify-between items-center border-b border-gray-200">
+        <div>
+          <h3 id="modalDetalleTitulo" class="font-bold text-base text-gray-900">Detalle de Registros</h3>
+          <p id="modalDetalleSubtitulo" class="text-xs text-gray-500">Registros filtrados por el gráfico y los filtros activos</p>
+        </div>
+        <button type="button" onclick="cerrarModalDetalle()" class="text-gray-400 hover:text-gray-700 text-2xl font-bold px-2 focus:outline-none cursor-pointer">&times;</button>
+      </div>
+  
+      <!-- Modal Body (Tabla con scroll) -->
+      <div class="p-4 overflow-y-auto flex-1 bg-gray-50">
+        <div class="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="bg-gray-100 text-gray-700 uppercase font-bold border-b border-gray-200 text-[11px]">
+                <th class="p-3">ID / Código</th>
+                <th class="p-3">Fecha</th>
+                <th class="p-3">Activación / Servicio</th>
+                <th class="p-3">Área</th>
+                <th class="p-3">Estado</th>
+                <th class="p-3 text-right">Monto / Ahorro</th>
+              </tr>
+            </thead>
+            <tbody id="tablaDetalleBody" class="divide-y divide-gray-100">
+              <!-- Filas inyectadas dinámicamente -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+  
+      <!-- Modal Footer -->
+      <div class="p-3 bg-white border-t border-gray-200 flex justify-between items-center">
+        <span id="modalDetalleContador" class="text-xs font-bold text-gray-600">Total: 0 registros</span>
+        <button type="button" onclick="cerrarModalDetalle()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-lg transition-all cursor-pointer">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+  
 </body>
 </html>
