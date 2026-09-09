@@ -1028,3 +1028,9 @@ window.aplicarFiltros = function() {
   calendarObj.removeAllEventSources();
   calendarObj.addEventSource(generarEventosProcesados());
 };
+
+window.forzarActualizacion = window.actualizarCalendario = async function() {
+  limpiarCacheLocal();
+  await cargarDatosDesdeGoogle(true);
+  mostrarToast("Datos actualizados correctamente", "exito");
+};
