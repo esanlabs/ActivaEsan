@@ -334,17 +334,16 @@ function inicializarCalendario() {
 
   calendarObj.render();
 
+  // 🟢 AGREGAR ESTO: Fuerza a recalcular el tamaño real del contenedor
   setTimeout(() => {
-    calendarObj.updateSize();
-  }, 100);
+    if (calendarObj) calendarObj.updateSize();
+  }, 200);
 }
 
-window.aplicarFiltros = () => {
-  if (calendarObj) {
-    calendarObj.removeAllEvents();
-    calendarObj.addEventSource(generarEventosProcesados());
-  }
-};
+// 🟢 AGREGAR ESTO AL FINAL DEL ARCHIVO: Redibuja si cambias de pestaña en el navegador
+window.addEventListener('pageshow', () => {
+  if (calendarObj) calendarObj.updateSize();
+});
 
 function agregarFilaActivacion(fechaPorDefecto = "", servicioDef = "", nombreDef = "", costoDef = "", obsDef = "", diasDef = 1) {
   const container = document.getElementById('contenedorBloques');
