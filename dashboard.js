@@ -513,6 +513,7 @@ function cerrarModalAuditoria() {
    ========================================================== */
 
 function abrirDetalleGrafico(tipoFiltro, valorEtiqueta) {
+  registrosModalActuales = registrosFinales;
   // 1. Obtener registros que cumplen con los checkboxes actuales
   const datosFiltrados = obtenerDatosFiltradosActuales(); 
 
@@ -587,6 +588,8 @@ function getBadgeColor(estado) {
    ========================================================== */
 
 function verRegistrosGrafico(tipoGrafico) {
+  registrosModalActuales = registrosFinales;
+  
   // 1. Obtener los registros filtrados globalmente por los checkboxes superiores
   const datosFiltrados = obtenerDatosFiltradosActuales();
   let registrosFinales = [];
@@ -637,4 +640,68 @@ function verRegistrosGrafico(tipoGrafico) {
   document.getElementById('modalDetalleTitulo').innerText = tituloModal;
   document.getElementById('modalDetalleContador').innerText = `Total: ${registrosFinales.length} registro(s)`;
   document.getElementById('modalDetalleGrafico').classList.remove('hidden');
+}
+
+/* ==========================================================
+   NUEVAS FUNCIONALIDADES: EXPORTACIONES Y RETENCIÓN DE DATA
+   ========================================================== */
+
+// Variable global para almacenar los registros que se están viendo en el modal
+let registrosModalActuales = [];
+
+// 1. EXPORTAR EL DASHBOARD COMPLETO A PDF
+function exportarDashboardPDF() {
+  const contenedor = document.getElementById('dashboardContainer');
+  if (!contenedor) {
+    alert("No se encontró el contenedor del dashboard.");
+    return;
+  }
+
+  // Configuración del PDF
+  const opciones = {
+    margin:       0.3,
+    filename:     `Reporte_Dashboard_${new Date().toISOString().split('T')[0]}.pdf`,
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { scale: 2, useCORS: true },
+    jsPDF:        { unit: 'in', format: 'a4', orientation: 'landscape' }
+  };
+
+  // Mostrar alerta visual de progreso opcional o directo
+  html2pdf().set(opciones).from(contenedor).save();
+}
+
+// 2. EXPORTAR A EXCEL (CSV con compatibilidad de caracteres en Excel)
+function exportarDetalleExcel() {
+  if (!registrosModalActuales || registrosModalActuales.length === 0) {
+    alert("No hay registros en la tabla para exportar.");
+    return;
+  }
+
+  // BOM para que Excel reconozca tildes, letras especiales y símbolo de moneda (S/)
+  let csvContent = '\uFEFF'; 
+  csvContent += 'ID / Codigo;Fecha;Tipo Servicio;Area;Estado;Costo (S/)\n';
+
+  registrosModalActuales.forEach(r => {
+    const fecha = r.fecha ? String(r.fecha).split('T')[0] : '-';
+    const costo = parseFloat(String(r.costo || 0).replace(/[^0-9.]/g, '')) || 0;
+    
+    // Limpiar campos de saltos de línea o comillas dobles
+    const id = String(r.id || r.codigo || '-').replace(/"/g, '""');
+    const servicio = String(r.tipoServicio || '-').replace(/"/g, '""');
+    const area = String(r.area || '-').replace(/"/g, '""');
+    const estado = String(r.estado || 'Pendiente').replace(/"/g, '""');
+
+    csvContent += `"${id}";"${fecha}";"${servicio}";"${area}";"${estado}";"${costo.toFixed(2)}"\n`;
+  });
+
+  // Generar la descarga
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const enlace = document.createElement('a');
+  
+  enlace.setAttribute('href', url);
+  enlace.setAttribute('download', `Detalle_Registros_${new Date().toISOString().split('T')[0]}.csv`);
+  document.body.appendChild(enlace);
+  enlace.click();
+  document.body.removeChild(enlace);
 }
