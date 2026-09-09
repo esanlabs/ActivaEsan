@@ -252,7 +252,7 @@ function filtrarYRenderizar() {
 }
 
 /* ==========================================================
-   FUNCIONES DE GRÁFICOS
+   FUNCIONES DE GRÁFICOS (CON ESTILOS Y DATALABELS RESTAURADOS)
    ========================================================== */
 
 function renderizarGraficoServicios(datos) {
@@ -279,6 +279,14 @@ function renderizarGraficoServicios(datos) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      plugins: {
+        // Restaurar etiquetas blancas sobre el gráfico circular
+        datalabels: {
+          color: '#FFFFFF',
+          font: { weight: 'bold', size: 12 },
+          formatter: (val) => (val > 0 ? val : '')
+        }
+      },
       onHover: (event, chartElement) => {
         event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
       },
@@ -318,6 +326,22 @@ function renderizarGraficoAreas(datos) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          grace: '15%' // Margen superior para que la etiqueta no se corte
+        }
+      },
+      plugins: {
+        // Restaurar números encima de las barras rojas
+        datalabels: {
+          anchor: 'end',
+          align: 'end',
+          color: '#1F2937',
+          font: { weight: 'bold', size: 11 },
+          formatter: (val) => (val > 0 ? val : '')
+        }
+      },
       onHover: (event, chartElement) => {
         event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
       },
@@ -364,6 +388,22 @@ function renderizarGraficaDinero(registros) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          grace: '18%' // Margen superior para las etiquetas "S/ X,XXX"
+        }
+      },
+      plugins: {
+        // Restaurar etiquetas formateadas verde oscuro "S/ X,XXX" encima de cada barra
+        datalabels: {
+          anchor: 'end',
+          align: 'end',
+          color: '#065F46',
+          font: { weight: 'bold', size: 10 },
+          formatter: (val) => (val > 0 ? `S/ ${Math.round(val).toLocaleString('es-PE')}` : '')
+        }
+      },
       onHover: (event, chartElement) => {
         event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
       },
