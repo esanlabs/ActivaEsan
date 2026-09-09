@@ -2,7 +2,9 @@
 Chart.register(ChartDataLabels);
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzoxLf6Au7NsKGunDpDcl_4sUCbZZVZ_vuz5DenBjzw6l4WOCiFH8CvPxGtpEpzNkqy/exec';
 
+// Variables Globales de Estado
 let datosOriginales = [];
+let registrosModalActuales = []; // Movida al inicio
 let chartServicios = null;
 let chartAreas = null;
 let chartDinero = null;
@@ -193,7 +195,6 @@ function limpiarFiltros() {
   filtrarYRenderizar();
 }
 
-// Obtener datos que cumplen con los checkboxes superiores
 function obtenerDatosFiltradosActuales() {
   const selMeses = obtenerSeleccionados('.chk-mes');
   const selServicios = obtenerSeleccionados('.chk-servicio');
@@ -252,7 +253,7 @@ function filtrarYRenderizar() {
 }
 
 /* ==========================================================
-   FUNCIONES DE GRÁFICOS (CON ESTILOS Y DATALABELS RESTAURADOS)
+   FUNCIONES DE GRÁFICOS
    ========================================================== */
 
 function renderizarGraficoServicios(datos) {
@@ -280,7 +281,6 @@ function renderizarGraficoServicios(datos) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        // Restaurar etiquetas blancas sobre el gráfico circular
         datalabels: {
           color: '#FFFFFF',
           font: { weight: 'bold', size: 12 },
@@ -326,16 +326,9 @@ function renderizarGraficoAreas(datos) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      layout: {
-        padding: {
-          top: 20 // Espacio extra de respiro superior
-        }
-      },
+      layout: { padding: { top: 20 } },
       scales: {
-        y: {
-          beginAtZero: true,
-          grace: '25%' // Amplía el tope del eje Y para evitar cortes
-        }
+        y: { beginAtZero: true, grace: '25%' }
       },
       plugins: {
         datalabels: {
@@ -393,13 +386,9 @@ function renderizarGraficaDinero(registros) {
       responsive: true,
       maintainAspectRatio: false,
       scales: {
-        y: {
-          beginAtZero: true,
-          grace: '18%' // Margen superior para las etiquetas "S/ X,XXX"
-        }
+        y: { beginAtZero: true, grace: '18%' }
       },
       plugins: {
-        // Restaurar etiquetas formateadas verde oscuro "S/ X,XXX" encima de cada barra
         datalabels: {
           anchor: 'end',
           align: 'end',
@@ -513,24 +502,22 @@ function cerrarModalAuditoria() {
    ========================================================== */
 
 function abrirDetalleGrafico(tipoFiltro, valorEtiqueta) {
-  registrosModalActuales = registrosFinales;
   // 1. Obtener registros que cumplen con los checkboxes actuales
   const datosFiltrados = obtenerDatosFiltradosActuales(); 
 
   // 2. Filtrar adicionalmente según la barra/porción clickeada
   const registrosFinales = datosFiltrados.filter(item => {
-    if (tipoFiltro === 'servicio') {
-      return item.tipoServicio === valorEtiqueta;
-    }
-    if (tipoFiltro === 'area') {
-      return item.area === valorEtiqueta;
-    }
+    if (tipoFiltro === 'servicio') return item.tipoServicio === valorEtiqueta;
+    if (tipoFiltro === 'area') return item.area === valorEtiqueta;
     if (tipoFiltro === 'mes') {
       const fechaStr = item.fecha ? String(item.fecha) : '';
       return fechaStr.includes(valorEtiqueta);
     }
     return true;
   });
+
+  // Guardar en la variable global para exportación a Excel (CORREGIDO)
+  registrosModalActuales = registrosFinales;
 
   // 3. Inyectar datos en la tabla del modal
   const tbody = document.getElementById('tablaDetalleBody');
@@ -582,14 +569,11 @@ function getBadgeColor(estado) {
   }
 }
 
-
 /* ==========================================================
    VER TODOS LOS REGISTROS DE UN GRÁFICO ESPECÍFICO
    ========================================================== */
 
 function verRegistrosGrafico(tipoGrafico) {
-  registrosModalActuales = registrosFinales;
-  
   // 1. Obtener los registros filtrados globalmente por los checkboxes superiores
   const datosFiltrados = obtenerDatosFiltradosActuales();
   let registrosFinales = [];
@@ -603,10 +587,12 @@ function verRegistrosGrafico(tipoGrafico) {
     registrosFinales = datosFiltrados;
     tituloModal = 'Todos los Registros - Activaciones por Área';
   } else if (tipoGrafico === 'dinero') {
-    // Aplica la misma regla del gráfico de dinero (omite cancelados y vacíos)
     registrosFinales = datosFiltrados.filter(r => r.costo && r.estado !== 'Cancelado');
     tituloModal = 'Todos los Registros - Ahorro / Montos';
   }
+
+  // Guardar en la variable global para exportación a Excel (CORREGIDO)
+  registrosModalActuales = registrosFinales;
 
   // 3. Renderizar la tabla en el modal de detalle existente
   const tbody = document.getElementById('tablaDetalleBody');
@@ -643,11 +629,8 @@ function verRegistrosGrafico(tipoGrafico) {
 }
 
 /* ==========================================================
-   NUEVAS FUNCIONALIDADES: EXPORTACIONES Y RETENCIÓN DE DATA
+   EXPORTACIONES
    ========================================================== */
-
-// Variable global para almacenar los registros que se están viendo en el modal
-let registrosModalActuales = [];
 
 // 1. EXPORTAR EL DASHBOARD COMPLETO A PDF
 function exportarDashboardPDF() {
@@ -657,7 +640,6 @@ function exportarDashboardPDF() {
     return;
   }
 
-  // Configuración del PDF
   const opciones = {
     margin:       0.3,
     filename:     `Reporte_Dashboard_${new Date().toISOString().split('T')[0]}.pdf`,
@@ -666,18 +648,16 @@ function exportarDashboardPDF() {
     jsPDF:        { unit: 'in', format: 'a4', orientation: 'landscape' }
   };
 
-  // Mostrar alerta visual de progreso opcional o directo
   html2pdf().set(opciones).from(contenedor).save();
 }
 
-// 2. EXPORTAR A EXCEL (CSV con compatibilidad de caracteres en Excel)
+// 2. EXPORTAR A EXCEL (CSV con UTF-8 BOM)
 function exportarDetalleExcel() {
   if (!registrosModalActuales || registrosModalActuales.length === 0) {
     alert("No hay registros en la tabla para exportar.");
     return;
   }
 
-  // BOM para que Excel reconozca tildes, letras especiales y símbolo de moneda (S/)
   let csvContent = '\uFEFF'; 
   csvContent += 'ID / Codigo;Fecha;Tipo Servicio;Area;Estado;Costo (S/)\n';
 
@@ -685,7 +665,6 @@ function exportarDetalleExcel() {
     const fecha = r.fecha ? String(r.fecha).split('T')[0] : '-';
     const costo = parseFloat(String(r.costo || 0).replace(/[^0-9.]/g, '')) || 0;
     
-    // Limpiar campos de saltos de línea o comillas dobles
     const id = String(r.id || r.codigo || '-').replace(/"/g, '""');
     const servicio = String(r.tipoServicio || '-').replace(/"/g, '""');
     const area = String(r.area || '-').replace(/"/g, '""');
@@ -694,7 +673,6 @@ function exportarDetalleExcel() {
     csvContent += `"${id}";"${fecha}";"${servicio}";"${area}";"${estado}";"${costo.toFixed(2)}"\n`;
   });
 
-  // Generar la descarga
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const enlace = document.createElement('a');
