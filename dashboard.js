@@ -498,75 +498,128 @@ function cerrarModalAuditoria() {
 }
 
 /* ==========================================================
-   MODAL DE DETALLE AL HACER CLIC EN GRÁFICOS
+   LÓGICA DEL MODAL DE GRÁFICOS (CON EVENTO Y BUSCADOR INTERNO)
    ========================================================== */
 
-function abrirDetalleGrafico(tipoFiltro, valorEtiqueta) {
-  // 1. Obtener registros que cumplen con los checkboxes actuales
-  const datosFiltrados = obtenerDatosFiltradosActuales(); 
+let registrosModalBase = [];    // Registros que vienen del gráfico seleccionado
+let registrosModalActuales = []; // Registros filtrados por el buscador interno de la modal
 
-  // 2. Filtrar adicionalmente según la barra/porción clickeada
-  const registrosFinales = datosFiltrados.filter(item => {
-    if (tipoFiltro === 'servicio') return item.tipoServicio === valorEtiqueta;
-    if (tipoFiltro === 'area') return item.area === valorEtiqueta;
-    if (tipoFiltro === 'mes') {
-      const fechaStr = item.fecha ? String(item.fecha) : '';
-      return fechaStr.includes(valorEtiqueta);
-    }
-    return true;
-  });
+// Helper para extraer el Nombre del Evento / Proyecto desde el objeto
+function obtenerNombreEvento(r) {
+  return r.tipoEvento || 
+         r.tipo_evento || 
+         r['Tipo de evento'] || 
+         r['tipo de evento'] || 
+         r.nombreEvento || 
+         r.evento || 
+         r.nombre_proyecto || 
+         r.tipo_edicion || 
+         r.solicitante || 
+         '-';
+}
 
-  // Guardar en la variable global para exportación a Excel (CORREGIDO)
-  registrosModalActuales = registrosFinales;
+// Función principal al hacer clic en un gráfico para abrir la modal
+function abrirDetalleGrafico(titulo, registros) {
+  registrosModalBase = [...registros];
+  registrosModalActuales = [...registros];
 
-  // 3. Inyectar datos en la tabla del modal
-  const tbody = document.getElementById('tablaDetalleBody');
-  tbody.innerHTML = '';
+  const modal = document.getElementById('modalDetalleGrafico');
+  const tituloEl = document.getElementById('modalTituloGrafico');
+  const inputEl = document.getElementById('inputBusquedaModal');
 
-  if (registrosFinales.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-400">No se encontraron registros para esta selección.</td></tr>`;
+  if (tituloEl) tituloEl.innerText = titulo;
+  if (inputEl) inputEl.value = ''; // Resetea la barra de búsqueda interna
+
+  renderizarTablaModal(registrosModalActuales);
+
+  if (modal) modal.classList.remove('hidden');
+}
+
+// Función que filtra ÚNICAMENTE los registros dentro de esta modal
+function filtrarTablaModal() {
+  const inputEl = document.getElementById('inputBusquedaModal');
+  const texto = inputEl ? inputEl.value.toLowerCase().trim() : '';
+
+  if (texto === '') {
+    registrosModalActuales = [...registrosModalBase];
   } else {
-    registrosFinales.forEach((row, idx) => {
-      const fechaCorta = row.fecha ? String(row.fecha).split('T')[0] : '-';
-      const costoNum = parseFloat(String(row.costo || 0).replace(/[^0-9.]/g, '')) || 0;
+    registrosModalActuales = registrosModalBase.filter(r => {
+      const id = String(r.id || r.codigo || r.codigoSolicitud || '').toLowerCase();
+      const fecha = String(r.fecha || '').toLowerCase();
+      const evento = String(obtenerNombreEvento(r)).toLowerCase();
+      const servicio = String(r.tipoServicio || '').toLowerCase();
+      const area = String(r.area || '').toLowerCase();
+      const estado = String(r.estado || '').toLowerCase();
+      const costo = String(r.costo || '').toLowerCase();
 
-      tbody.innerHTML += `
-        <tr class="hover:bg-gray-50 transition-colors">
-          <td class="p-3 font-semibold text-gray-700">${row.id || row.codigo || `#${idx + 1}`}</td>
-          <td class="p-3 text-gray-600">${fechaCorta}</td>
-          <td class="p-3 font-medium text-gray-800">${row.tipoServicio || '-'}</td>
-          <td class="p-3 text-gray-600">${row.area || '-'}</td>
-          <td class="p-3">
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${getBadgeColor(row.estado)}">
-              ${row.estado || 'Pendiente'}
-            </span>
-          </td>
-          <td class="p-3 text-right font-bold text-gray-800">S/ ${costoNum.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-        </tr>
-      `;
+      return id.includes(texto) ||
+             fecha.includes(texto) ||
+             evento.includes(texto) ||
+             servicio.includes(texto) ||
+             area.includes(texto) ||
+             estado.includes(texto) ||
+             costo.includes(texto);
     });
   }
 
-  // 4. Actualizar títulos y contador
-  document.getElementById('modalDetalleTitulo').innerText = `Detalle: ${valorEtiqueta}`;
-  document.getElementById('modalDetalleContador').innerText = `Total: ${registrosFinales.length} registro(s)`;
-
-  // 5. Abrir Modal
-  document.getElementById('modalDetalleGrafico').classList.remove('hidden');
+  renderizarTablaModal(registrosModalActuales);
 }
 
-function cerrarModalDetalle() {
-  document.getElementById('modalDetalleGrafico').classList.add('hidden');
-}
+// Renderiza las filas HTML de la tabla modal
+function renderizarTablaModal(lista) {
+  const tbody = document.getElementById('tbodyModalGrafico');
+  if (!tbody) return;
 
-function getBadgeColor(estado) {
-  switch (String(estado).toLowerCase()) {
-    case 'confirmado': return 'bg-emerald-100 text-emerald-800';
-    case 'culminado': return 'bg-blue-100 text-blue-800';
-    case 'pendiente': return 'bg-amber-100 text-amber-800';
-    case 'cancelado': return 'bg-rose-100 text-rose-800';
-    default: return 'bg-gray-100 text-gray-700';
+  if (lista.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" class="text-center py-8 text-gray-400 italic">
+          No se encontraron registros que coincidan con la búsqueda.
+        </td>
+      </tr>
+    `;
+    return;
   }
+
+  tbody.innerHTML = lista.map((r, idx) => {
+    const id = r.id || r.codigo || r.codigoSolicitud || `#${idx + 1}`;
+    const fecha = r.fecha ? String(r.fecha).split('T')[0] : '-';
+    const evento = obtenerNombreEvento(r);
+    const servicio = r.tipoServicio || '-';
+    const area = r.area || '-';
+    const estado = r.estado || 'Pendiente';
+    const costo = parseFloat(String(r.costo || 0).replace(/[^0-9.]/g, '')) || 0;
+
+    // Badges de estado
+    let badgeClass = 'bg-gray-100 text-gray-700';
+    if (estado.toLowerCase() === 'confirmado') badgeClass = 'bg-emerald-100 text-emerald-800 font-semibold';
+    if (estado.toLowerCase() === 'culminado') badgeClass = 'bg-blue-100 text-blue-800 font-semibold';
+    if (estado.toLowerCase() === 'pendiente') badgeClass = 'bg-amber-100 text-amber-800 font-semibold';
+    if (estado.toLowerCase() === 'cancelado') badgeClass = 'bg-rose-100 text-rose-800 font-semibold';
+
+    return `
+      <tr class="hover:bg-slate-50/80 transition-colors border-b border-gray-100">
+        <td class="p-2.5 font-bold text-slate-700">${id}</td>
+        <td class="p-2.5 text-gray-600">${fecha}</td>
+        <td class="p-2.5 font-medium text-slate-800">${evento}</td>
+        <td class="p-2.5 font-medium text-slate-900">${servicio}</td>
+        <td class="p-2.5 text-gray-600">${area}</td>
+        <td class="p-2.5 text-center">
+          <span class="inline-block px-2 py-0.5 rounded-full text-[10px] ${badgeClass}">
+            ${estado}
+          </span>
+        </td>
+        <td class="p-2.5 text-right font-bold text-slate-800">
+          S/ ${costo.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function cerrarModalGrafico() {
+  const modal = document.getElementById('modalDetalleGrafico');
+  if (modal) modal.classList.add('hidden');
 }
 
 /* ==========================================================
