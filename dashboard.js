@@ -40,7 +40,7 @@ async function cargarDatosDashboard() {
 
     datosOriginales = resData.registros || [];
 
-    // 👈 Ejecutar la auditoría de calidad sobre los registros cargados
+    // Ejecutar la auditoría de calidad sobre los registros cargados
     ejecutarAuditoriaCalidad(datosOriginales);
     
     // Llenar dinámicamente las opciones de Checkboxes y buscadores
@@ -61,31 +61,26 @@ async function cargarDatosDashboard() {
    LÓGICA DE FILTROS MULTI-SELECCIÓN CON BUSCADOR INTERNO
    ========================================================== */
 
-// Mostrar / Ocultar menús desplegables
 function toggleDropdown(event, id) {
   event.stopPropagation();
   const target = document.getElementById(id);
   const estaOculto = target.classList.contains('hidden');
 
-  // Cerrar otros desplegables abiertos
   document.querySelectorAll('.dropdown-container > div').forEach(div => div.classList.add('hidden'));
 
   if (estaOculto) {
     target.classList.remove('hidden');
-    // Enfocar automáticamente la caja de búsqueda del desplegable abierto
     const inputBuscar = target.querySelector('input[type="text"]');
     if (inputBuscar) inputBuscar.focus();
   }
 }
 
-// Cerrar desplegables al hacer clic fuera
 document.addEventListener('click', (e) => {
   if (!e.target.closest('.dropdown-container')) {
     document.querySelectorAll('.dropdown-container > div').forEach(div => div.classList.add('hidden'));
   }
 });
 
-// Función para filtrar las opciones dentro del menú desplegable en tiempo real
 function filtrarOpcionesDropdown(input) {
   const texto = input.value.toLowerCase().trim();
   const contenedor = input.closest('.dropdown-container');
@@ -103,7 +98,6 @@ function filtrarOpcionesDropdown(input) {
   });
 }
 
-// Poblar dinámicamente las listas de Checkboxes con Input de Búsqueda
 function poblarFiltros(registros) {
   // 1. Meses
   const dropMes = document.getElementById('dropMes');
@@ -177,12 +171,10 @@ function poblarFiltros(registros) {
   }
 }
 
-// Leer las casillas marcadas
 function obtenerSeleccionados(selector) {
   return Array.from(document.querySelectorAll(`${selector}:checked`)).map(cb => cb.value);
 }
 
-// Actualizar texto descriptivo del botón desplegable
 function actualizarEtiquetasFiltros(selMeses, selServicios, selAreas, selEstados) {
   document.getElementById('labelMes').innerText = selMeses.length ? `${selMeses.length} seleccionado(s)` : 'Todos los meses';
   document.getElementById('labelServicio').innerText = selServicios.length ? `${selServicios.length} seleccionada(s)` : 'Todas las activaciones';
@@ -190,7 +182,6 @@ function actualizarEtiquetasFiltros(selMeses, selServicios, selAreas, selEstados
   document.getElementById('labelEstado').innerText = selEstados.length ? `${selEstados.length} seleccionado(s)` : 'Todos los estados';
 }
 
-// Botón para desmarcar todo, limpiar texto buscado y resetear
 function limpiarFiltros() {
   document.querySelectorAll('.chk-mes, .chk-servicio, .chk-area, .chk-estado').forEach(chk => {
     chk.checked = false;
@@ -202,16 +193,14 @@ function limpiarFiltros() {
   filtrarYRenderizar();
 }
 
-// Filtrar según múltiples selecciones
-function filtrarYRenderizar() {
+// Obtener datos que cumplen con los checkboxes superiores
+function obtenerDatosFiltradosActuales() {
   const selMeses = obtenerSeleccionados('.chk-mes');
   const selServicios = obtenerSeleccionados('.chk-servicio');
   const selAreas = obtenerSeleccionados('.chk-area');
   const selEstados = obtenerSeleccionados('.chk-estado');
 
-  actualizarEtiquetasFiltros(selMeses, selServicios, selAreas, selEstados);
-
-  const filtrados = datosOriginales.filter(r => {
+  return datosOriginales.filter(r => {
     if (!r.fecha) return false;
 
     const fechaStr = String(r.fecha).split('T')[0];
@@ -225,15 +214,26 @@ function filtrarYRenderizar() {
 
     return true;
   });
+}
 
-  // Cálculo del Total Recaudado (S/)
+function filtrarYRenderizar() {
+  const selMeses = obtenerSeleccionados('.chk-mes');
+  const selServicios = obtenerSeleccionados('.chk-servicio');
+  const selAreas = obtenerSeleccionados('.chk-area');
+  const selEstados = obtenerSeleccionados('.chk-estado');
+
+  actualizarEtiquetasFiltros(selMeses, selServicios, selAreas, selEstados);
+
+  const filtrados = obtenerDatosFiltradosActuales();
+
+  // Total Recaudado (S/)
   const totalDinero = filtrados.reduce((acc, r) => {
     if (r.estado === 'Cancelado' || !r.costo) return acc;
     const monto = parseFloat(String(r.costo).replace(/[^0-9.]/g, '')) || 0;
     return acc + monto;
   }, 0);
 
-  // 1. Actualizar Tarjetas de Métricas (KPIs)
+  // 1. Actualizar KPIs
   document.getElementById('kpiTotal').innerText = filtrados.length;
   document.getElementById('kpiConfirmados').innerText = filtrados.filter(r => r.estado === 'Confirmado' || !r.estado).length;
   document.getElementById('kpiPendientes').innerText = filtrados.filter(r => r.estado === 'Pendiente').length;
@@ -245,7 +245,7 @@ function filtrarYRenderizar() {
     elemRecaudado.innerText = `S/ ${totalDinero.toFixed(2)}`;
   }
 
-  // 2. Renderizar los 3 Gráficos
+  // 2. Renderizar Gráficos
   renderizarGraficoServicios(filtrados);
   renderizarGraficoAreas(filtrados);
   renderizarGraficaDinero(filtrados);
@@ -279,18 +279,16 @@ function renderizarGraficoServicios(datos) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: {
-        datalabels: {
-          color: '#ffffff',
-          font: { weight: 'bold', size: 12 },
-          formatter: (val) => val > 0 ? val : ''
-        },
-        legend: { 
-          position: 'bottom',
-          labels: { boxWidth: 12, padding: 12, font: { size: 11 } }
-        }
+      onHover: (event, chartElement) => {
+        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
       },
-      layout: { padding: { bottom: 10, top: 5 } }
+      onClick: (event, activeElements, chart) => {
+        if (activeElements.length > 0) {
+          const index = activeElements[0].index;
+          const etiqueta = chart.data.labels[index];
+          abrirDetalleGrafico('servicio', etiqueta);
+        }
+      }
     }
   });
 }
@@ -320,20 +318,14 @@ function renderizarGraficoAreas(datos) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: {
-        datalabels: {
-          anchor: 'end',
-          align: 'top',
-          color: '#333333',
-          font: { weight: 'bold', size: 11 },
-          formatter: (val) => val > 0 ? val : ''
-        }
+      onHover: (event, chartElement) => {
+        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
       },
-      scales: {
-        y: { 
-          beginAtZero: true, 
-          grace: '10%',
-          ticks: { precision: 0 } 
+      onClick: (event, activeElements, chart) => {
+        if (activeElements.length > 0) {
+          const index = activeElements[0].index;
+          const etiqueta = chart.data.labels[index];
+          abrirDetalleGrafico('area', etiqueta);
         }
       }
     }
@@ -372,59 +364,40 @@ function renderizarGraficaDinero(registros) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      layout: {
-        padding: {
-          top: 25
-        }
+      onHover: (event, chartElement) => {
+        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
       },
-      plugins: {
-        datalabels: {
-          anchor: 'end',
-          align: 'top',
-          color: '#047857',
-          font: { weight: 'bold', size: 10 },
-          formatter: (val) => val > 0 ? `S/ ${val.toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : ''
-        },
-        tooltip: {
-          callbacks: {
-            label: (context) => ` Total: S/ ${context.raw.toFixed(2)}`
-          }
-        }
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          grace: '20%',
-          ticks: { precision: 0 }
+      onClick: (event, activeElements, chart) => {
+        if (activeElements.length > 0) {
+          const index = activeElements[0].index;
+          const etiqueta = chart.data.labels[index];
+          abrirDetalleGrafico('mes', etiqueta);
         }
       }
     }
   });
 }
 
-// Variable global para almacenar los registros con errores
+/* ==========================================================
+   AUDITORÍA DE DATOS
+   ========================================================== */
+
 let registrosIncompletos = [];
 
-// Función para auditoría de calidad de datos
 function ejecutarAuditoriaCalidad(registros) {
   registrosIncompletos = [];
   
-  let req2025 = 0;
-  let req2026 = 0;
-  let ser2025 = 0;
-  let ser2026 = 0;
+  let req2025 = 0, req2026 = 0, ser2025 = 0, ser2026 = 0;
 
   registros.forEach((r, idx) => {
     const faltantes = [];
 
-    // Validar campos obligatorios o vacíos
     if (!r.fecha) faltantes.push('Fecha');
     if (!r.tipoServicio) faltantes.push('Tipo Servicio');
     if (!r.area) faltantes.push('Área');
     if (!r.costo && r.costo !== 0) faltantes.push('Costo');
     if (!r.estado) faltantes.push('Estado');
 
-    // Si tiene campos nulos/incompletos
     if (faltantes.length > 0) {
       registrosIncompletos.push({
         numFila: idx + 1,
@@ -432,11 +405,9 @@ function ejecutarAuditoriaCalidad(registros) {
         faltantes: faltantes
       });
 
-      // Extraer año para la sub-clasificación (o por defecto 2025/2026)
       const fechaStr = r.fecha ? String(r.fecha) : '';
       const anio = fechaStr.includes('2026') ? '2026' : '2025';
       const tipo = String(r.tipoServicio || '').toUpperCase();
-
       const esServicio = tipo.includes('SER') || tipo.includes('SERVICIO');
 
       if (esServicio) {
@@ -447,7 +418,6 @@ function ejecutarAuditoriaCalidad(registros) {
     }
   });
 
-  // Actualizar totales en el Banner
   document.getElementById('lblTotalExcluidos').innerText = registrosIncompletos.length;
   document.getElementById('auditReq2025').innerText = req2025;
   document.getElementById('auditReq2026').innerText = req2026;
@@ -455,7 +425,6 @@ function ejecutarAuditoriaCalidad(registros) {
   document.getElementById('auditSer2026').innerText = ser2026;
 }
 
-// Abrir el modal y renderizar la tabla con los fallos
 function abrirModalAuditoria() {
   const tbody = document.getElementById('tablaAuditBody');
   if (!tbody) return;
@@ -491,7 +460,79 @@ function abrirModalAuditoria() {
   document.getElementById('modalAuditoria').classList.remove('hidden');
 }
 
-// Cerrar el modal
 function cerrarModalAuditoria() {
   document.getElementById('modalAuditoria').classList.add('hidden');
+}
+
+/* ==========================================================
+   MODAL DE DETALLE AL HACER CLIC EN GRÁFICOS
+   ========================================================== */
+
+function abrirDetalleGrafico(tipoFiltro, valorEtiqueta) {
+  // 1. Obtener registros que cumplen con los checkboxes actuales
+  const datosFiltrados = obtenerDatosFiltradosActuales(); 
+
+  // 2. Filtrar adicionalmente según la barra/porción clickeada
+  const registrosFinales = datosFiltrados.filter(item => {
+    if (tipoFiltro === 'servicio') {
+      return item.tipoServicio === valorEtiqueta;
+    }
+    if (tipoFiltro === 'area') {
+      return item.area === valorEtiqueta;
+    }
+    if (tipoFiltro === 'mes') {
+      const fechaStr = item.fecha ? String(item.fecha) : '';
+      return fechaStr.includes(valorEtiqueta);
+    }
+    return true;
+  });
+
+  // 3. Inyectar datos en la tabla del modal
+  const tbody = document.getElementById('tablaDetalleBody');
+  tbody.innerHTML = '';
+
+  if (registrosFinales.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-400">No se encontraron registros para esta selección.</td></tr>`;
+  } else {
+    registrosFinales.forEach((row, idx) => {
+      const fechaCorta = row.fecha ? String(row.fecha).split('T')[0] : '-';
+      const costoNum = parseFloat(String(row.costo || 0).replace(/[^0-9.]/g, '')) || 0;
+
+      tbody.innerHTML += `
+        <tr class="hover:bg-gray-50 transition-colors">
+          <td class="p-3 font-semibold text-gray-700">${row.id || row.codigo || `#${idx + 1}`}</td>
+          <td class="p-3 text-gray-600">${fechaCorta}</td>
+          <td class="p-3 font-medium text-gray-800">${row.tipoServicio || '-'}</td>
+          <td class="p-3 text-gray-600">${row.area || '-'}</td>
+          <td class="p-3">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${getBadgeColor(row.estado)}">
+              ${row.estado || 'Pendiente'}
+            </span>
+          </td>
+          <td class="p-3 text-right font-bold text-gray-800">S/ ${costoNum.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        </tr>
+      `;
+    });
+  }
+
+  // 4. Actualizar títulos y contador
+  document.getElementById('modalDetalleTitulo').innerText = `Detalle: ${valorEtiqueta}`;
+  document.getElementById('modalDetalleContador').innerText = `Total: ${registrosFinales.length} registro(s)`;
+
+  // 5. Abrir Modal
+  document.getElementById('modalDetalleGrafico').classList.remove('hidden');
+}
+
+function cerrarModalDetalle() {
+  document.getElementById('modalDetalleGrafico').classList.add('hidden');
+}
+
+function getBadgeColor(estado) {
+  switch (String(estado).toLowerCase()) {
+    case 'confirmado': return 'bg-emerald-100 text-emerald-800';
+    case 'culminado': return 'bg-blue-100 text-blue-800';
+    case 'pendiente': return 'bg-amber-100 text-amber-800';
+    case 'cancelado': return 'bg-rose-100 text-rose-800';
+    default: return 'bg-gray-100 text-gray-700';
+  }
 }
