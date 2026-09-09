@@ -34,6 +34,27 @@
       <span class="text-xs bg-red-100 text-marca-rojo font-bold px-2.5 py-1 rounded-full uppercase">Super Admin</span>
     </div>
 
+    <!-- Buscador Global en Tiempo Real -->
+    <div class="relative w-full sm:w-80">
+      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 text-xs">
+        🔍
+      </div>
+      <input 
+        type="text" 
+        id="inputBusquedaGlobal" 
+        oninput="filtrarYRenderizar()" 
+        placeholder="Buscar por ID, área, activación, estado..." 
+        class="w-full text-xs pl-8 pr-8 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
+      >
+      <button 
+        onclick="limpiarBuscadorGlobal()" 
+        id="btnLimpiarBusqueda" 
+        class="hidden absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-gray-600 text-xs font-bold"
+      >
+        ✕
+      </button>
+    </div>
+
     <div class="flex items-center gap-2">
       <!-- Botón Sincronizar / Refrescar -->
       <button onclick="cargarDatosDashboard()" class="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-lg border border-slate-200 shadow-sm transition-colors cursor-pointer">
