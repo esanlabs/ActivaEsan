@@ -37,13 +37,12 @@ async function cargarDatosDashboard(forceRefresh = false) {
   const cacheTime = localStorage.getItem('dashboard_cache_time');
   const DIEZ_MINUTOS = 10 * 60 * 1000;
 
-  // Si hay caché válido y no se forzó la actualización
   if (!forceRefresh && cacheData && cacheTime && (Date.now() - cacheTime < DIEZ_MINUTOS)) {
     datosOriginales = JSON.parse(cacheData);
     ejecutarAuditoriaCalidad(datosOriginales);
     poblarFiltros(datosOriginales);
     filtrarYRenderizar();
-    if (loader) loader.classList.add('hidden'); // Oculta el loader al usar caché
+    if (loader) loader.classList.add('hidden');
     return;
   }
 
@@ -186,41 +185,42 @@ function obtenerSeleccionados(selector) {
   return Array.from(document.querySelectorAll(`${selector}:checked`)).map(cb => cb.value);
 }
 
+// Inserción de la X individual justo al lado de la flecha en cada selector
 function actualizarEtiquetasFiltros(selMeses, selServicios, selAreas, selEstados) {
-  document.getElementById('labelMes').innerText = selMeses.length ? `${selMeses.length} seleccionado(s)` : 'Todos los meses';
-  document.getElementById('labelServicio').innerText = selServicios.length ? `${selServicios.length} seleccionada(s)` : 'Todas las activaciones';
-  document.getElementById('labelArea').innerText = selAreas.length ? `${selAreas.length} seleccionada(s)` : 'Todas las áreas';
-  document.getElementById('labelEstado').innerText = selEstados.length ? `${selEstados.length} seleccionado(s)` : 'Todos los estados';
+  actualizarSelectorUI('labelMes', '.chk-mes', 'mes', selMeses.length, 'Todos los meses');
+  actualizarSelectorUI('labelServicio', '.chk-servicio', 'servicio', selServicios.length, 'Todas las activaciones');
+  actualizarSelectorUI('labelArea', '.chk-area', 'area', selAreas.length, 'Todas las áreas');
+  actualizarSelectorUI('labelEstado', '.chk-estado', 'estado', selEstados.length, 'Todos los estados');
 }
 
-function renderizarChipsFiltros() {
-  const contenedor = document.getElementById('contenedorChips');
-  if (!contenedor) return;
+function actualizarSelectorUI(idLabel, selectorChk, tipo, cantidad, textoDefault) {
+  const labelEl = document.getElementById(idLabel);
+  if (!labelEl) return;
 
-  const nombresMeses = {
-    '01': 'Enero', '02': 'Febrero', '03': 'Marzo', '04': 'Abril',
-    '05': 'Mayo', '06': 'Junio', '07': 'Julio', '08': 'Agosto',
-    '09': 'Septiembre', '10': 'Octubre', '11': 'Noviembre', '12': 'Diciembre'
-  };
+  labelEl.innerText = cantidad ? `${cantidad} seleccionado(s)` : textoDefault;
 
-  const selecciones = [
-    ...obtenerSeleccionados('.chk-mes').map(v => ({ tipo: 'mes', val: v, label: `Mes: ${nombresMeses[v] || v}` })),
-    ...obtenerSeleccionados('.chk-servicio').map(v => ({ tipo: 'servicio', val: v, label: v })),
-    ...obtenerSeleccionados('.chk-area').map(v => ({ tipo: 'area', val: v, label: v })),
-    ...obtenerSeleccionados('.chk-estado').map(v => ({ tipo: 'estado', val: v, label: v }))
-  ];
+  let btnClear = labelEl.parentElement.querySelector(`.btn-clear-${tipo}`);
 
-  contenedor.innerHTML = selecciones.map(item => `
-    <span class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-700 text-xs font-semibold px-2.5 py-1 rounded-full border border-slate-200 shadow-xs">
-      ${item.label}
-      <button onclick="removerFiltroEspecifico('${item.tipo}', '${item.val}')" class="hover:text-rose-600 font-bold ml-1 text-sm cursor-pointer">×</button>
-    </span>
-  `).join('');
+  if (cantidad > 0) {
+    if (!btnClear) {
+      btnClear = document.createElement('span');
+      btnClear.className = `btn-clear-${tipo} ml-auto mr-1 text-slate-400 hover:text-rose-600 font-bold text-xs cursor-pointer px-1 py-0.5 rounded hover:bg-rose-100 transition-colors inline-flex items-center justify-center z-10`;
+      btnClear.innerText = '✕';
+      btnClear.title = 'Limpiar este filtro';
+      btnClear.onclick = (e) => {
+        e.stopPropagation();
+        limpiarFiltroCategoria(selectorChk);
+      };
+      labelEl.insertAdjacentElement('afterend', btnClear);
+    }
+    btnClear.classList.remove('hidden');
+  } else if (btnClear) {
+    btnClear.classList.add('hidden');
+  }
 }
 
-function removerFiltroEspecifico(tipo, valor) {
-  const checkbox = document.querySelector(`.chk-${tipo}[value="${valor}"]`);
-  if (checkbox) checkbox.checked = false;
+function limpiarFiltroCategoria(selectorChk) {
+  document.querySelectorAll(selectorChk).forEach(chk => chk.checked = false);
   filtrarYRenderizar();
 }
 
@@ -298,7 +298,6 @@ function filtrarYRenderizar() {
   const selEstados = obtenerSeleccionados('.chk-estado');
 
   actualizarEtiquetasFiltros(selMeses, selServicios, selAreas, selEstados);
-  renderizarChipsFiltros(); // Invocación agregada para renderizar las X individuales
 
   const filtrados = obtenerDatosFiltradosActuales();
 
