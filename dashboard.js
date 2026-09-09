@@ -40,7 +40,7 @@ async function cargarDatosDashboard() {
 
     datosOriginales = resData.registros || [];
 
-    // Llenar dinámicamente las opciones de Checkboxes
+    // Llenar dinámicamente las opciones de Checkboxes y buscadores
     poblarFiltros(datosOriginales);
 
     // Renderizar tarjetas y gráficos
@@ -55,7 +55,7 @@ async function cargarDatosDashboard() {
 }
 
 /* ==========================================================
-   NUEVA LÓGICA DE FILTROS MULTI-SELECCIÓN (CHECKBOXES)
+   LÓGICA DE FILTROS MULTI-SELECCIÓN CON BUSCADOR INTERNO
    ========================================================== */
 
 // Mostrar / Ocultar menús desplegables
@@ -69,17 +69,38 @@ function toggleDropdown(event, id) {
 
   if (estaOculto) {
     target.classList.remove('hidden');
+    // Enfocar automáticamente la caja de búsqueda del desplegable abierto
+    const inputBuscar = target.querySelector('input[type="text"]');
+    if (inputBuscar) inputBuscar.focus();
   }
 }
 
-// Cerrar desplegables al hacer clic fuera del contenedor
+// Cerrar desplegables al hacer clic fuera
 document.addEventListener('click', (e) => {
   if (!e.target.closest('.dropdown-container')) {
     document.querySelectorAll('.dropdown-container > div').forEach(div => div.classList.add('hidden'));
   }
 });
 
-// Poblar dinámicamente las listas de Checkboxes
+// Función para filtrar las opciones dentro del menú desplegable en tiempo real
+function filtrarOpcionesDropdown(input) {
+  const texto = input.value.toLowerCase().trim();
+  const contenedor = input.closest('.dropdown-container');
+  const opciones = contenedor.querySelectorAll('.option-item');
+
+  opciones.forEach(label => {
+    const textoOpcion = label.textContent.toLowerCase();
+    if (textoOpcion.includes(texto)) {
+      label.classList.remove('hidden');
+      label.classList.add('flex');
+    } else {
+      label.classList.add('hidden');
+      label.classList.remove('flex');
+    }
+  });
+}
+
+// Poblar dinámicamente las listas de Checkboxes con Input de Búsqueda
 function poblarFiltros(registros) {
   // 1. Meses
   const dropMes = document.getElementById('dropMes');
@@ -92,8 +113,12 @@ function poblarFiltros(registros) {
       { val: '09', nombre: 'Septiembre' }, { val: '10', nombre: 'Octubre' },
       { val: '11', nombre: 'Noviembre' }, { val: '12', nombre: 'Diciembre' }
     ];
-    dropMes.innerHTML = meses.map(m => `
-      <label class="flex items-center gap-2 text-xs p-1.5 hover:bg-gray-50 rounded cursor-pointer select-none">
+    dropMes.innerHTML = `
+      <div class="sticky top-0 bg-white pb-1.5 mb-1 border-b border-gray-100 z-10">
+        <input type="text" placeholder="🔍 Buscar mes..." onclick="event.stopPropagation()" oninput="filtrarOpcionesDropdown(this)" class="w-full text-xs p-1.5 border border-gray-200 rounded focus:outline-none focus:border-marca-rojo">
+      </div>
+      ` + meses.map(m => `
+      <label class="option-item flex items-center gap-2 text-xs p-1.5 hover:bg-gray-50 rounded cursor-pointer select-none">
         <input type="checkbox" value="${m.val}" class="chk-mes rounded border-gray-300 text-marca-rojo focus:ring-0" onchange="filtrarYRenderizar()">
         <span>${m.nombre}</span>
       </label>
@@ -104,8 +129,12 @@ function poblarFiltros(registros) {
   const dropServicio = document.getElementById('dropServicio');
   if (dropServicio) {
     const servicios = [...new Set(registros.map(r => r.tipoServicio).filter(Boolean))].sort();
-    dropServicio.innerHTML = servicios.map(s => `
-      <label class="flex items-center gap-2 text-xs p-1.5 hover:bg-gray-50 rounded cursor-pointer select-none">
+    dropServicio.innerHTML = `
+      <div class="sticky top-0 bg-white pb-1.5 mb-1 border-b border-gray-100 z-10">
+        <input type="text" placeholder="🔍 Buscar activación..." onclick="event.stopPropagation()" oninput="filtrarOpcionesDropdown(this)" class="w-full text-xs p-1.5 border border-gray-200 rounded focus:outline-none focus:border-marca-rojo">
+      </div>
+      ` + servicios.map(s => `
+      <label class="option-item flex items-center gap-2 text-xs p-1.5 hover:bg-gray-50 rounded cursor-pointer select-none">
         <input type="checkbox" value="${s}" class="chk-servicio rounded border-gray-300 text-marca-rojo focus:ring-0" onchange="filtrarYRenderizar()">
         <span>${s}</span>
       </label>
@@ -116,8 +145,12 @@ function poblarFiltros(registros) {
   const dropArea = document.getElementById('dropArea');
   if (dropArea) {
     const areas = [...new Set(registros.map(r => r.area).filter(Boolean))].sort();
-    dropArea.innerHTML = areas.map(a => `
-      <label class="flex items-center gap-2 text-xs p-1.5 hover:bg-gray-50 rounded cursor-pointer select-none">
+    dropArea.innerHTML = `
+      <div class="sticky top-0 bg-white pb-1.5 mb-1 border-b border-gray-100 z-10">
+        <input type="text" placeholder="🔍 Buscar área..." onclick="event.stopPropagation()" oninput="filtrarOpcionesDropdown(this)" class="w-full text-xs p-1.5 border border-gray-200 rounded focus:outline-none focus:border-marca-rojo">
+      </div>
+      ` + areas.map(a => `
+      <label class="option-item flex items-center gap-2 text-xs p-1.5 hover:bg-gray-50 rounded cursor-pointer select-none">
         <input type="checkbox" value="${a}" class="chk-area rounded border-gray-300 text-marca-rojo focus:ring-0" onchange="filtrarYRenderizar()">
         <span>${a}</span>
       </label>
@@ -128,8 +161,12 @@ function poblarFiltros(registros) {
   const dropEstado = document.getElementById('dropEstado');
   if (dropEstado) {
     const estados = ['Confirmado', 'Pendiente', 'Culminado', 'Cancelado'];
-    dropEstado.innerHTML = estados.map(e => `
-      <label class="flex items-center gap-2 text-xs p-1.5 hover:bg-gray-50 rounded cursor-pointer select-none">
+    dropEstado.innerHTML = `
+      <div class="sticky top-0 bg-white pb-1.5 mb-1 border-b border-gray-100 z-10">
+        <input type="text" placeholder="🔍 Buscar estado..." onclick="event.stopPropagation()" oninput="filtrarOpcionesDropdown(this)" class="w-full text-xs p-1.5 border border-gray-200 rounded focus:outline-none focus:border-marca-rojo">
+      </div>
+      ` + estados.map(e => `
+      <label class="option-item flex items-center gap-2 text-xs p-1.5 hover:bg-gray-50 rounded cursor-pointer select-none">
         <input type="checkbox" value="${e}" class="chk-estado rounded border-gray-300 text-marca-rojo focus:ring-0" onchange="filtrarYRenderizar()">
         <span>${e}</span>
       </label>
@@ -150,10 +187,14 @@ function actualizarEtiquetasFiltros(selMeses, selServicios, selAreas, selEstados
   document.getElementById('labelEstado').innerText = selEstados.length ? `${selEstados.length} seleccionado(s)` : 'Todos los estados';
 }
 
-// Botón para desmarcar todo y resetear
+// Botón para desmarcar todo, limpiar texto buscado y resetear
 function limpiarFiltros() {
   document.querySelectorAll('.chk-mes, .chk-servicio, .chk-area, .chk-estado').forEach(chk => {
     chk.checked = false;
+  });
+  document.querySelectorAll('.dropdown-container input[type="text"]').forEach(input => {
+    input.value = '';
+    filtrarOpcionesDropdown(input);
   });
   filtrarYRenderizar();
 }
@@ -208,7 +249,7 @@ function filtrarYRenderizar() {
 }
 
 /* ==========================================================
-   MANTENER FUNCIONES DE GRÁFICOS SIN CAMBIOS
+   FUNCIONES DE GRÁFICOS
    ========================================================== */
 
 function renderizarGraficoServicios(datos) {
