@@ -296,7 +296,6 @@
   </div>
 
   <!-- MODAL DE DETALLE POR CLIC EN GRÁFICO O BOTÓN REGISTROS -->
-  <!-- CONTENEDOR DEL MODAL -->
   <div id="modalDetalleGrafico" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden">
       
@@ -321,12 +320,12 @@
           </div>
   
           <!-- BOTÓN EXPORTAR EXCEL DE ESTA TABLA -->
-          <button onclick="exportarDetalleExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs px-3 py-1.5 rounded-lg shadow-sm transition-all flex items-center gap-1.5 shrink-0">
+          <button onclick="exportarDetalleExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs px-3 py-1.5 rounded-lg shadow-sm transition-all flex items-center gap-1.5 shrink-0 cursor-pointer">
             📊 Exportar Excel
           </button>
   
           <!-- BOTÓN CERRAR -->
-          <button onclick="cerrarModalGrafico()" class="text-gray-400 hover:text-gray-600 text-lg font-bold px-2 py-0.5 rounded-lg">✕</button>
+          <button onclick="cerrarModalGrafico()" class="text-gray-400 hover:text-gray-600 text-lg font-bold px-2 py-0.5 rounded-lg cursor-pointer">✕</button>
         </div>
       </div>
   
@@ -349,17 +348,15 @@
           </tbody>
         </table>
       </div>
-  
-    </div>
-  </div>
 
-      <!-- Footer con Contador -->
+      <!-- FOOTER DENTRO DEL MODAL -->
       <div class="p-3 bg-white border-t border-gray-200 flex justify-between items-center">
         <span id="modalDetalleContador" class="text-xs font-bold text-gray-600">Total: 0 registros</span>
-        <button type="button" onclick="cerrarModalDetalle()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-lg transition-all cursor-pointer">
+        <button type="button" onclick="cerrarModalGrafico()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-lg transition-all cursor-pointer">
           Cerrar
         </button>
       </div>
+
     </div>
   </div>
 
