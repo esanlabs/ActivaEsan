@@ -856,3 +856,30 @@ function reiniciarTimerInactividad() {
 ['mousemove', 'keydown', 'click', 'scroll'].forEach(evt => {
   document.addEventListener(evt, reiniciarTimerInactividad);
 });
+
+// Agrega este contenedor en tu HTML sobre las gráficas: <div id="contenedorChips" class="flex flex-wrap gap-2 my-3"></div>
+
+function renderizarChipsFiltros() {
+  const contenedor = document.getElementById('contenedorChips');
+  if (!contenedor) return;
+
+  const selecciones = [
+    ...obtenerSeleccionados('.chk-mes').map(v => ({ tipo: 'mes', val: v, label: `Mes: ${v}` })),
+    ...obtenerSeleccionados('.chk-servicio').map(v => ({ tipo: 'servicio', val: v, label: v })),
+    ...obtenerSeleccionados('.chk-area').map(v => ({ tipo: 'area', val: v, label: v })),
+    ...obtenerSeleccionados('.chk-estado').map(v => ({ tipo: 'estado', val: v, label: v }))
+  ];
+
+  contenedor.innerHTML = selecciones.map(item => `
+    <span class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-700 text-xs font-semibold px-2.5 py-1 rounded-full border border-slate-200">
+      ${item.label}
+      <button onclick="removerFiltroEspecifico('${item.tipo}', '${item.val}')" class="hover:text-rose-600 font-bold ml-1 text-sm">×</button>
+    </span>
+  `).join('');
+}
+
+function removerFiltroEspecifico(tipo, valor) {
+  const checkbox = document.querySelector(`.chk-${tipo}[value="${valor}"]`);
+  if (checkbox) checkbox.checked = false;
+  filtrarYRenderizar();
+}
