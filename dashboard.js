@@ -30,10 +30,24 @@ function verificarAcceso() {
   return true;
 }
 
-async function cargarDatosDashboard() {
+// === CARGA DE DATOS CON CACHÉ (10 MINUTOS) ===
+async function cargarDatosDashboard(forceRefresh = false) {
   const loader = document.getElementById('loaderDashboard');
-  if (loader) loader.classList.remove('hidden');
+  const cacheData = localStorage.getItem('dashboard_cache');
+  const cacheTime = localStorage.getItem('dashboard_cache_time');
+  const DIEZ_MINUTOS = 10 * 60 * 1000;
 
+  // Si hay caché válido y no se forzó la actualización
+  if (!forceRefresh && cacheData && cacheTime && (Date.now() - cacheTime < DIEZ_MINUTOS)) {
+    datosOriginales = JSON.parse(cacheData);
+    ejecutarAuditoriaCalidad(datosOriginales);
+    poblarFiltros(datosOriginales);
+    filtrarYRenderizar();
+    if (loader) loader.classList.add('hidden'); // Oculta el loader al usar caché
+    return;
+  }
+
+  if (loader) loader.classList.remove('hidden');
   try {
     const respuesta = await fetch(GOOGLE_SCRIPT_URL);
     const resData = await respuesta.json();
@@ -43,6 +57,8 @@ async function cargarDatosDashboard() {
     }
 
     datosOriginales = resData.registros || [];
+    localStorage.setItem('dashboard_cache', JSON.stringify(datosOriginales));
+    localStorage.setItem('dashboard_cache_time', Date.now().toString());
 
     ejecutarAuditoriaCalidad(datosOriginales);
     poblarFiltros(datosOriginales);
@@ -177,6 +193,37 @@ function actualizarEtiquetasFiltros(selMeses, selServicios, selAreas, selEstados
   document.getElementById('labelEstado').innerText = selEstados.length ? `${selEstados.length} seleccionado(s)` : 'Todos los estados';
 }
 
+function renderizarChipsFiltros() {
+  const contenedor = document.getElementById('contenedorChips');
+  if (!contenedor) return;
+
+  const nombresMeses = {
+    '01': 'Enero', '02': 'Febrero', '03': 'Marzo', '04': 'Abril',
+    '05': 'Mayo', '06': 'Junio', '07': 'Julio', '08': 'Agosto',
+    '09': 'Septiembre', '10': 'Octubre', '11': 'Noviembre', '12': 'Diciembre'
+  };
+
+  const selecciones = [
+    ...obtenerSeleccionados('.chk-mes').map(v => ({ tipo: 'mes', val: v, label: `Mes: ${nombresMeses[v] || v}` })),
+    ...obtenerSeleccionados('.chk-servicio').map(v => ({ tipo: 'servicio', val: v, label: v })),
+    ...obtenerSeleccionados('.chk-area').map(v => ({ tipo: 'area', val: v, label: v })),
+    ...obtenerSeleccionados('.chk-estado').map(v => ({ tipo: 'estado', val: v, label: v }))
+  ];
+
+  contenedor.innerHTML = selecciones.map(item => `
+    <span class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-700 text-xs font-semibold px-2.5 py-1 rounded-full border border-slate-200 shadow-xs">
+      ${item.label}
+      <button onclick="removerFiltroEspecifico('${item.tipo}', '${item.val}')" class="hover:text-rose-600 font-bold ml-1 text-sm cursor-pointer">×</button>
+    </span>
+  `).join('');
+}
+
+function removerFiltroEspecifico(tipo, valor) {
+  const checkbox = document.querySelector(`.chk-${tipo}[value="${valor}"]`);
+  if (checkbox) checkbox.checked = false;
+  filtrarYRenderizar();
+}
+
 function limpiarFiltros() {
   document.querySelectorAll('.chk-mes, .chk-servicio, .chk-area, .chk-estado').forEach(chk => chk.checked = false);
   document.querySelectorAll('.dropdown-container input[type="text"]').forEach(input => {
@@ -251,6 +298,7 @@ function filtrarYRenderizar() {
   const selEstados = obtenerSeleccionados('.chk-estado');
 
   actualizarEtiquetasFiltros(selMeses, selServicios, selAreas, selEstados);
+  renderizarChipsFiltros(); // Invocación agregada para renderizar las X individuales
 
   const filtrados = obtenerDatosFiltradosActuales();
 
@@ -288,13 +336,12 @@ function renderizarGraficoServicios(datos) {
     conteo[s] = (conteo[s] || 0) + 1;
   });
 
-  // Mapeo fijo de colores por servicio para mantener consistencia
   const mapaColores = {
-    'foto gif': '#E3173E',          // Rojo
+    'foto gif': '#E3173E',
     'foto gif impresión': '#E3173E',
-    'foto booth': '#2563EB',        // Azul
-    '360°': '#16A34A',              // Verde
-    'cancelado': '#000000'          // Negro
+    'foto booth': '#2563EB',
+    '360°': '#16A34A',
+    'cancelado': '#000000'
   };
   const coloresFallback = ['#E3173E', '#2563EB', '#16A34A', '#F59E0B', '#8B5CF6'];
 
@@ -392,18 +439,15 @@ function renderizarGraficaDinero(registros) {
   const ctx = document.getElementById('graficaDinero')?.getContext('2d');
   if (!ctx) return;
 
-  // Determinar el año base según los datos o usar el año actual
   const primerRegistro = registros.find(r => r.fecha);
   const anio = primerRegistro ? String(primerRegistro.fecha).substring(0, 4) : '2026';
 
-  // Garantizar los 12 meses correlativos ordenados (YYYY-01 a YYYY-12)
   const ingresosPorMes = {};
   for (let m = 1; m <= 12; m++) {
     const mesNum = m < 10 ? `0${m}` : `${m}`;
     ingresosPorMes[`${anio}-${mesNum}`] = 0;
   }
 
-  // Asignar el acumulado de montos
   registros.forEach(r => {
     if (!r.costo || r.estado === "Cancelado" || !r.fecha) return;
     const monto = parseFloat(String(r.costo).replace(/[^0-9.]/g, '')) || 0;
@@ -589,7 +633,7 @@ function filtrarTablaModal() {
 function renderizarTablaModal(lista) {
   const tbody = document.getElementById('tbodyModalGrafico');
   const contadorEl = document.getElementById('modalDetalleContador');
-  
+
   if (contadorEl) contadorEl.innerText = `Total: ${lista.length} registro(s)`;
   if (!tbody) return;
 
@@ -806,41 +850,6 @@ function exportarDetalleExcel() {
   document.body.removeChild(enlace);
 }
 
-// === CACHÉ DE DATOS (10 MINUTOS) ===
-async function cargarDatosDashboard(forceRefresh = false) {
-  const loader = document.getElementById('loaderDashboard');
-  const cacheData = localStorage.getItem('dashboard_cache');
-  const cacheTime = localStorage.getItem('dashboard_cache_time');
-  const DIEZ_MINUTOS = 10 * 60 * 1000;
-
-  if (!forceRefresh && cacheData && cacheTime && (Date.now() - cacheTime < DIEZ_MINUTOS)) {
-    datosOriginales = JSON.parse(cacheData);
-    ejecutarAuditoriaCalidad(datosOriginales);
-    poblarFiltros(datosOriginales);
-    filtrarYRenderizar();
-    return;
-  }
-
-  if (loader) loader.classList.remove('hidden');
-  try {
-    const respuesta = await fetch(GOOGLE_SCRIPT_URL);
-    const resData = await respuesta.json();
-    if (resData.status === 'error') throw new Error(resData.error);
-
-    datosOriginales = resData.registros || [];
-    localStorage.setItem('dashboard_cache', JSON.stringify(datosOriginales));
-    localStorage.setItem('dashboard_cache_time', Date.now().toString());
-
-    ejecutarAuditoriaCalidad(datosOriginales);
-    poblarFiltros(datosOriginales);
-    filtrarYRenderizar();
-  } catch (error) {
-    console.error("Error al cargar datos:", error);
-  } finally {
-    if (loader) loader.classList.add('hidden');
-  }
-}
-
 // === TEMPORIZADOR DE INACTIVIDAD (20 MINUTOS) ===
 let inactividadTimer;
 function reiniciarTimerInactividad() {
@@ -856,30 +865,3 @@ function reiniciarTimerInactividad() {
 ['mousemove', 'keydown', 'click', 'scroll'].forEach(evt => {
   document.addEventListener(evt, reiniciarTimerInactividad);
 });
-
-// Agrega este contenedor en tu HTML sobre las gráficas: <div id="contenedorChips" class="flex flex-wrap gap-2 my-3"></div>
-
-function renderizarChipsFiltros() {
-  const contenedor = document.getElementById('contenedorChips');
-  if (!contenedor) return;
-
-  const selecciones = [
-    ...obtenerSeleccionados('.chk-mes').map(v => ({ tipo: 'mes', val: v, label: `Mes: ${v}` })),
-    ...obtenerSeleccionados('.chk-servicio').map(v => ({ tipo: 'servicio', val: v, label: v })),
-    ...obtenerSeleccionados('.chk-area').map(v => ({ tipo: 'area', val: v, label: v })),
-    ...obtenerSeleccionados('.chk-estado').map(v => ({ tipo: 'estado', val: v, label: v }))
-  ];
-
-  contenedor.innerHTML = selecciones.map(item => `
-    <span class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-700 text-xs font-semibold px-2.5 py-1 rounded-full border border-slate-200">
-      ${item.label}
-      <button onclick="removerFiltroEspecifico('${item.tipo}', '${item.val}')" class="hover:text-rose-600 font-bold ml-1 text-sm">×</button>
-    </span>
-  `).join('');
-}
-
-function removerFiltroEspecifico(tipo, valor) {
-  const checkbox = document.querySelector(`.chk-${tipo}[value="${valor}"]`);
-  if (checkbox) checkbox.checked = false;
-  filtrarYRenderizar();
-}
