@@ -846,20 +846,20 @@ function exportarDetalleExcel() {
   }
 
   let csvContent = '\uFEFF'; 
-  csvContent += 'ID / Codigo;Fecha;Tipo Servicio;Area;Estado;Costo (S/)\n';
+  csvContent += 'ID / Codigo;Fecha;Evento / Proyecto;Tipo Servicio;Area;Estado;Costo (S/)\n';
 
   registrosModalActuales.forEach((r, idx) => {
     const fecha = r.fecha ? String(r.fecha).split('T')[0] : '-';
     const costo = parseFloat(String(r.costo || 0).replace(/[^0-9.]/g, '')) || 0;
     
-    // CORRECCIÓN: Se busca cualquier campo de ID posible o se asigna el número correlativo (#1, #2...)
-    const valorId = r.id || r.codigo || r.codigoSolicitud || r.idRegistro || `#${idx + 1}`;
+    const valorId = r.id || r.codigo || r.codigoSolicitud || `#${idx + 1}`;
     const id = String(valorId).replace(/"/g, '""');
+    const evento = String(obtenerNombreEvento(r)).replace(/"/g, '""');
     const servicio = String(r.tipoServicio || '-').replace(/"/g, '""');
     const area = String(r.area || '-').replace(/"/g, '""');
     const estado = String(r.estado || 'Pendiente').replace(/"/g, '""');
 
-    csvContent += `"${id}";"${fecha}";"${servicio}";"${area}";"${estado}";"${costo.toFixed(2)}"\n`;
+    csvContent += `"${id}";"${fecha}";"${evento}";"${servicio}";"${area}";"${estado}";"${costo.toFixed(2)}"\n`;
   });
 
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -867,7 +867,7 @@ function exportarDetalleExcel() {
   const enlace = document.createElement('a');
   
   enlace.setAttribute('href', url);
-  enlace.setAttribute('download', `Detalle_Registros_${new Date().toISOString().split('T')[0]}.csv`);
+  enlace.setAttribute('download', `Detalle_Grafico_${new Date().toISOString().split('T')[0]}.csv`);
   document.body.appendChild(enlace);
   enlace.click();
   document.body.removeChild(enlace);
