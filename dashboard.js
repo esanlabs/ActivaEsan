@@ -819,3 +819,68 @@ function exportarDetalleExcel() {
   enlace.click();
   document.body.removeChild(enlace);
 }
+
+/* ==========================================================
+   LÓGICA DE FILTRADO CON BUSCADOR GLOBAL INTEGRADO
+   ========================================================== */
+
+function obtenerDatosFiltradosActuales() {
+  const selMeses = obtenerSeleccionados('.chk-mes');
+  const selServicios = obtenerSeleccionados('.chk-servicio');
+  const selAreas = obtenerSeleccionados('.chk-area');
+  const selEstados = obtenerSeleccionados('.chk-estado');
+  
+  // Captura el texto ingresado en el buscador global
+  const inputBusqueda = document.getElementById('inputBusquedaGlobal');
+  const textoBusqueda = inputBusqueda ? inputBusqueda.value.toLowerCase().trim() : '';
+
+  // Mostrar/ocultar el botón 'X' para limpiar la búsqueda
+  const btnLimpiar = document.getElementById('btnLimpiarBusqueda');
+  if (btnLimpiar) {
+    if (textoBusqueda.length > 0) btnLimpiar.classList.remove('hidden');
+    else btnLimpiar.classList.add('hidden');
+  }
+
+  return datosOriginales.filter(r => {
+    if (!r.fecha) return false;
+
+    const fechaStr = String(r.fecha).split('T')[0];
+    const partesFecha = fechaStr.split('-');
+    const mesRegistro = partesFecha[1];
+
+    // 1. Filtros Multi-selección
+    if (selMeses.length > 0 && !selMeses.includes(mesRegistro)) return false;
+    if (selServicios.length > 0 && !selServicios.includes(r.tipoServicio)) return false;
+    if (selAreas.length > 0 && !selAreas.includes(r.area)) return false;
+    if (selEstados.length > 0 && !selEstados.includes(r.estado)) return false;
+
+    // 2. Filtro por coincidencia de texto (Buscador Global)
+    if (textoBusqueda !== '') {
+      const id = String(r.id || r.codigo || r.codigoSolicitud || '').toLowerCase();
+      const servicio = String(r.tipoServicio || '').toLowerCase();
+      const area = String(r.area || '').toLowerCase();
+      const estado = String(r.estado || '').toLowerCase();
+      const costo = String(r.costo || '').toLowerCase();
+
+      const coincide = id.includes(textoBusqueda) ||
+                       servicio.includes(textoBusqueda) ||
+                       area.includes(textoBusqueda) ||
+                       estado.includes(textoBusqueda) ||
+                       fechaStr.includes(textoBusqueda) ||
+                       costo.includes(textoBusqueda);
+
+      if (!coincide) return false;
+    }
+
+    return true;
+  });
+}
+
+// Función para limpiar rápidamente la barra de búsqueda
+function limpiarBuscadorGlobal() {
+  const inputBusqueda = document.getElementById('inputBusquedaGlobal');
+  if (inputBusqueda) {
+    inputBusqueda.value = '';
+    filtrarYRenderizar();
+  }
+}
