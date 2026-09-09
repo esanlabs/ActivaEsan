@@ -218,34 +218,49 @@
       </div>
     </div>
 
-    <!-- SECCIÓN DE GRÁFICAS -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      
-      <!-- Tarjeta 1: Distribución por Activaciones -->
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-80 flex flex-col">
-        <h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Distribución por Activaciones</h3>
-        <div class="relative flex-1 min-h-0">
-          <canvas id="chartServicios"></canvas>
-        </div>
-      </div>
-      
-      <!-- Tarjeta 2: Activaciones por Área -->
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-80 flex flex-col">
-        <h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Activaciones por Área</h3>
-        <div class="relative flex-1">
-          <canvas id="chartAreas"></canvas>
-        </div>
-      </div>
-      
-      <!-- Tarjeta 3: Dinero Recaudado por Mes (Ancho Completo) -->
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-80 flex flex-col md:col-span-2">
-        <h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Ahorro por Mes (S/)</h3>
-        <div class="relative flex-1">
-          <canvas id="graficaDinero"></canvas>
-        </div>
-      </div>
-
+   <!-- SECCIÓN DE GRÁFICOS -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+  
+  <!-- Tarjeta 1: Distribución por Activaciones -->
+  <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-80 flex flex-col">
+    <div class="flex items-center justify-between mb-2">
+      <h3 class="text-xs font-bold text-gray-500 uppercase">Distribución por Activaciones</h3>
+      <button onclick="verRegistrosGrafico('servicios')" class="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-md transition-colors border border-slate-200">
+        📋 Registros
+      </button>
     </div>
+    <div class="relative flex-1 min-h-0">
+      <canvas id="chartServicios"></canvas>
+    </div>
+  </div>
+  
+  <!-- Tarjeta 2: Activaciones por Área -->
+  <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-80 flex flex-col">
+    <div class="flex items-center justify-between mb-2">
+      <h3 class="text-xs font-bold text-gray-500 uppercase">Activaciones por Área</h3>
+      <button onclick="verRegistrosGrafico('areas')" class="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-md transition-colors border border-slate-200">
+        📋 Registros
+      </button>
+    </div>
+    <div class="relative flex-1">
+      <canvas id="chartAreas"></canvas>
+    </div>
+  </div>
+  
+  <!-- Tarjeta 3: Dinero Recaudado por Mes (Ancho Completo) -->
+  <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-80 flex flex-col md:col-span-2">
+    <div class="flex items-center justify-between mb-2">
+      <h3 class="text-xs font-bold text-gray-500 uppercase">Ahorro por Mes (S/)</h3>
+      <button onclick="verRegistrosGrafico('dinero')" class="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-md transition-colors border border-slate-200">
+        📋 Registros
+      </button>
+    </div>
+    <div class="relative flex-1">
+      <canvas id="graficaDinero"></canvas>
+    </div>
+  </div>
+
+</div>
 
   </main>
 
