@@ -40,6 +40,9 @@ async function cargarDatosDashboard() {
 
     datosOriginales = resData.registros || [];
 
+    // 👈 Ejecutar la auditoría de calidad sobre los registros cargados
+    ejecutarAuditoriaCalidad(datosOriginales);
+    
     // Llenar dinámicamente las opciones de Checkboxes y buscadores
     poblarFiltros(datosOriginales);
 
@@ -397,4 +400,98 @@ function renderizarGraficaDinero(registros) {
       }
     }
   });
+}
+
+// Variable global para almacenar los registros con errores
+let registrosIncompletos = [];
+
+// Función para auditoría de calidad de datos
+function ejecutarAuditoriaCalidad(registros) {
+  registrosIncompletos = [];
+  
+  let req2025 = 0;
+  let req2026 = 0;
+  let ser2025 = 0;
+  let ser2026 = 0;
+
+  registros.forEach((r, idx) => {
+    const faltantes = [];
+
+    // Validar campos obligatorios o vacíos
+    if (!r.fecha) faltantes.push('Fecha');
+    if (!r.tipoServicio) faltantes.push('Tipo Servicio');
+    if (!r.area) faltantes.push('Área');
+    if (!r.costo && r.costo !== 0) faltantes.push('Costo');
+    if (!r.estado) faltantes.push('Estado');
+
+    // Si tiene campos nulos/incompletos
+    if (faltantes.length > 0) {
+      registrosIncompletos.push({
+        numFila: idx + 1,
+        data: r,
+        faltantes: faltantes
+      });
+
+      // Extraer año para la sub-clasificación (o por defecto 2025/2026)
+      const fechaStr = r.fecha ? String(r.fecha) : '';
+      const anio = fechaStr.includes('2026') ? '2026' : '2025';
+      const tipo = String(r.tipoServicio || '').toUpperCase();
+
+      const esServicio = tipo.includes('SER') || tipo.includes('SERVICIO');
+
+      if (esServicio) {
+        if (anio === '2026') ser2026++; else ser2025++;
+      } else {
+        if (anio === '2026') req2026++; else req2025++;
+      }
+    }
+  });
+
+  // Actualizar totales en el Banner
+  document.getElementById('lblTotalExcluidos').innerText = registrosIncompletos.length;
+  document.getElementById('auditReq2025').innerText = req2025;
+  document.getElementById('auditReq2026').innerText = req2026;
+  document.getElementById('auditSer2025').innerText = ser2025;
+  document.getElementById('auditSer2026').innerText = ser2026;
+}
+
+// Abrir el modal y renderizar la tabla con los fallos
+function abrirModalAuditoria() {
+  const tbody = document.getElementById('tablaAuditBody');
+  if (!tbody) return;
+
+  if (registrosIncompletos.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" class="text-center p-6 text-emerald-600 font-bold text-xs">
+          ✅ ¡Excelente! No se encontraron registros con campos vacíos o inconsistentes.
+        </td>
+      </tr>`;
+  } else {
+    tbody.innerHTML = registrosIncompletos.map(item => {
+      const r = item.data;
+      const chipsFaltantes = item.faltantes.map(f => 
+        `<span class="bg-rose-100 text-rose-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-rose-200 mr-1">${f}</span>`
+      ).join('');
+
+      return `
+        <tr class="hover:bg-slate-50 transition-colors">
+          <td class="p-3 font-mono font-bold text-slate-500">#${item.numFila}</td>
+          <td class="p-3 ${!r.fecha ? 'text-rose-500 italic' : 'text-slate-700'}">${r.fecha || 'Sin fecha'}</td>
+          <td class="p-3 ${!r.tipoServicio ? 'text-rose-500 italic' : 'text-slate-700'}">${r.tipoServicio || 'Sin especificar'}</td>
+          <td class="p-3 ${!r.area ? 'text-rose-500 italic' : 'text-slate-700'}">${r.area || 'Sin área'}</td>
+          <td class="p-3 ${!r.costo ? 'text-rose-500 italic' : 'text-slate-700'}">${r.costo ? 'S/ ' + r.costo : 'Sin costo'}</td>
+          <td class="p-3 ${!r.estado ? 'text-rose-500 italic' : 'text-slate-700'}">${r.estado || 'Sin estado'}</td>
+          <td class="p-3">${chipsFaltantes}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  document.getElementById('modalAuditoria').classList.remove('hidden');
+}
+
+// Cerrar el modal
+function cerrarModalAuditoria() {
+  document.getElementById('modalAuditoria').classList.add('hidden');
 }
