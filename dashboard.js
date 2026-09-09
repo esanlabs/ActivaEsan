@@ -580,3 +580,61 @@ function getBadgeColor(estado) {
     default: return 'bg-gray-100 text-gray-700';
   }
 }
+
+
+/* ==========================================================
+   VER TODOS LOS REGISTROS DE UN GRÁFICO ESPECÍFICO
+   ========================================================== */
+
+function verRegistrosGrafico(tipoGrafico) {
+  // 1. Obtener los registros filtrados globalmente por los checkboxes superiores
+  const datosFiltrados = obtenerDatosFiltradosActuales();
+  let registrosFinales = [];
+  let tituloModal = '';
+
+  // 2. Determinar la data según el gráfico seleccionado
+  if (tipoGrafico === 'servicios') {
+    registrosFinales = datosFiltrados;
+    tituloModal = 'Todos los Registros - Tipos de Servicio';
+  } else if (tipoGrafico === 'areas') {
+    registrosFinales = datosFiltrados;
+    tituloModal = 'Todos los Registros - Activaciones por Área';
+  } else if (tipoGrafico === 'dinero') {
+    // Aplica la misma regla del gráfico de dinero (omite cancelados y vacíos)
+    registrosFinales = datosFiltrados.filter(r => r.costo && r.estado !== 'Cancelado');
+    tituloModal = 'Todos los Registros - Ahorro / Montos';
+  }
+
+  // 3. Renderizar la tabla en el modal de detalle existente
+  const tbody = document.getElementById('tablaDetalleBody');
+  tbody.innerHTML = '';
+
+  if (registrosFinales.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-400">No hay registros con los filtros actuales.</td></tr>`;
+  } else {
+    registrosFinales.forEach((row, idx) => {
+      const fechaCorta = row.fecha ? String(row.fecha).split('T')[0] : '-';
+      const costoNum = parseFloat(String(row.costo || 0).replace(/[^0-9.]/g, '')) || 0;
+
+      tbody.innerHTML += `
+        <tr class="hover:bg-gray-50 transition-colors">
+          <td class="p-3 font-semibold text-gray-700">${row.id || row.codigo || `#${idx + 1}`}</td>
+          <td class="p-3 text-gray-600">${fechaCorta}</td>
+          <td class="p-3 font-medium text-gray-800">${row.tipoServicio || '-'}</td>
+          <td class="p-3 text-gray-600">${row.area || '-'}</td>
+          <td class="p-3">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${getBadgeColor(row.estado)}">
+              ${row.estado || 'Pendiente'}
+            </span>
+          </td>
+          <td class="p-3 text-right font-bold text-gray-800">S/ ${costoNum.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        </tr>
+      `;
+    });
+  }
+
+  // 4. Actualizar cabecera del modal y mostrar
+  document.getElementById('modalDetalleTitulo').innerText = tituloModal;
+  document.getElementById('modalDetalleContador').innerText = `Total: ${registrosFinales.length} registro(s)`;
+  document.getElementById('modalDetalleGrafico').classList.remove('hidden');
+}
