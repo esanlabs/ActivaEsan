@@ -326,14 +326,18 @@ function renderizarGraficoAreas(datos) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      layout: {
+        padding: {
+          top: 20 // Espacio extra de respiro superior
+        }
+      },
       scales: {
         y: {
           beginAtZero: true,
-          grace: '15%' // Margen superior para que la etiqueta no se corte
+          grace: '25%' // Amplía el tope del eje Y para evitar cortes
         }
       },
       plugins: {
-        // Restaurar números encima de las barras rojas
         datalabels: {
           anchor: 'end',
           align: 'end',
