@@ -629,7 +629,7 @@ function verRegistrosGrafico(tipoGrafico) {
 }
 
 /* ==========================================================
-   EXPORTACIONES
+   EXPORTACIONES (CORREGIDAS)
    ========================================================== */
 
 // 1. EXPORTAR EL DASHBOARD COMPLETO A PDF
@@ -640,12 +640,18 @@ function exportarDashboardPDF() {
     return;
   }
 
+  // Opciones ajustadas para mantener el diseño ordenado y evitar cortes entre gráficos
   const opciones = {
-    margin:       0.3,
+    margin:       [0.3, 0.3, 0.3, 0.3],
     filename:     `Reporte_Dashboard_${new Date().toISOString().split('T')[0]}.pdf`,
     image:        { type: 'jpeg', quality: 0.98 },
-    html2canvas:  { scale: 2, useCORS: true },
-    jsPDF:        { unit: 'in', format: 'a4', orientation: 'landscape' }
+    html2canvas:  { 
+      scale: 2, 
+      useCORS: true,
+      windowWidth: 1280 // Fuerza el ancho de pantalla para que el Grid/Flex no se encoche
+    },
+    jsPDF:        { unit: 'in', format: 'a4', orientation: 'landscape' },
+    pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] } // Evita cortar elementos a la mitad
   };
 
   html2pdf().set(opciones).from(contenedor).save();
@@ -661,11 +667,13 @@ function exportarDetalleExcel() {
   let csvContent = '\uFEFF'; 
   csvContent += 'ID / Codigo;Fecha;Tipo Servicio;Area;Estado;Costo (S/)\n';
 
-  registrosModalActuales.forEach(r => {
+  registrosModalActuales.forEach((r, idx) => {
     const fecha = r.fecha ? String(r.fecha).split('T')[0] : '-';
     const costo = parseFloat(String(r.costo || 0).replace(/[^0-9.]/g, '')) || 0;
     
-    const id = String(r.id || r.codigo || '-').replace(/"/g, '""');
+    // CORRECCIÓN: Se busca cualquier campo de ID posible o se asigna el número correlativo (#1, #2...)
+    const valorId = r.id || r.codigo || r.codigoSolicitud || r.idRegistro || `#${idx + 1}`;
+    const id = String(valorId).replace(/"/g, '""');
     const servicio = String(r.tipoServicio || '-').replace(/"/g, '""');
     const area = String(r.area || '-').replace(/"/g, '""');
     const estado = String(r.estado || 'Pendiente').replace(/"/g, '""');
