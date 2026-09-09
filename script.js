@@ -94,7 +94,7 @@ function limpiarCacheLocal() {
   console.log("🧹 Caché local eliminada tras cambio/modificación.");
 }
 
-// --- CARGA DE DATOS OPTIMIZADA CON USO DE CACHÉ LOCAL ---
+// --- CARGA DE DATOS OPTIMIZADA CON VALIDACIÓN DE CACHÉ ---
 async function cargarDatosDesdeGoogle(forzarRed = false) {
   document.getElementById('loader').classList.remove('hidden');
 
@@ -102,33 +102,41 @@ async function cargarDatosDesdeGoogle(forzarRed = false) {
   const cacheTime = localStorage.getItem('dashboard_cache_time');
   const DIEZ_MINUTOS = 10 * 60 * 1000;
 
-  // 1. SI EXISTE CACHÉ LOCAL VÁLIDA Y NO SE FORZA LA RED, SE CARGA INSTANTÁNEAMENTE
+  // 1. INTENTAR CARGAR DESDE CACHÉ SI EXISTE Y NO ESTÁ EXPIRADA
   if (!forzarRed && cacheData && cacheTime && (Date.now() - Number(cacheTime) < DIEZ_MINUTOS)) {
     try {
-      console.log("⚡ Carga instantánea desde localStorage.");
       const datosProcesados = JSON.parse(cacheData);
       
-      registrosCargados = datosProcesados.registros || [];
-      listaAdmins = datosProcesados.admins || ['mtello@esan.edu.pe'];
+      // Soporta tanto formato de Objeto { registros: [...] } como de Array [...]
+      const registrosExtraidos = Array.isArray(datosProcesados) 
+        ? datosProcesados 
+        : (datosProcesados.registros || []);
 
-      const esAdmin = listaAdmins.includes(currentUser.email);
-      currentUser.role = esAdmin ? 'SUPERADMIN' : 'CLIENTE';
+      // Solo usamos la caché si realmente tiene registros cargados
+      if (registrosExtraidos.length > 0) {
+        console.log("⚡ Carga instantánea desde localStorage con", registrosExtraidos.length, "registros.");
+        registrosCargados = registrosExtraidos;
+        listaAdmins = datosProcesados.admins || ['mtello@esan.edu.pe'];
 
-      configurarInterfazSegunRol();
+        const esAdmin = listaAdmins.includes(currentUser.email);
+        currentUser.role = esAdmin ? 'SUPERADMIN' : 'CLIENTE';
 
-      document.getElementById('loader').classList.add('hidden');
-      document.getElementById('calendarContainer').classList.remove('hidden');
+        configurarInterfazSegunRol();
 
-      setTimeout(() => {
-        inicializarCalendario();
-      }, 100);
-      return; // Fin de la función (0 espera de red)
+        document.getElementById('loader').classList.add('hidden');
+        document.getElementById('calendarContainer').classList.remove('hidden');
+
+        setTimeout(() => {
+          inicializarCalendario();
+        }, 100);
+        return; // Fin de la función
+      }
     } catch (e) {
       console.warn("Error al leer caché local, consultando al servidor...", e);
     }
   }
 
-  // 2. SI NO HAY CACHÉ O EXPIRÓ, SE CONSULTA A GOOGLE APPS SCRIPT
+  // 2. SI NO HAY CACHÉ, ESTÁ VACÍA O EXPIRÓ, SE CONSULTA A GOOGLE APPS SCRIPT
   try {
     console.log("🌐 Consultando datos frescos desde Google Apps Script...");
     const respuesta = await fetch(GOOGLE_SCRIPT_URL);
@@ -141,10 +149,10 @@ async function cargarDatosDesdeGoogle(forzarRed = false) {
     registrosCargados = resData.registros || [];
     listaAdmins = resData.admins || ['mtello@esan.edu.pe'];
 
-    // DENTRO DE precargarDatosSilencioso():
+    // Guardar estructura limpia e idéntica en caché
     localStorage.setItem('dashboard_cache', JSON.stringify({
-      registros: resData.registros,
-      admins: resData.admins || []
+      registros: registrosCargados,
+      admins: listaAdmins
     }));
     localStorage.setItem('dashboard_cache_time', Date.now().toString());
 
@@ -159,7 +167,6 @@ async function cargarDatosDesdeGoogle(forzarRed = false) {
     setTimeout(() => {
       inicializarCalendario();
     }, 100);
-    
   } catch (error) {
     console.error("Error al cargar datos:", error);
     mostrarToast(`Error: ${error.message}`, "error");
