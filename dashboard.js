@@ -824,17 +824,19 @@ function exportarDetalleExcel() {
    LÓGICA DE FILTRADO CON BUSCADOR GLOBAL INTEGRADO
    ========================================================== */
 
+/* ==========================================================
+   LÓGICA DE FILTRADO CON BUSCADOR GLOBAL (INCLUYE EVENTO)
+   ========================================================== */
+
 function obtenerDatosFiltradosActuales() {
   const selMeses = obtenerSeleccionados('.chk-mes');
   const selServicios = obtenerSeleccionados('.chk-servicio');
   const selAreas = obtenerSeleccionados('.chk-area');
   const selEstados = obtenerSeleccionados('.chk-estado');
   
-  // Captura el texto ingresado en el buscador global
   const inputBusqueda = document.getElementById('inputBusquedaGlobal');
   const textoBusqueda = inputBusqueda ? inputBusqueda.value.toLowerCase().trim() : '';
 
-  // Mostrar/ocultar el botón 'X' para limpiar la búsqueda
   const btnLimpiar = document.getElementById('btnLimpiarBusqueda');
   if (btnLimpiar) {
     if (textoBusqueda.length > 0) btnLimpiar.classList.remove('hidden');
@@ -854,33 +856,28 @@ function obtenerDatosFiltradosActuales() {
     if (selAreas.length > 0 && !selAreas.includes(r.area)) return false;
     if (selEstados.length > 0 && !selEstados.includes(r.estado)) return false;
 
-    // 2. Filtro por coincidencia de texto (Buscador Global)
+    // 2. Filtro por coincidencia de texto (Buscador Global + Evento)
     if (textoBusqueda !== '') {
       const id = String(r.id || r.codigo || r.codigoSolicitud || '').toLowerCase();
       const servicio = String(r.tipoServicio || '').toLowerCase();
       const area = String(r.area || '').toLowerCase();
       const estado = String(r.estado || '').toLowerCase();
       const costo = String(r.costo || '').toLowerCase();
+      
+      // Captura el nombre del evento o solicitante según cómo llegue del Apps Script
+      const evento = String(r.nombreEvento || r.evento || r.nombreDelEvento || r.solicitante || '').toLowerCase();
 
       const coincide = id.includes(textoBusqueda) ||
                        servicio.includes(textoBusqueda) ||
                        area.includes(textoBusqueda) ||
                        estado.includes(textoBusqueda) ||
                        fechaStr.includes(textoBusqueda) ||
-                       costo.includes(textoBusqueda);
+                       costo.includes(textoBusqueda) ||
+                       evento.includes(textoBusqueda);
 
       if (!coincide) return false;
     }
 
     return true;
   });
-}
-
-// Función para limpiar rápidamente la barra de búsqueda
-function limpiarBuscadorGlobal() {
-  const inputBusqueda = document.getElementById('inputBusquedaGlobal');
-  if (inputBusqueda) {
-    inputBusqueda.value = '';
-    filtrarYRenderizar();
-  }
 }
