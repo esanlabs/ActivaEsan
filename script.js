@@ -9,53 +9,32 @@ let calendarObj = null;
 let idEventoEditando = null;
 let contadorFilas = 0;
 
-function borrarCacheLocal() {
-  localStorage.removeItem('registrosCargados'); // O localStorage.clear() si quieres borrar todo
-}
-
 function limpiarCacheLocal() {
   localStorage.removeItem('dashboard_cache');
   localStorage.removeItem('dashboard_cache_time');
   console.log("🧹 Caché local eliminada.");
 }
 
-// Iniciar precarga en cuanto la página de login termine de cargar
-document.addEventListener('DOMContentLoaded', () => {
-  precargarDatosSilencioso();
-});
-
+// 2. PRECARGA SILENCIOSA CORREGIDA
 function precargarDatosSilencioso() {
   const cacheData = localStorage.getItem('dashboard_cache');
   const cacheTime = localStorage.getItem('dashboard_cache_time');
   const DIEZ_MINUTOS = 10 * 60 * 1000;
 
-  // Si ya hay caché reciente (menos de 10 min), no volvemos a hacer la petición
-  if (cacheData && cacheTime && (Date.now() - cacheTime < DIEZ_MINUTOS)) {
-    console.log("⚡ Datos previamente en caché local.");
-    return;
-  }
-
-  console.log("🔄 Iniciando precarga silenciosa de datos desde la pantalla de Login...");
+  if (cacheData && cacheTime && (Date.now() - cacheTime < DIEZ_MINUTOS)) return;
 
   fetch(GOOGLE_SCRIPT_URL, { method: 'GET', redirect: 'follow' })
-    .then(response => {
-      if (!response.ok) throw new Error("Error en respuesta HTTP");
-      return response.text();
-    })
-    .then(texto => {
-      if (!texto.trim().startsWith('<') && !texto.trim().toLowerCase().startsWith('<!doctype')) {
-        const resData = JSON.parse(texto);
-        if (resData.status !== 'error' && resData.registros) {
-          // Guardamos directamente los datos en la memoria local del navegador
-          localStorage.setItem('dashboard_cache', JSON.stringify(resData.registros));
-          localStorage.setItem('dashboard_cache_time', Date.now().toString());
-          console.log("✅ Precarga completada con éxito. El Dashboard abrirá de forma instantánea.");
-        }
+    .then(response => response.json())
+    .then(resData => {
+      if (resData.status !== 'error' && resData.registros) {
+        localStorage.setItem('dashboard_cache', JSON.stringify({
+          registros: resData.registros,
+          admins: resData.admins || []
+        }));
+        localStorage.setItem('dashboard_cache_time', Date.now().toString());
       }
     })
-    .catch(err => {
-      console.warn("La precarga en segundo plano falló (se reintentará normalmente al ingresar al dashboard):", err);
-    });
+    .catch(err => console.warn("Fallo precarga silenciosa:", err));
 }
 
 // --- LOGIN DE GOOGLE ---
@@ -162,10 +141,10 @@ async function cargarDatosDesdeGoogle(forzarRed = false) {
     registrosCargados = resData.registros || [];
     listaAdmins = resData.admins || ['mtello@esan.edu.pe'];
 
-    // Guardar en la caché local para las próximas aperturas
+    // DENTRO DE precargarDatosSilencioso():
     localStorage.setItem('dashboard_cache', JSON.stringify({
-      registros: registrosCargados,
-      admins: listaAdmins
+      registros: resData.registros,
+      admins: resData.admins || []
     }));
     localStorage.setItem('dashboard_cache_time', Date.now().toString());
 
@@ -578,6 +557,7 @@ function renderizarListaAdmins() {
   `).join('');
 }
 
+// 6. GESTIÓN DE ADMINS (CON LIMPIEZA)
 window.agregarAdmin = async function() {
   const input = document.getElementById('nuevoAdminEmail');
   const email = input.value.trim().toLowerCase();
@@ -590,7 +570,20 @@ window.agregarAdmin = async function() {
   });
 
   input.value = '';
-  await cargarDatosDesdeGoogle();
+  limpiarCacheLocal();
+  await cargarDatosDesdeGoogle(true);
+  renderizarListaAdmins();
+};
+
+window.eliminarAdmin = async function(email) {
+  await fetch(GOOGLE_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'remove_admin', email: email })
+  });
+
+  limpiarCacheLocal();
+  await cargarDatosDesdeGoogle(true);
   renderizarListaAdmins();
 };
 
@@ -701,10 +694,8 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
   abrirModalConfirmacion();
 });
 
-// --- CANCELAR EVENTO ---
 window.cancelarRegistro = async function() {
-  if (!idEventoEditando) return;
-  if (!confirm("¿Seguro que deseas cancelar este evento? (Pasará a color negro)")) return;
+  if (!idEventoEditando || !confirm("¿Seguro que deseas cancelar este evento?")) return;
 
   const btn = document.getElementById('btnCancelar');
   btn.innerText = "Cancelando...";
@@ -716,11 +707,10 @@ window.cancelarRegistro = async function() {
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: 'cancel', numEvento: idEventoEditando })
     });
-
-    localStorage.removeItem('registrosCargados');
     
+    limpiarCacheLocal();
     mostrarToast("Evento cancelado correctamente");
-    await cargarDatosDesdeGoogle();
+    await cargarDatosDesdeGoogle(true); // Forzar lectura real del servidor
     cerrarModal();
   } catch (e) {
     mostrarToast("Error al cancelar el evento", "error");
@@ -914,7 +904,7 @@ window.cerrarModalConfirmacion = function() {
   setTimeout(() => overlay.classList.add('hidden'), 300);
 };
 
-// --- EJECUCIÓN REAL DEL GUARDADO ---
+// 4. GUARDADO DE REGISTROS (CON LIMPIEZA)
 async function ejecutarGuardado() {
   const btn = document.getElementById('btnConfirmarGuardado');
   btn.innerText = `Procesando...`;
@@ -930,10 +920,9 @@ async function ejecutarGuardado() {
       })
     });
 
-    limpiarCacheLocal(); // 🟢 Usa la clave correcta
-    
+    limpiarCacheLocal();
     mostrarToast("Guardado correctamente", "exito");
-    await cargarDatosDesdeGoogle(true); // 🟢 'true' fuerza la consulta a Google Apps Script
+    await cargarDatosDesdeGoogle(true);
     cerrarModalConfirmacion();
     cerrarModal();
   } catch (error) {
@@ -943,11 +932,10 @@ async function ejecutarGuardado() {
   }
 }
 
-// --- BOTÓN ACTUALIZAR --- 
+// 5. BOTÓN ACTUALIZAR
 window.actualizarCalendario = async function() {
-  limpiarCacheLocal(); // 🟢 Borra 'dashboard_cache' y 'dashboard_cache_time'
-  
-  await cargarDatosDesdeGoogle(true); // 🟢 Fuerza la carga por red
+  limpiarCacheLocal();
+  await cargarDatosDesdeGoogle(true);
   mostrarToast("Calendario actualizado correctamente", "exito");
 };
 
