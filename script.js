@@ -1029,8 +1029,17 @@ window.aplicarFiltros = function() {
   calendarObj.addEventSource(generarEventosProcesados());
 };
 
-window.forzarActualizacion = window.actualizarCalendario = async function() {
-  limpiarCacheLocal();
+// 🟢 RECARGA FORZADA: Borra la memoria local y pide datos frescos a Google Sheets
+window.forzarActualizacion = async function() {
+  localStorage.removeItem('dashboard_cache');
+  localStorage.removeItem('dashboard_cache_time');
+  
+  // Limpia el calendario en pantalla de inmediato
+  if (calendarObj) {
+    calendarObj.removeAllEvents();
+  }
+  
   await cargarDatosDesdeGoogle(true);
-  mostrarToast("Datos actualizados correctamente", "exito");
+  mostrarToast("Datos sincronizados con Google Sheets", "exito");
 };
+
