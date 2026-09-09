@@ -988,3 +988,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     await cargarDatosDesdeGoogle();
   }
 });
+
+window.alternarVista = function(vista) {
+  const contCalendario = document.getElementById('calendarContainer');
+  const contDashboard = document.getElementById('dashboardContainer'); // Asegúrate de tener este contenedor
+  const btnDash = document.getElementById('btnDashboard');
+  const btnCal = document.getElementById('btnCalendario');
+
+  if (vista === 'dashboard') {
+    if (contCalendario) contCalendario.classList.add('hidden');
+    if (contDashboard) contDashboard.classList.remove('hidden');
+    if (btnDash) btnDash.classList.add('hidden');
+    if (btnCal) btnCal.classList.remove('hidden');
+  } else {
+    if (contDashboard) contDashboard.classList.add('hidden');
+    if (contCalendario) contCalendario.classList.remove('hidden');
+    if (btnCal) btnCal.classList.add('hidden');
+    if (btnDash) btnDash.classList.remove('hidden');
+
+    // Re-renderizado obligatorio del calendario
+    if (calendarObj) {
+      setTimeout(() => {
+        calendarObj.updateSize();
+      }, 50);
+    }
+  }
+};
