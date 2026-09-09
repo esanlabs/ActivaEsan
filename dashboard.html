@@ -45,56 +45,68 @@
   <main id="contenidoDashboard" class="space-y-6">
 
     <!-- BARRA DE FILTROS DESPLEGABLES -->
-    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-      <h2 class="text-xs font-bold text-gray-400 uppercase mb-3">Filtros de Búsqueda</h2>
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        
-        <div>
-          <label class="block text-xs font-bold text-gray-600 mb-1">Mes</label>
-          <select id="fMes" onchange="filtrarYRenderizar()" class="w-full border border-gray-300 rounded-lg p-2 text-xs focus:outline-none focus:border-marca-rojo">
-            <option value="TODOS">Todos los meses</option>
-            <option value="01">Enero</option>
-            <option value="02">Febrero</option>
-            <option value="03">Marzo</option>
-            <option value="04">Abril</option>
-            <option value="05">Mayo</option>
-            <option value="06">Junio</option>
-            <option value="07">Julio</option>
-            <option value="08">Agosto</option>
-            <option value="09">Septiembre</option>
-            <option value="10">Octubre</option>
-            <option value="11">Noviembre</option>
-            <option value="12">Diciembre</option>
-          </select>
+    <!-- BARRA DE FILTROS DESPLEGABLES CON CHECKBOXES -->
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-xs font-bold text-gray-400 uppercase">Filtros de Búsqueda</h2>
+          <!-- Botón para limpiar todos los filtros -->
+          <button onclick="limpiarFiltros()" class="text-xs bg-gray-100 hover:bg-red-50 hover:text-marca-rojo text-gray-600 font-bold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 border border-gray-200">
+            🔄 Limpiar Filtros
+          </button>
         </div>
-
-        <div>
-          <label class="block text-xs font-bold text-gray-600 mb-1">Activación</label>
-          <select id="fServicio" onchange="filtrarYRenderizar()" class="w-full border border-gray-300 rounded-lg p-2 text-xs focus:outline-none focus:border-marca-rojo">
-            <option value="TODOS">Cargando...</option>
-          </select>
+      
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          
+          <!-- Filtro Mes -->
+          <div class="relative dropdown-container">
+            <label class="block text-xs font-bold text-gray-600 mb-1">Mes</label>
+            <button type="button" onclick="toggleDropdown(event, 'dropMes')" class="w-full border border-gray-300 rounded-lg p-2 text-xs bg-white flex justify-between items-center text-left focus:outline-none focus:border-marca-rojo">
+              <span id="labelMes" class="truncate">Todos los meses</span>
+              <span class="text-gray-400 text-[10px]">▼</span>
+            </button>
+            <div id="dropMes" class="hidden absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-2 max-h-48 overflow-y-auto space-y-1">
+              <!-- Se llena desde JS -->
+            </div>
+          </div>
+      
+          <!-- Filtro Activación -->
+          <div class="relative dropdown-container">
+            <label class="block text-xs font-bold text-gray-600 mb-1">Activación</label>
+            <button type="button" onclick="toggleDropdown(event, 'dropServicio')" class="w-full border border-gray-300 rounded-lg p-2 text-xs bg-white flex justify-between items-center text-left focus:outline-none focus:border-marca-rojo">
+              <span id="labelServicio" class="truncate">Todas las activaciones</span>
+              <span class="text-gray-400 text-[10px]">▼</span>
+            </button>
+            <div id="dropServicio" class="hidden absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-2 max-h-48 overflow-y-auto space-y-1">
+              <!-- Se llena desde JS -->
+            </div>
+          </div>
+      
+          <!-- Filtro Área -->
+          <div class="relative dropdown-container">
+            <label class="block text-xs font-bold text-gray-600 mb-1">Área</label>
+            <button type="button" onclick="toggleDropdown(event, 'dropArea')" class="w-full border border-gray-300 rounded-lg p-2 text-xs bg-white flex justify-between items-center text-left focus:outline-none focus:border-marca-rojo">
+              <span id="labelArea" class="truncate">Todas las áreas</span>
+              <span class="text-gray-400 text-[10px]">▼</span>
+            </button>
+            <div id="dropArea" class="hidden absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-2 max-h-48 overflow-y-auto space-y-1">
+              <!-- Se llena desde JS -->
+            </div>
+          </div>
+      
+          <!-- Filtro Estado -->
+          <div class="relative dropdown-container">
+            <label class="block text-xs font-bold text-gray-600 mb-1">Estado</label>
+            <button type="button" onclick="toggleDropdown(event, 'dropEstado')" class="w-full border border-gray-300 rounded-lg p-2 text-xs bg-white flex justify-between items-center text-left focus:outline-none focus:border-marca-rojo">
+              <span id="labelEstado" class="truncate">Todos los estados</span>
+              <span class="text-gray-400 text-[10px]">▼</span>
+            </button>
+            <div id="dropEstado" class="hidden absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-2 max-h-48 overflow-y-auto space-y-1">
+              <!-- Se llena desde JS -->
+            </div>
+          </div>
+      
         </div>
-
-        <div>
-          <label class="block text-xs font-bold text-gray-600 mb-1">Área</label>
-          <select id="fArea" onchange="filtrarYRenderizar()" class="w-full border border-gray-300 rounded-lg p-2 text-xs focus:outline-none focus:border-marca-rojo">
-            <option value="TODOS">Cargando...</option>
-          </select>
-        </div>
-
-        <div>
-          <label class="block text-xs font-bold text-gray-600 mb-1">Estado</label>
-          <select id="fEstado" onchange="filtrarYRenderizar()" class="w-full border border-gray-300 rounded-lg p-2 text-xs focus:outline-none focus:border-marca-rojo">
-            <option value="TODOS">Todos los estados</option>
-            <option value="Confirmado">Confirmado</option>
-            <option value="Pendiente">Pendiente</option>
-            <option value="Culminado">Culminado</option>
-            <option value="Cancelado">Cancelado</option>
-          </select>
-        </div>
-
       </div>
-    </div>
 
     <!-- TARJETAS KPIS DE ESTADOS Y DINERO -->
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
