@@ -4,7 +4,9 @@ const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzoxLf6Au7NsK
 
 // Variables Globales de Estado
 let datosOriginales = [];
-let registrosModalActuales = []; // Movida al inicio
+let registrosModalBase = [];
+let registrosModalActuales = [];
+let registrosIncompletos = [];
 let chartServicios = null;
 let chartAreas = null;
 let chartDinero = null;
@@ -15,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// Valida que solo el SuperAdmin pueda ingresar a este archivo
+// Valida que solo el SuperAdmin pueda ingresar
 function verificarAcceso() {
   const sesion = sessionStorage.getItem('currentUser');
   const usuario = sesion ? JSON.parse(sesion) : null;
@@ -42,13 +44,8 @@ async function cargarDatosDashboard() {
 
     datosOriginales = resData.registros || [];
 
-    // Ejecutar la auditoría de calidad sobre los registros cargados
     ejecutarAuditoriaCalidad(datosOriginales);
-    
-    // Llenar dinámicamente las opciones de Checkboxes y buscadores
     poblarFiltros(datosOriginales);
-
-    // Renderizar tarjetas y gráficos
     filtrarYRenderizar();
 
   } catch (error) {
@@ -60,7 +57,7 @@ async function cargarDatosDashboard() {
 }
 
 /* ==========================================================
-   LÓGICA DE FILTROS MULTI-SELECCIÓN CON BUSCADOR INTERNO
+   LÓGICA DE FILTROS Y BÚSQUEDA GLOBAL
    ========================================================== */
 
 function toggleDropdown(event, id) {
@@ -124,7 +121,7 @@ function poblarFiltros(registros) {
     `).join('');
   }
 
-  // 2. Activaciones (Servicios)
+  // 2. Activaciones
   const dropServicio = document.getElementById('dropServicio');
   if (dropServicio) {
     const servicios = [...new Set(registros.map(r => r.tipoServicio).filter(Boolean))].sort();
@@ -185,13 +182,19 @@ function actualizarEtiquetasFiltros(selMeses, selServicios, selAreas, selEstados
 }
 
 function limpiarFiltros() {
-  document.querySelectorAll('.chk-mes, .chk-servicio, .chk-area, .chk-estado').forEach(chk => {
-    chk.checked = false;
-  });
+  document.querySelectorAll('.chk-mes, .chk-servicio, .chk-area, .chk-estado').forEach(chk => chk.checked = false);
   document.querySelectorAll('.dropdown-container input[type="text"]').forEach(input => {
     input.value = '';
     filtrarOpcionesDropdown(input);
   });
+  limpiarBuscadorGlobal();
+}
+
+function limpiarBuscadorGlobal() {
+  const input = document.getElementById('inputBusquedaGlobal');
+  const btn = document.getElementById('btnLimpiarBusqueda');
+  if (input) input.value = '';
+  if (btn) btn.classList.add('hidden');
   filtrarYRenderizar();
 }
 
@@ -200,6 +203,15 @@ function obtenerDatosFiltradosActuales() {
   const selServicios = obtenerSeleccionados('.chk-servicio');
   const selAreas = obtenerSeleccionados('.chk-area');
   const selEstados = obtenerSeleccionados('.chk-estado');
+
+  const inputBusqueda = document.getElementById('inputBusquedaGlobal');
+  const textoBusqueda = inputBusqueda ? inputBusqueda.value.toLowerCase().trim() : '';
+
+  const btnLimpiar = document.getElementById('btnLimpiarBusqueda');
+  if (btnLimpiar) {
+    if (textoBusqueda.length > 0) btnLimpiar.classList.remove('hidden');
+    else btnLimpiar.classList.add('hidden');
+  }
 
   return datosOriginales.filter(r => {
     if (!r.fecha) return false;
@@ -212,6 +224,25 @@ function obtenerDatosFiltradosActuales() {
     if (selServicios.length > 0 && !selServicios.includes(r.tipoServicio)) return false;
     if (selAreas.length > 0 && !selAreas.includes(r.area)) return false;
     if (selEstados.length > 0 && !selEstados.includes(r.estado)) return false;
+
+    if (textoBusqueda !== '') {
+      const id = String(r.id || r.codigo || r.codigoSolicitud || '').toLowerCase();
+      const servicio = String(r.tipoServicio || '').toLowerCase();
+      const area = String(r.area || '').toLowerCase();
+      const estado = String(r.estado || '').toLowerCase();
+      const costo = String(r.costo || '').toLowerCase();
+      const evento = String(obtenerNombreEvento(r)).toLowerCase();
+
+      const coincide = id.includes(textoBusqueda) ||
+                       servicio.includes(textoBusqueda) ||
+                       area.includes(textoBusqueda) ||
+                       estado.includes(textoBusqueda) ||
+                       fechaStr.includes(textoBusqueda) ||
+                       costo.includes(textoBusqueda) ||
+                       evento.includes(textoBusqueda);
+
+      if (!coincide) return false;
+    }
 
     return true;
   });
@@ -227,33 +258,28 @@ function filtrarYRenderizar() {
 
   const filtrados = obtenerDatosFiltradosActuales();
 
-  // Total Recaudado (S/)
   const totalDinero = filtrados.reduce((acc, r) => {
     if (r.estado === 'Cancelado' || !r.costo) return acc;
     const monto = parseFloat(String(r.costo).replace(/[^0-9.]/g, '')) || 0;
     return acc + monto;
   }, 0);
 
-  // 1. Actualizar KPIs
   document.getElementById('kpiTotal').innerText = filtrados.length;
   document.getElementById('kpiConfirmados').innerText = filtrados.filter(r => r.estado === 'Confirmado' || !r.estado).length;
   document.getElementById('kpiPendientes').innerText = filtrados.filter(r => r.estado === 'Pendiente').length;
   document.getElementById('kpiCulminados').innerText = filtrados.filter(r => r.estado === 'Culminado').length;
   document.getElementById('kpiCancelados').innerText = filtrados.filter(r => r.estado === 'Cancelado').length;
-  
-  const elemRecaudado = document.getElementById('kpiRecaudado');
-  if (elemRecaudado) {
-    elemRecaudado.innerText = `S/ ${totalDinero.toFixed(2)}`;
-  }
 
-  // 2. Renderizar Gráficos
+  const elemRecaudado = document.getElementById('kpiRecaudado');
+  if (elemRecaudado) elemRecaudado.innerText = `S/ ${totalDinero.toFixed(2)}`;
+
   renderizarGraficoServicios(filtrados);
   renderizarGraficoAreas(filtrados);
   renderizarGraficaDinero(filtrados);
 }
 
 /* ==========================================================
-   FUNCIONES DE GRÁFICOS
+   GRÁFICOS CHART.JS
    ========================================================== */
 
 function renderizarGraficoServicios(datos) {
@@ -294,7 +320,8 @@ function renderizarGraficoServicios(datos) {
         if (activeElements.length > 0) {
           const index = activeElements[0].index;
           const etiqueta = chart.data.labels[index];
-          abrirDetalleGrafico('servicio', etiqueta);
+          const filtrados = obtenerDatosFiltradosActuales().filter(r => (r.tipoServicio || 'Sin Especificar') === etiqueta);
+          abrirDetalleGrafico(`Activación: ${etiqueta}`, filtrados);
         }
       }
     }
@@ -327,15 +354,10 @@ function renderizarGraficoAreas(datos) {
       responsive: true,
       maintainAspectRatio: false,
       layout: { padding: { top: 20 } },
-      scales: {
-        y: { beginAtZero: true, grace: '25%' }
-      },
+      scales: { y: { beginAtZero: true, grace: '25%' } },
       plugins: {
         datalabels: {
-          anchor: 'end',
-          align: 'end',
-          color: '#1F2937',
-          font: { weight: 'bold', size: 11 },
+          anchor: 'end', align: 'end', color: '#1F2937', font: { weight: 'bold', size: 11 },
           formatter: (val) => (val > 0 ? val : '')
         }
       },
@@ -346,7 +368,8 @@ function renderizarGraficoAreas(datos) {
         if (activeElements.length > 0) {
           const index = activeElements[0].index;
           const etiqueta = chart.data.labels[index];
-          abrirDetalleGrafico('area', etiqueta);
+          const filtrados = obtenerDatosFiltradosActuales().filter(r => (r.area || 'Sin Área') === etiqueta);
+          abrirDetalleGrafico(`Área: ${etiqueta}`, filtrados);
         }
       }
     }
@@ -358,14 +381,10 @@ function renderizarGraficaDinero(registros) {
   if (!ctx) return;
 
   const ingresosPorMes = {};
-
   registros.forEach(r => {
     if (!r.costo || r.estado === "Cancelado") return;
-
-    const textoLimpio = String(r.costo).replace(/[^0-9.]/g, '');
-    const monto = parseFloat(textoLimpio) || 0;
+    const monto = parseFloat(String(r.costo).replace(/[^0-9.]/g, '')) || 0;
     const mes = r.fecha ? String(r.fecha).substring(0, 7) : "Sin fecha";
-
     ingresosPorMes[mes] = (ingresosPorMes[mes] || 0) + monto;
   });
 
@@ -385,15 +404,10 @@ function renderizarGraficaDinero(registros) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      scales: {
-        y: { beginAtZero: true, grace: '18%' }
-      },
+      scales: { y: { beginAtZero: true, grace: '18%' } },
       plugins: {
         datalabels: {
-          anchor: 'end',
-          align: 'end',
-          color: '#065F46',
-          font: { weight: 'bold', size: 10 },
+          anchor: 'end', align: 'end', color: '#065F46', font: { weight: 'bold', size: 10 },
           formatter: (val) => (val > 0 ? `S/ ${Math.round(val).toLocaleString('es-PE')}` : '')
         }
       },
@@ -404,7 +418,11 @@ function renderizarGraficaDinero(registros) {
         if (activeElements.length > 0) {
           const index = activeElements[0].index;
           const etiqueta = chart.data.labels[index];
-          abrirDetalleGrafico('mes', etiqueta);
+          const filtrados = obtenerDatosFiltradosActuales().filter(r => {
+            const m = r.fecha ? String(r.fecha).substring(0, 7) : "Sin fecha";
+            return m === etiqueta && r.costo && r.estado !== 'Cancelado';
+          });
+          abrirDetalleGrafico(`Mes: ${etiqueta}`, filtrados);
         }
       }
     }
@@ -415,16 +433,12 @@ function renderizarGraficaDinero(registros) {
    AUDITORÍA DE DATOS
    ========================================================== */
 
-let registrosIncompletos = [];
-
 function ejecutarAuditoriaCalidad(registros) {
   registrosIncompletos = [];
-  
   let req2025 = 0, req2026 = 0, ser2025 = 0, ser2026 = 0;
 
   registros.forEach((r, idx) => {
     const faltantes = [];
-
     if (!r.fecha) faltantes.push('Fecha');
     if (!r.tipoServicio) faltantes.push('Tipo Servicio');
     if (!r.area) faltantes.push('Área');
@@ -432,12 +446,7 @@ function ejecutarAuditoriaCalidad(registros) {
     if (!r.estado) faltantes.push('Estado');
 
     if (faltantes.length > 0) {
-      registrosIncompletos.push({
-        numFila: idx + 1,
-        data: r,
-        faltantes: faltantes
-      });
-
+      registrosIncompletos.push({ numFila: idx + 1, data: r, faltantes: faltantes });
       const fechaStr = r.fecha ? String(r.fecha) : '';
       const anio = fechaStr.includes('2026') ? '2026' : '2025';
       const tipo = String(r.tipoServicio || '').toUpperCase();
@@ -463,18 +472,11 @@ function abrirModalAuditoria() {
   if (!tbody) return;
 
   if (registrosIncompletos.length === 0) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="7" class="text-center p-6 text-emerald-600 font-bold text-xs">
-          ✅ ¡Excelente! No se encontraron registros con campos vacíos o inconsistentes.
-        </td>
-      </tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center p-6 text-emerald-600 font-bold text-xs">✅ No se encontraron registros con campos vacíos.</td></tr>`;
   } else {
     tbody.innerHTML = registrosIncompletos.map(item => {
       const r = item.data;
-      const chipsFaltantes = item.faltantes.map(f => 
-        `<span class="bg-rose-100 text-rose-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-rose-200 mr-1">${f}</span>`
-      ).join('');
+      const chips = item.faltantes.map(f => `<span class="bg-rose-100 text-rose-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-rose-200 mr-1">${f}</span>`).join('');
 
       return `
         <tr class="hover:bg-slate-50 transition-colors">
@@ -484,7 +486,7 @@ function abrirModalAuditoria() {
           <td class="p-3 ${!r.area ? 'text-rose-500 italic' : 'text-slate-700'}">${r.area || 'Sin área'}</td>
           <td class="p-3 ${!r.costo ? 'text-rose-500 italic' : 'text-slate-700'}">${r.costo ? 'S/ ' + r.costo : 'Sin costo'}</td>
           <td class="p-3 ${!r.estado ? 'text-rose-500 italic' : 'text-slate-700'}">${r.estado || 'Sin estado'}</td>
-          <td class="p-3">${chipsFaltantes}</td>
+          <td class="p-3">${chips}</td>
         </tr>
       `;
     }).join('');
@@ -498,27 +500,23 @@ function cerrarModalAuditoria() {
 }
 
 /* ==========================================================
-   LÓGICA DEL MODAL DE GRÁFICOS (CON EVENTO Y BUSCADOR INTERNO)
+   MODAL DE REGISTROS Y BÚSQUEDA INTERNA
    ========================================================== */
 
-let registrosModalBase = [];    // Registros que vienen del gráfico seleccionado
-let registrosModalActuales = []; // Registros filtrados por el buscador interno de la modal
-
-// Helper para extraer el Nombre del Evento / Proyecto desde el objeto
 function obtenerNombreEvento(r) {
-  return r.tipoEvento || 
-         r.tipo_evento || 
-         r['Tipo de evento'] || 
-         r['tipo de evento'] || 
-         r.nombreEvento || 
-         r.evento || 
-         r.nombre_proyecto || 
-         r.tipo_edicion || 
-         r.solicitante || 
-         '-';
+  return r.tipoEvento || r.tipo_evento || r['Tipo de evento'] || r['tipo de evento'] || r.nombreEvento || r.evento || r.nombre_proyecto || r.tipo_edicion || r.solicitante || '-';
 }
 
-// Función principal al hacer clic en un gráfico para abrir la modal
+function getBadgeColor(estado) {
+  switch (String(estado).toLowerCase()) {
+    case 'confirmado': return 'bg-emerald-100 text-emerald-800 font-semibold';
+    case 'culminado': return 'bg-blue-100 text-blue-800 font-semibold';
+    case 'pendiente': return 'bg-amber-100 text-amber-800 font-semibold';
+    case 'cancelado': return 'bg-rose-100 text-rose-800 font-semibold';
+    default: return 'bg-gray-100 text-gray-700';
+  }
+}
+
 function abrirDetalleGrafico(titulo, registros) {
   registrosModalBase = [...registros];
   registrosModalActuales = [...registros];
@@ -528,14 +526,12 @@ function abrirDetalleGrafico(titulo, registros) {
   const inputEl = document.getElementById('inputBusquedaModal');
 
   if (tituloEl) tituloEl.innerText = titulo;
-  if (inputEl) inputEl.value = ''; // Resetea la barra de búsqueda interna
+  if (inputEl) inputEl.value = '';
 
   renderizarTablaModal(registrosModalActuales);
-
   if (modal) modal.classList.remove('hidden');
 }
 
-// Función que filtra ÚNICAMENTE los registros dentro de esta modal
 function filtrarTablaModal() {
   const inputEl = document.getElementById('inputBusquedaModal');
   const texto = inputEl ? inputEl.value.toLowerCase().trim() : '';
@@ -552,32 +548,22 @@ function filtrarTablaModal() {
       const estado = String(r.estado || '').toLowerCase();
       const costo = String(r.costo || '').toLowerCase();
 
-      return id.includes(texto) ||
-             fecha.includes(texto) ||
-             evento.includes(texto) ||
-             servicio.includes(texto) ||
-             area.includes(texto) ||
-             estado.includes(texto) ||
-             costo.includes(texto);
+      return id.includes(texto) || fecha.includes(texto) || evento.includes(texto) || servicio.includes(texto) || area.includes(texto) || estado.includes(texto) || costo.includes(texto);
     });
   }
 
   renderizarTablaModal(registrosModalActuales);
 }
 
-// Renderiza las filas HTML de la tabla modal
 function renderizarTablaModal(lista) {
   const tbody = document.getElementById('tbodyModalGrafico');
+  const contadorEl = document.getElementById('modalDetalleContador');
+  
+  if (contadorEl) contadorEl.innerText = `Total: ${lista.length} registro(s)`;
   if (!tbody) return;
 
   if (lista.length === 0) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="7" class="text-center py-8 text-gray-400 italic">
-          No se encontraron registros que coincidan con la búsqueda.
-        </td>
-      </tr>
-    `;
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-gray-400 italic">No se encontraron registros.</td></tr>`;
     return;
   }
 
@@ -590,13 +576,6 @@ function renderizarTablaModal(lista) {
     const estado = r.estado || 'Pendiente';
     const costo = parseFloat(String(r.costo || 0).replace(/[^0-9.]/g, '')) || 0;
 
-    // Badges de estado
-    let badgeClass = 'bg-gray-100 text-gray-700';
-    if (estado.toLowerCase() === 'confirmado') badgeClass = 'bg-emerald-100 text-emerald-800 font-semibold';
-    if (estado.toLowerCase() === 'culminado') badgeClass = 'bg-blue-100 text-blue-800 font-semibold';
-    if (estado.toLowerCase() === 'pendiente') badgeClass = 'bg-amber-100 text-amber-800 font-semibold';
-    if (estado.toLowerCase() === 'cancelado') badgeClass = 'bg-rose-100 text-rose-800 font-semibold';
-
     return `
       <tr class="hover:bg-slate-50/80 transition-colors border-b border-gray-100">
         <td class="p-2.5 font-bold text-slate-700">${id}</td>
@@ -605,9 +584,7 @@ function renderizarTablaModal(lista) {
         <td class="p-2.5 font-medium text-slate-900">${servicio}</td>
         <td class="p-2.5 text-gray-600">${area}</td>
         <td class="p-2.5 text-center">
-          <span class="inline-block px-2 py-0.5 rounded-full text-[10px] ${badgeClass}">
-            ${estado}
-          </span>
+          <span class="inline-block px-2 py-0.5 rounded-full text-[10px] ${getBadgeColor(estado)}">${estado}</span>
         </td>
         <td class="p-2.5 text-right font-bold text-slate-800">
           S/ ${costo.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -617,22 +594,11 @@ function renderizarTablaModal(lista) {
   }).join('');
 }
 
-function cerrarModalGrafico() {
-  const modal = document.getElementById('modalDetalleGrafico');
-  if (modal) modal.classList.add('hidden');
-}
-
-/* ==========================================================
-   VER TODOS LOS REGISTROS DE UN GRÁFICO ESPECÍFICO
-   ========================================================== */
-
 function verRegistrosGrafico(tipoGrafico) {
-  // 1. Obtener los registros filtrados globalmente por los checkboxes superiores
   const datosFiltrados = obtenerDatosFiltradosActuales();
   let registrosFinales = [];
   let tituloModal = '';
 
-  // 2. Determinar la data según el gráfico seleccionado
   if (tipoGrafico === 'servicios') {
     registrosFinales = datosFiltrados;
     tituloModal = 'Todos los Registros - Tipos de Servicio';
@@ -644,50 +610,19 @@ function verRegistrosGrafico(tipoGrafico) {
     tituloModal = 'Todos los Registros - Ahorro / Montos';
   }
 
-  // Guardar en la variable global para exportación a Excel (CORREGIDO)
-  registrosModalActuales = registrosFinales;
+  abrirDetalleGrafico(tituloModal, registrosFinales);
+}
 
-  // 3. Renderizar la tabla en el modal de detalle existente
-  const tbody = document.getElementById('tablaDetalleBody');
-  tbody.innerHTML = '';
-
-  if (registrosFinales.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-400">No hay registros con los filtros actuales.</td></tr>`;
-  } else {
-    registrosFinales.forEach((row, idx) => {
-      const fechaCorta = row.fecha ? String(row.fecha).split('T')[0] : '-';
-      const costoNum = parseFloat(String(row.costo || 0).replace(/[^0-9.]/g, '')) || 0;
-
-      tbody.innerHTML += `
-        <tr class="hover:bg-gray-50 transition-colors">
-          <td class="p-3 font-semibold text-gray-700">${row.id || row.codigo || `#${idx + 1}`}</td>
-          <td class="p-3 text-gray-600">${fechaCorta}</td>
-          <td class="p-3 font-medium text-gray-800">${row.tipoServicio || '-'}</td>
-          <td class="p-3 text-gray-600">${row.area || '-'}</td>
-          <td class="p-3">
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${getBadgeColor(row.estado)}">
-              ${row.estado || 'Pendiente'}
-            </span>
-          </td>
-          <td class="p-3 text-right font-bold text-gray-800">S/ ${costoNum.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-        </tr>
-      `;
-    });
-  }
-
-  // 4. Actualizar cabecera del modal y mostrar
-  document.getElementById('modalDetalleTitulo').innerText = tituloModal;
-  document.getElementById('modalDetalleContador').innerText = `Total: ${registrosFinales.length} registro(s)`;
-  document.getElementById('modalDetalleGrafico').classList.remove('hidden');
+function cerrarModalGrafico() {
+  const modal = document.getElementById('modalDetalleGrafico');
+  if (modal) modal.classList.add('hidden');
 }
 
 /* ==========================================================
-   EXPORTACIONES (CORREGIDAS)
+   EXPORTACIONES (PDF Y EXCEL)
    ========================================================== */
 
-// EXPORTAR TABLA DE DATOS A PDF (DISEÑO EJECUTIVO Y FORMAL) 
 async function exportarTablaPDF() {
-  // Toma los registros del modal si está abierto, o la lista filtrada actual
   const registros = (registrosModalActuales && registrosModalActuales.length > 0)
     ? registrosModalActuales
     : obtenerDatosFiltradosActuales();
@@ -701,7 +636,6 @@ async function exportarTablaPDF() {
   if (loader) loader.classList.remove('hidden');
 
   try {
-    // Cálculo de acumulados para la cabecera
     const totalRegistros = registros.length;
     const totalMonto = registros.reduce((acc, r) => {
       if (r.estado === 'Cancelado' || !r.costo) return acc;
@@ -713,25 +647,12 @@ async function exportarTablaPDF() {
       day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
     });
 
-    // Helper para badges de estado dentro de la tabla
-    const getBadgeStyle = (estado) => {
-      switch (String(estado).toLowerCase()) {
-        case 'confirmado': return 'background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0;';
-        case 'culminado': return 'background-color: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe;';
-        case 'pendiente': return 'background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a;';
-        case 'cancelado': return 'background-color: #ffe4e6; color: #9f1239; border: 1px solid #fecdd3;';
-        default: return 'background-color: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;';
-      }
-    };
-
-    // 1. Crear documento HTML invisible con estilos ejecutivos
     const contenedor = document.createElement('div');
     contenedor.style.padding = '25px 30px';
     contenedor.style.fontFamily = "'Helvetica Neue', Arial, sans-serif";
     contenedor.style.color = '#1e293b';
     contenedor.style.backgroundColor = '#ffffff';
 
-    // Construcción de filas
     const filasHTML = registros.map((r, idx) => {
       const id = r.id || r.codigo || r.codigoSolicitud || `#${idx + 1}`;
       const fecha = r.fecha ? String(r.fecha).split('T')[0] : '-';
@@ -747,11 +668,7 @@ async function exportarTablaPDF() {
           <td style="padding: 7px 10px; font-size: 10px; color: #334155;">${fecha}</td>
           <td style="padding: 7px 10px; font-size: 10px; font-weight: 600; color: #0f172a;">${servicio}</td>
           <td style="padding: 7px 10px; font-size: 10px; color: #334155;">${area}</td>
-          <td style="padding: 7px 10px; font-size: 10px; text-align: center;">
-            <span style="display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 9px; font-weight: bold; ${getBadgeStyle(estado)}">
-              ${estado}
-            </span>
-          </td>
+          <td style="padding: 7px 10px; font-size: 10px; text-align: center;">${estado}</td>
           <td style="padding: 7px 10px; font-size: 10px; text-align: right; font-weight: bold; color: #0f172a;">
             S/ ${costo.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </td>
@@ -759,21 +676,17 @@ async function exportarTablaPDF() {
       `;
     }).join('');
 
-    // Estructura completa del PDF
     contenedor.innerHTML = `
-      <!-- Encabezado Corporativo -->
       <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #E3173E; padding-bottom: 12px; margin-bottom: 18px;">
         <div>
-          <h1 style="margin: 0; font-size: 18px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px;">REPORTE DE ACTIVACIONES Y SERVICIOS</h1>
+          <h1 style="margin: 0; font-size: 18px; font-weight: 800; color: #0f172a; text-transform: uppercase;">REPORTE DE ACTIVACIONES Y SERVICIOS</h1>
           <p style="margin: 3px 0 0 0; font-size: 10px; color: #64748b;">Consolidado de Registros del Dashboard</p>
         </div>
         <div style="text-align: right;">
           <p style="margin: 0; font-size: 9px; color: #64748b;"><strong>Fecha de Emisión:</strong> ${fechaActual}</p>
-          <p style="margin: 2px 0 0 0; font-size: 9px; color: #64748b;"><strong>Estado:</strong> Documento Oficial</p>
         </div>
       </div>
 
-      <!-- Tarjetas de Resumen Ejecutivo -->
       <table style="width: 100%; border-collapse: collapse; margin-bottom: 18px;">
         <tr>
           <td style="width: 50%; padding-right: 8px;">
@@ -791,40 +704,30 @@ async function exportarTablaPDF() {
         </tr>
       </table>
 
-      <!-- Tabla Principal -->
       <table style="width: 100%; border-collapse: collapse; text-align: left;">
         <thead>
           <tr style="background-color: #0f172a; color: #ffffff;">
-            <th style="padding: 8px 10px; font-size: 9px; font-weight: bold; text-transform: uppercase; border-top-left-radius: 4px;">ID / CÓDIGO</th>
-            <th style="padding: 8px 10px; font-size: 9px; font-weight: bold; text-transform: uppercase;">FECHA</th>
-            <th style="padding: 8px 10px; font-size: 9px; font-weight: bold; text-transform: uppercase;">ACTIVACIÓN</th>
-            <th style="padding: 8px 10px; font-size: 9px; font-weight: bold; text-transform: uppercase;">ÁREA</th>
-            <th style="padding: 8px 10px; font-size: 9px; font-weight: bold; text-transform: uppercase; text-align: center;">ESTADO</th>
-            <th style="padding: 8px 10px; font-size: 9px; font-weight: bold; text-transform: uppercase; text-align: right; border-top-right-radius: 4px;">COSTO (S/)</th>
+            <th style="padding: 8px 10px; font-size: 9px; text-transform: uppercase;">ID / CÓDIGO</th>
+            <th style="padding: 8px 10px; font-size: 9px; text-transform: uppercase;">FECHA</th>
+            <th style="padding: 8px 10px; font-size: 9px; text-transform: uppercase;">ACTIVACIÓN</th>
+            <th style="padding: 8px 10px; font-size: 9px; text-transform: uppercase;">ÁREA</th>
+            <th style="padding: 8px 10px; font-size: 9px; text-transform: uppercase; text-align: center;">ESTADO</th>
+            <th style="padding: 8px 10px; font-size: 9px; text-transform: uppercase; text-align: right;">COSTO (S/)</th>
           </tr>
         </thead>
-        <tbody>
-          ${filasHTML}
-        </tbody>
+        <tbody>${filasHTML}</tbody>
       </table>
-
-      <!-- Pie de página -->
-      <div style="margin-top: 25px; border-top: 1px solid #e2e8f0; padding-top: 8px; display: flex; justify-content: space-between; font-size: 8px; color: #94a3b8;">
-        <span>Sistema de Gestión de Activaciones - Uso Confidencial</span>
-        <span>Generado automáticamente</span>
-      </div>
     `;
 
     document.body.appendChild(contenedor);
 
-    // 2. Configurar la salida a PDF (Vertical A4)
     const opciones = {
-      margin:       [0.3, 0.3, 0.4, 0.3],
-      filename:     `Reporte_Tabla_${new Date().toISOString().split('T')[0]}.pdf`,
-      image:        { type: 'jpeg', quality: 0.98 },
-      html2canvas:  { scale: 2, useCORS: true, logging: false },
-      jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
-      pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+      margin: [0.3, 0.3, 0.4, 0.3],
+      filename: `Reporte_Tabla_${new Date().toISOString().split('T')[0]}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, logging: false },
+      jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     };
 
     await html2pdf().set(opciones).from(contenedor).save();
@@ -838,7 +741,6 @@ async function exportarTablaPDF() {
   }
 }
 
-// 2. EXPORTAR A EXCEL (CSV con UTF-8 BOM)
 function exportarDetalleExcel() {
   if (!registrosModalActuales || registrosModalActuales.length === 0) {
     alert("No hay registros en la tabla para exportar.");
@@ -871,73 +773,4 @@ function exportarDetalleExcel() {
   document.body.appendChild(enlace);
   enlace.click();
   document.body.removeChild(enlace);
-}
-
-/* ==========================================================
-   LÓGICA DE FILTRADO CON BUSCADOR GLOBAL (DETECCIÓN DE EVENTO)
-   ========================================================== */
-
-function obtenerDatosFiltradosActuales() {
-  const selMeses = obtenerSeleccionados('.chk-mes');
-  const selServicios = obtenerSeleccionados('.chk-servicio');
-  const selAreas = obtenerSeleccionados('.chk-area');
-  const selEstados = obtenerSeleccionados('.chk-estado');
-  
-  const inputBusqueda = document.getElementById('inputBusquedaGlobal');
-  const textoBusqueda = inputBusqueda ? inputBusqueda.value.toLowerCase().trim() : '';
-
-  const btnLimpiar = document.getElementById('btnLimpiarBusqueda');
-  if (btnLimpiar) {
-    if (textoBusqueda.length > 0) btnLimpiar.classList.remove('hidden');
-    else btnLimpiar.classList.add('hidden');
-  }
-
-  return datosOriginales.filter(r => {
-    if (!r.fecha) return false;
-
-    const fechaStr = String(r.fecha).split('T')[0];
-    const partesFecha = fechaStr.split('-');
-    const mesRegistro = partesFecha[1];
-
-    // 1. Filtros Multi-selección
-    if (selMeses.length > 0 && !selMeses.includes(mesRegistro)) return false;
-    if (selServicios.length > 0 && !selServicios.includes(r.tipoServicio)) return false;
-    if (selAreas.length > 0 && !selAreas.includes(r.area)) return false;
-    if (selEstados.length > 0 && !selEstados.includes(r.estado)) return false;
-
-    // 2. Filtro por coincidencia de texto (Buscador Global + Evento / Tipo de Evento)
-    if (textoBusqueda !== '') {
-      const id = String(r.id || r.codigo || r.codigoSolicitud || '').toLowerCase();
-      const servicio = String(r.tipoServicio || '').toLowerCase();
-      const area = String(r.area || '').toLowerCase();
-      const estado = String(r.estado || '').toLowerCase();
-      const costo = String(r.costo || '').toLowerCase();
-      
-      // Mapeo exhaustivo para "Tipo de evento", "Nombre del Proyecto" y variantes
-      const evento = String(
-        r.tipoEvento || 
-        r.tipo_evento || 
-        r['Tipo de evento'] || 
-        r['tipo de evento'] || 
-        r.nombreEvento || 
-        r.evento || 
-        r.nombre_proyecto || 
-        r.tipo_edicion || 
-        r.solicitante || 
-        ''
-      ).toLowerCase();
-
-      const coincide = id.includes(textoBusqueda) ||
-                       servicio.includes(textoBusqueda) ||
-                       area.includes(textoBusqueda) ||
-                       estado.includes(textoBusqueda) ||
-                       fechaStr.includes(textoBusqueda) ||
-                       costo.includes(textoBusqueda) ||
-                       evento.includes(textoBusqueda);
-
-      if (!coincide) return false;
-    }
-
-    return true;
-  });
 }
