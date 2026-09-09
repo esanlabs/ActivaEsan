@@ -30,7 +30,7 @@ function verificarAcceso() {
   return true;
 }
 
-// === CARGA DE DATOS CON CACHÉ (10 MINUTOS) ===
+// === CARGA DE DATOS CON CACHÉ (10 MINUTOS) Y VALIDACIÓN ROBUSTA DE JSON ===
 async function cargarDatosDashboard(forceRefresh = false) {
   const loader = document.getElementById('loaderDashboard');
   const cacheData = localStorage.getItem('dashboard_cache');
@@ -38,21 +38,42 @@ async function cargarDatosDashboard(forceRefresh = false) {
   const DIEZ_MINUTOS = 10 * 60 * 1000;
 
   if (!forceRefresh && cacheData && cacheTime && (Date.now() - cacheTime < DIEZ_MINUTOS)) {
-    datosOriginales = JSON.parse(cacheData);
-    ejecutarAuditoriaCalidad(datosOriginales);
-    poblarFiltros(datosOriginales);
-    filtrarYRenderizar();
-    if (loader) loader.classList.add('hidden');
-    return;
+    try {
+      datosOriginales = JSON.parse(cacheData);
+      ejecutarAuditoriaCalidad(datosOriginales);
+      poblarFiltros(datosOriginales);
+      filtrarYRenderizar();
+      if (loader) loader.classList.add('hidden');
+      return;
+    } catch (e) {
+      console.warn("Caché corrupto, recargando desde servidor...");
+      localStorage.removeItem('dashboard_cache');
+    }
   }
 
   if (loader) loader.classList.remove('hidden');
+  
   try {
-    const respuesta = await fetch(GOOGLE_SCRIPT_URL);
-    const resData = await respuesta.json();
+    const respuesta = await fetch(GOOGLE_SCRIPT_URL, {
+      method: 'GET',
+      redirect: 'follow'
+    });
+
+    if (!respuesta.ok) {
+      throw new Error(`Error HTTP en el servidor: ${respuesta.status} ${respuesta.statusText}`);
+    }
+
+    const textoRespuesta = await respuesta.text();
+
+    // Validar si la respuesta devuelta es HTML en lugar de JSON (bloqueo de Google Apps Script)
+    if (textoRespuesta.trim().startsWith('<') || textoRespuesta.trim().toLowerCase().startsWith('<!doctype')) {
+      throw new Error("El script de Google devolvió una página HTML en lugar de datos JSON. Verifica en Google Apps Script que 'Quién tiene acceso' esté configurado como 'Cualquier persona' (Anyone).");
+    }
+
+    const resData = JSON.parse(textoRespuesta);
 
     if (resData.status === 'error') {
-      throw new Error(resData.error || resData.errorDetallado);
+      throw new Error(resData.error || resData.errorDetallado || 'Error desconocido en Apps Script');
     }
 
     datosOriginales = resData.registros || [];
@@ -65,7 +86,7 @@ async function cargarDatosDashboard(forceRefresh = false) {
 
   } catch (error) {
     console.error("Error al cargar datos del dashboard:", error);
-    alert(`Error al cargar datos: ${error.message}`);
+    alert(`Error de acceso/carga: ${error.message}`);
   } finally {
     if (loader) loader.classList.add('hidden');
   }
