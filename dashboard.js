@@ -821,11 +821,7 @@ function exportarDetalleExcel() {
 }
 
 /* ==========================================================
-   LÓGICA DE FILTRADO CON BUSCADOR GLOBAL INTEGRADO
-   ========================================================== */
-
-/* ==========================================================
-   LÓGICA DE FILTRADO CON BUSCADOR GLOBAL (INCLUYE EVENTO)
+   LÓGICA DE FILTRADO CON BUSCADOR GLOBAL (DETECCIÓN DE EVENTO)
    ========================================================== */
 
 function obtenerDatosFiltradosActuales() {
@@ -856,7 +852,7 @@ function obtenerDatosFiltradosActuales() {
     if (selAreas.length > 0 && !selAreas.includes(r.area)) return false;
     if (selEstados.length > 0 && !selEstados.includes(r.estado)) return false;
 
-    // 2. Filtro por coincidencia de texto (Buscador Global + Evento)
+    // 2. Filtro por coincidencia de texto (Buscador Global + Evento / Tipo de Evento)
     if (textoBusqueda !== '') {
       const id = String(r.id || r.codigo || r.codigoSolicitud || '').toLowerCase();
       const servicio = String(r.tipoServicio || '').toLowerCase();
@@ -864,8 +860,19 @@ function obtenerDatosFiltradosActuales() {
       const estado = String(r.estado || '').toLowerCase();
       const costo = String(r.costo || '').toLowerCase();
       
-      // Captura el nombre del evento o solicitante según cómo llegue del Apps Script
-      const evento = String(r.nombreEvento || r.evento || r.nombreDelEvento || r.solicitante || '').toLowerCase();
+      // Mapeo exhaustivo para "Tipo de evento", "Nombre del Proyecto" y variantes
+      const evento = String(
+        r.tipoEvento || 
+        r.tipo_evento || 
+        r['Tipo de evento'] || 
+        r['tipo de evento'] || 
+        r.nombreEvento || 
+        r.evento || 
+        r.nombre_proyecto || 
+        r.tipo_edicion || 
+        r.solicitante || 
+        ''
+      ).toLowerCase();
 
       const coincide = id.includes(textoBusqueda) ||
                        servicio.includes(textoBusqueda) ||
