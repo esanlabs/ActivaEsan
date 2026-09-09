@@ -138,44 +138,6 @@
   <!-- CONTENEDOR PRINCIPAL QUE IMPRIME EN PDF -->
   <main id="dashboardContainer" class="space-y-6">
 
-    <!-- LEYENDA DE TARIFAS OFICIALES DE ACTIVACIONES -->
-    <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200">
-      <div class="flex items-center justify-between mb-2">
-        <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5 uppercase tracking-wide">
-          🏷️ Tarifas Oficiales de Activaciones
-        </span>
-        <span class="text-[10px] bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded-full border border-slate-200">
-          Tarifario Base
-        </span>
-      </div>
-
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <!-- Tarifa Foto Booth -->
-        <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <span class="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block"></span>
-            <div>
-              <p class="font-bold text-xs text-slate-800">Foto Booth</p>
-              <p class="text-[10px] text-slate-400">Costo fijo unitario</p>
-            </div>
-          </div>
-          <span class="font-extrabold text-blue-600 text-sm">S/ 600.00</span>
-        </div>
-
-        <!-- Tarifa Foto GIF / 360° / Otros -->
-        <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <span class="w-2.5 h-2.5 rounded-full bg-rose-600 inline-block"></span>
-            <div>
-              <p class="font-bold text-xs text-slate-800">Foto GIF / 360° / Otros</p>
-              <p class="text-[10px] text-slate-400">Costo estándar unitario</p>
-            </div>
-          </div>
-          <span class="font-extrabold text-rose-600 text-sm">S/ 899.00</span>
-        </div>
-      </div>
-    </div>
-
     <!-- TARJETAS KPIS DE ESTADOS Y DINERO -->
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
       <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-slate-700">
@@ -268,16 +230,65 @@
       </div>
       
       <!-- Tarjeta 3: Dinero Recaudado por Mes (Ancho Completo) -->
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-80 flex flex-col md:col-span-2">
-        <div class="flex items-center justify-between mb-2">
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col md:col-span-2 gap-4">
+        
+        <div class="flex items-center justify-between">
           <h3 class="text-xs font-bold text-gray-500 uppercase">Ahorro por Mes (S/)</h3>
           <button onclick="verRegistrosGrafico('dinero')" class="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-md transition-colors border border-slate-200 cursor-pointer">
             📋 Registros
           </button>
         </div>
-        <div class="relative flex-1">
+
+        <!-- Canvas con altura fija para el gráfico -->
+        <div class="relative h-64 w-full">
           <canvas id="graficaDinero"></canvas>
         </div>
+
+        <!-- TARJETA DE TARIFAS Y SUSTENTO DE PRECIO DE MERCADO -->
+        <div class="pt-3 border-t border-slate-100">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-2.5">
+            <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5 uppercase tracking-wide">
+              🏷️ Tarifas Oficiales de Activaciones
+            </span>
+
+            <!-- ENLACE PARA SUSTENTO / PRUEBA DE PRECIO DE MERCADO -->
+            <a href="https://tu-pagina-de-prueba.com" target="_blank" rel="noopener noreferrer" class="text-[11px] font-semibold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 cursor-pointer">
+              🔗 Ver Sustento de Precios de Mercado
+            </a>
+          </div>
+
+          <!-- TARIFARIO BASE -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-2.5">
+            <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block"></span>
+                <div>
+                  <p class="font-bold text-xs text-slate-800">Foto Booth</p>
+                  <p class="text-[10px] text-slate-400">Costo fijo unitario</p>
+                </div>
+              </div>
+              <span class="font-extrabold text-blue-600 text-sm">S/ 600.00</span>
+            </div>
+
+            <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-600 inline-block"></span>
+                <div>
+                  <p class="font-bold text-xs text-slate-800">Foto GIF / 360° / Otros</p>
+                  <p class="text-[10px] text-slate-400">Costo estándar unitario</p>
+                </div>
+              </div>
+              <span class="font-extrabold text-rose-600 text-sm">S/ 899.00</span>
+            </div>
+          </div>
+
+          <!-- FRASE RECORDATORIA -->
+          <p class="text-[11px] text-slate-600 italic bg-amber-50/80 border border-amber-200/80 p-2.5 rounded-lg flex items-center gap-1.5">
+            <span>💡</span>
+            <span><strong>Recuerda:</strong> Estos montos corresponden al valor estimado en el mercado actual para este tipo de servicios y sirven como referencia base para el cálculo del ahorro consolidado.</span>
+          </p>
+        </div>
+
       </div>
 
     </div>
