@@ -956,28 +956,28 @@ window.actualizarCalendario = async function() {
   mostrarToast("Calendario actualizado correctamente", "exito");
 };
 
-// --- INICIALIZACIÓN AL CARGAR LA PÁGINA ---
+// 🟢 DENTRO DE DOMContentLoaded EN script.js:
 document.addEventListener('DOMContentLoaded', async () => {
-  // 1. Verificar si hay un usuario guardado en sessionStorage
+
+  // Escuchadores para los 3 filtros en tiempo real
+  document.getElementById('buscadorTexto')?.addEventListener('input', aplicarFiltros);
+  document.getElementById('filtroArea')?.addEventListener('change', aplicarFiltros);
+  document.getElementById('filtroServicio')?.addEventListener('change', aplicarFiltros);
+
+  // Lógica de sesión existente...
   const sesion = sessionStorage.getItem('currentUser');
-
   if (sesion) {
-    // ⚠️ CRÍTICO: Asignar a la variable global currentUser
     currentUser = JSON.parse(sesion);
-
-    // 2. Ocultar pantalla de login y mostrar contenedores principales
     document.getElementById('loginScreen')?.classList.add('hidden');
     document.getElementById('mainHeader')?.classList.remove('hidden');
     document.getElementById('mainContent')?.classList.remove('hidden');
-
-    // 3. Colocar el nombre del usuario en el header y en el modal
+    
     const elemNombre = document.getElementById('userNombre');
     if (elemNombre) elemNombre.innerText = currentUser.name || currentUser.email;
 
     const solicitaInput = document.getElementById('solicita');
     if (solicitaInput) solicitaInput.value = currentUser.name || '';
 
-    // 4. Llamar a la función CORRECTA para traer los datos y renderizar el calendario
     await cargarDatosDesdeGoogle();
   }
 });
@@ -1016,3 +1016,10 @@ window.addEventListener('pageshow', () => {
     }
   }, 300);
 });
+
+// 🟢 REAPLICA LOS FILTROS EN EL CALENDARIO EN TIEMPO REAL
+window.aplicarFiltros = function() {
+  if (!calendarObj) return;
+  calendarObj.removeAllEventSources();
+  calendarObj.addEventSource(generarEventosProcesados());
+};
