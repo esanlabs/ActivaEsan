@@ -31,6 +31,19 @@
       <h1 class="text-lg font-bold text-gray-800">📊 Dashboard de Métricas</h1>
       <span class="text-xs bg-red-100 text-marca-rojo font-bold px-2.5 py-1 rounded-full uppercase">Super Admin</span>
     </div>
+
+    <div class="flex items-center gap-2">
+      <!-- Botón Sincronizar / Refrescar -->
+      <button onclick="cargarDatosDashboard()" class="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-lg border border-slate-200 shadow-sm transition-colors">
+        🔄 Actualizar Data
+      </button>
+    
+      <!-- Botón Exportar PDF Snapshot -->
+      <button onclick="exportarDashboardPDF()" class="flex items-center gap-1.5 px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs rounded-lg shadow-sm transition-colors">
+        📄 Exportar PDF
+      </button>
+    </div>
+    
     <a href="index.html" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all">
       📅 Volver al Calendario
     </a>
@@ -107,6 +120,10 @@
       </div>
     </div>
 
+    <main id="dashboardContainer" class="p-6 space-y-6">
+      <!-- Aquí van tus KPIs y tus Gráficos -->
+    </main>
+    
     <!-- TARJETAS KPIS DE ESTADOS Y DINERO -->
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
       <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-slate-700">
@@ -267,6 +284,23 @@
   <script src="dashboard.js"></script>
 
   <!-- MODAL DE DETALLE POR CLIC EN GRÁFICO -->
+
+  <div class="flex items-center justify-between p-4 border-b">
+    <div>
+      <h3 id="modalDetalleTitulo" class="text-base font-bold text-gray-800">Detalle</h3>
+      <p id="modalDetalleContador" class="text-xs text-gray-500">Total: 0 registros</p>
+    </div>
+    
+    <div class="flex items-center gap-2">
+      <!-- NUEVO BOTÓN EXCEL -->
+      <button onclick="exportarDetalleExcel()" class="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-lg transition-colors">
+        📊 Exportar Excel
+      </button>
+  
+      <button onclick="cerrarModalDetalle()" class="text-gray-400 hover:text-gray-600 font-bold p-1">✕</button>
+    </div>
+  </div>
+  
   <div id="modalDetalleGrafico" class="hidden fixed inset-0 z-50 bg-gray-900/40 backdrop-blur-xs flex items-center justify-center p-4">
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[85vh] flex flex-col overflow-hidden border border-gray-200">
       
@@ -309,6 +343,8 @@
       </div>
     </div>
   </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   
 </body>
 </html>
