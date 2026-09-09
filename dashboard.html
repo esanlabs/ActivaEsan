@@ -56,12 +56,12 @@
     </div>
 
     <div class="flex items-center gap-2">
-      <!-- 1. Botón Actualizar Data (Llama con 'true' para ignorar el caché) -->
+      <!-- Botón Actualizar Data -->
       <button type="button" onclick="cargarDatosDashboard(true)" class="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-lg border border-slate-200 shadow-sm transition-colors cursor-pointer">
         🔄 Actualizar Data
       </button>
     
-      <!-- Botón Exportar PDF Snapshot -->
+      <!-- Botón Exportar PDF -->
       <button onclick="exportarTablaPDF()" class="bg-red-600 hover:bg-red-700 text-white font-semibold text-xs px-3 py-2 rounded shadow flex items-center gap-1.5 cursor-pointer">
         <span>📄 Exportar Tabla a PDF</span>
       </button>
@@ -69,7 +69,6 @@
       <a id="btnCalendario" href="index.html" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5">
         📅 Volver al Calendario
       </a>
-      
     </div>
   </header>
 
@@ -97,9 +96,7 @@
           <span id="labelMes" class="truncate">Todos los meses</span>
           <span class="text-gray-400 text-[10px]">▼</span>
         </button>
-        <div id="dropMes" class="hidden absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-2 max-h-48 overflow-y-auto space-y-1">
-          <!-- Se llena desde JS -->
-        </div>
+        <div id="dropMes" class="hidden absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-2 max-h-48 overflow-y-auto space-y-1"></div>
       </div>
   
       <!-- Filtro Activación -->
@@ -109,9 +106,7 @@
           <span id="labelServicio" class="truncate">Todas las activaciones</span>
           <span class="text-gray-400 text-[10px]">▼</span>
         </button>
-        <div id="dropServicio" class="hidden absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-2 max-h-48 overflow-y-auto space-y-1">
-          <!-- Se llena desde JS -->
-        </div>
+        <div id="dropServicio" class="hidden absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-2 max-h-48 overflow-y-auto space-y-1"></div>
       </div>
   
       <!-- Filtro Área -->
@@ -121,9 +116,7 @@
           <span id="labelArea" class="truncate">Todas las áreas</span>
           <span class="text-gray-400 text-[10px]">▼</span>
         </button>
-        <div id="dropArea" class="hidden absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-2 max-h-48 overflow-y-auto space-y-1">
-          <!-- Se llena desde JS -->
-        </div>
+        <div id="dropArea" class="hidden absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-2 max-h-48 overflow-y-auto space-y-1"></div>
       </div>
   
       <!-- Filtro Estado -->
@@ -133,19 +126,55 @@
           <span id="labelEstado" class="truncate">Todos los estados</span>
           <span class="text-gray-400 text-[10px]">▼</span>
         </button>
-        <div id="dropEstado" class="hidden absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-2 max-h-48 overflow-y-auto space-y-1">
-          <!-- Se llena desde JS -->
-        </div>
+        <div id="dropEstado" class="hidden absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-2 max-h-48 overflow-y-auto space-y-1"></div>
       </div>
   
     </div>
   </div>
 
-  <!-- 2. CONTENEDOR DE CHIPS (FILTROS ACTIVOS) -->
+  <!-- CONTENEDOR DE CHIPS (FILTROS ACTIVOS) -->
   <div id="contenedorChips" class="flex flex-wrap gap-2 mb-6 min-h-[1px]"></div>
 
   <!-- CONTENEDOR PRINCIPAL QUE IMPRIME EN PDF -->
   <main id="dashboardContainer" class="space-y-6">
+
+    <!-- LEYENDA DE TARIFAS OFICIALES DE ACTIVACIONES -->
+    <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5 uppercase tracking-wide">
+          🏷️ Tarifas Oficiales de Activaciones
+        </span>
+        <span class="text-[10px] bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded-full border border-slate-200">
+          Tarifario Base
+        </span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <!-- Tarifa Foto Booth -->
+        <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block"></span>
+            <div>
+              <p class="font-bold text-xs text-slate-800">Foto Booth</p>
+              <p class="text-[10px] text-slate-400">Costo fijo unitario</p>
+            </div>
+          </div>
+          <span class="font-extrabold text-blue-600 text-sm">S/ 600.00</span>
+        </div>
+
+        <!-- Tarifa Foto GIF / 360° / Otros -->
+        <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-rose-600 inline-block"></span>
+            <div>
+              <p class="font-bold text-xs text-slate-800">Foto GIF / 360° / Otros</p>
+              <p class="text-[10px] text-slate-400">Costo estándar unitario</p>
+            </div>
+          </div>
+          <span class="font-extrabold text-rose-600 text-sm">S/ 899.00</span>
+        </div>
+      </div>
+    </div>
 
     <!-- TARJETAS KPIS DE ESTADOS Y DINERO -->
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -284,9 +313,7 @@
                 <th class="p-3">Campos Faltantes / Fallos</th>
               </tr>
             </thead>
-            <tbody id="tablaAuditBody" class="divide-y divide-gray-100">
-              <!-- Filas inyectadas por JS -->
-            </tbody>
+            <tbody id="tablaAuditBody" class="divide-y divide-gray-100"></tbody>
           </table>
         </div>
       </div>
@@ -303,7 +330,6 @@
   <div id="modalDetalleGrafico" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden">
       
-      <!-- CABECERA CON TÍTULO, BUSCADOR INTERNO Y BOTONES -->
       <div class="p-4 sm:p-5 border-b border-gray-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-gray-50/50">
         <div>
           <h3 id="modalTituloGrafico" class="text-base font-bold text-slate-800">Detalle de Registros</h3>
@@ -311,7 +337,6 @@
         </div>
   
         <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
-          <!-- BUSCADOR INTERNO DE LA TABLA MODAL -->
           <div class="relative w-full sm:w-64">
             <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-gray-400 text-xs">🔍</span>
             <input 
@@ -323,17 +348,14 @@
             >
           </div>
   
-          <!-- BOTÓN EXPORTAR EXCEL DE ESTA TABLA -->
           <button onclick="exportarDetalleExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs px-3 py-1.5 rounded-lg shadow-sm transition-all flex items-center gap-1.5 shrink-0 cursor-pointer">
             📊 Exportar Excel
           </button>
   
-          <!-- BOTÓN CERRAR -->
           <button onclick="cerrarModalGrafico()" class="text-gray-400 hover:text-gray-600 text-lg font-bold px-2 py-0.5 rounded-lg cursor-pointer">✕</button>
         </div>
       </div>
   
-      <!-- CUERPO DE LA TABLA -->
       <div class="overflow-y-auto flex-1 p-4">
         <table class="w-full text-left border-collapse text-xs">
           <thead class="sticky top-0 bg-slate-100 text-slate-600 uppercase font-semibold text-[10px] tracking-wider z-10">
@@ -347,13 +369,10 @@
               <th class="p-2.5 text-right rounded-r-lg">MONTO / AHORRO</th>
             </tr>
           </thead>
-          <tbody id="tbodyModalGrafico" class="divide-y divide-gray-100">
-            <!-- Filas dinámicas -->
-          </tbody>
+          <tbody id="tbodyModalGrafico" class="divide-y divide-gray-100"></tbody>
         </table>
       </div>
 
-      <!-- FOOTER DENTRO DEL MODAL -->
       <div class="p-3 bg-white border-t border-gray-200 flex justify-between items-center">
         <span id="modalDetalleContador" class="text-xs font-bold text-gray-600">Total: 0 registros</span>
         <button type="button" onclick="cerrarModalGrafico()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-lg transition-all cursor-pointer">
