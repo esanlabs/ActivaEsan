@@ -515,27 +515,17 @@ window.cerrarModal = function() {
 
 // --- GESTIÓN DE ADMINS (CÓDIGO CORREGIDO Y SEGURO) ---
 
+// --- GESTIÓN DE ADMINS (CORREGIDO) ---
+
 window.abrirModalAdmins = function() {
-  console.log("Abriendo gestión de admins..."); 
   const modal = document.getElementById('modalAdminsOverlay');
-  if (!modal) {
-    console.error("No se encontró el elemento #modalAdminsOverlay en el HTML");
-    return;
-  }
+  if (!modal) return;
   
-  // Rescata el modal mandándolo directamente a la raíz del body
   document.body.appendChild(modal);
-  
   modal.classList.remove('hidden');
   modal.style.cssText = "display: flex !important; position: fixed !important; inset: 0 !important; z-index: 99999 !important; background-color: rgba(0,0,0,0.5) !important;";
   
-  try {
-    if (typeof renderizarListaAdmins === 'function') {
-      renderizarListaAdmins();
-    }
-  } catch (error) {
-    console.error("Error al renderizar la lista de admins:", error);
-  }
+  renderizarListaAdmins();
 };
 
 window.cerrarModalAdmins = function() {
@@ -549,6 +539,12 @@ window.cerrarModalAdmins = function() {
 function renderizarListaAdmins() {
   const lista = document.getElementById('listaAdmins');
   if (!lista) return;
+  
+  if (listaAdmins.length === 0) {
+    lista.innerHTML = `<li class="py-2 text-gray-400 text-center">No hay administradores</li>`;
+    return;
+  }
+
   lista.innerHTML = listaAdmins.map(adm => `
     <li class="py-2 flex justify-between items-center border-b border-gray-100 text-xs">
       <span>${adm}</span>
@@ -557,45 +553,58 @@ function renderizarListaAdmins() {
   `).join('');
 }
 
-// 6. GESTIÓN DE ADMINS (CON LIMPIEZA)
 window.agregarAdmin = async function() {
   const input = document.getElementById('nuevoAdminEmail');
   const email = input.value.trim().toLowerCase();
-  if (!email.endsWith('@esan.edu.pe')) return mostrarToast("Debe ser un correo @esan.edu.pe", "error");
+  
+  if (!email.endsWith('@esan.edu.pe')) {
+    return mostrarToast("Debe ser un correo @esan.edu.pe", "error");
+  }
 
-  await fetch(GOOGLE_SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action: 'add_admin', email: email })
-  });
+  try {
+    // 1. Agregar a la lista local en memoria inmediatamente
+    if (!listaAdmins.includes(email)) {
+      listaAdmins.push(email);
+      renderizarListaAdmins();
+    }
+    input.value = '';
 
-  input.value = '';
-  limpiarCacheLocal();
-  await cargarDatosDesdeGoogle(true);
-  renderizarListaAdmins();
+    // 2. Persistir en Google Apps Script
+    await fetch(GOOGLE_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'add_admin', email: email })
+    });
+
+    limpiarCacheLocal();
+    mostrarToast("Administrador agregado", "exito");
+  } catch (err) {
+    console.error("Error al agregar admin:", err);
+    mostrarToast("Error al agregar administrador", "error");
+  }
 };
 
 window.eliminarAdmin = async function(email) {
-  await fetch(GOOGLE_SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action: 'remove_admin', email: email })
-  });
+  if (!confirm(`¿Eliminar a ${email} de los administradores?`)) return;
 
-  limpiarCacheLocal();
-  await cargarDatosDesdeGoogle(true);
-  renderizarListaAdmins();
-};
+  try {
+    // 1. Quitar de la memoria local de inmediato
+    listaAdmins = listaAdmins.filter(a => a.toLowerCase() !== email.toLowerCase());
+    renderizarListaAdmins();
 
-window.eliminarAdmin = async function(email) {
-  await fetch(GOOGLE_SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action: 'remove_admin', email: email })
-  });
+    // 2. Enviar petición al servidor
+    await fetch(GOOGLE_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'remove_admin', email: email })
+    });
 
-  await cargarDatosDesdeGoogle();
-  renderizarListaAdmins();
+    limpiarCacheLocal();
+    mostrarToast("Administrador eliminado", "exito");
+  } catch (err) {
+    console.error("Error al eliminar admin:", err);
+    mostrarToast("Error al eliminar administrador", "error");
+  }
 };
 
 // --- GUARDADO DE SOLICITUDES ---
@@ -692,6 +701,21 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
 
   datosPendientesGuardar = payloadItems;
   abrirModalConfirmacion();
+});
+
+// --- RE-RENDERIZADO AUTOMÁTICO DE FULLCALENDAR ---
+window.addEventListener('pageshow', () => {
+  if (calendarObj) {
+    setTimeout(() => {
+      calendarObj.updateSize();
+    }, 100);
+  }
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && calendarObj) {
+    calendarObj.updateSize();
+  }
 });
 
 window.cancelarRegistro = async function() {
