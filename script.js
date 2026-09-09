@@ -119,9 +119,9 @@ async function cargarDatosDesdeGoogle(forzarRed = false) {
       document.getElementById('loader').classList.add('hidden');
       document.getElementById('calendarContainer').classList.remove('hidden');
 
-      requestAnimationFrame(() => {
+      setTimeout(() => {
         inicializarCalendario();
-      });
+      }, 100);
       return; // Fin de la función (0 espera de red)
     } catch (e) {
       console.warn("Error al leer caché local, consultando al servidor...", e);
@@ -156,9 +156,10 @@ async function cargarDatosDesdeGoogle(forzarRed = false) {
     document.getElementById('loader').classList.add('hidden');
     document.getElementById('calendarContainer').classList.remove('hidden');
 
-    requestAnimationFrame(() => {
+    setTimeout(() => {
       inicializarCalendario();
-    });
+    }, 100);
+    
   } catch (error) {
     console.error("Error al cargar datos:", error);
     mostrarToast(`Error: ${error.message}`, "error");
@@ -268,6 +269,7 @@ function generarEventosProcesados() {
 
 function inicializarCalendario() {
   const calendarEl = document.getElementById('calendar');
+  if (!calendarEl) return;
   if (calendarObj) calendarObj.destroy(); 
 
   calendarObj = new FullCalendar.Calendar(calendarEl, {
@@ -334,16 +336,10 @@ function inicializarCalendario() {
 
   calendarObj.render();
 
-  // 🟢 AGREGAR ESTO: Fuerza a recalcular el tamaño real del contenedor
-  setTimeout(() => {
-    if (calendarObj) calendarObj.updateSize();
-  }, 200);
+  // 🟢 AJUSTE DE TAMAÑO EN DOS TIEMPOS PARA EVITAR PANTALLA EN BLANCO
+  setTimeout(() => { if (calendarObj) calendarObj.updateSize(); }, 150);
+  setTimeout(() => { if (calendarObj) calendarObj.updateSize(); }, 400);
 }
-
-// 🟢 AGREGAR ESTO AL FINAL DEL ARCHIVO: Redibuja si cambias de pestaña en el navegador
-window.addEventListener('pageshow', () => {
-  if (calendarObj) calendarObj.updateSize();
-});
 
 function agregarFilaActivacion(fechaPorDefecto = "", servicioDef = "", nombreDef = "", costoDef = "", obsDef = "", diasDef = 1) {
   const container = document.getElementById('contenedorBloques');
@@ -702,15 +698,6 @@ document.getElementById('formActivacion').addEventListener('submit', async (e) =
   abrirModalConfirmacion();
 });
 
-// --- RE-RENDERIZADO AUTOMÁTICO DE FULLCALENDAR ---
-window.addEventListener('pageshow', () => {
-  if (calendarObj) {
-    setTimeout(() => {
-      calendarObj.updateSize();
-    }, 100);
-  }
-});
-
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && calendarObj) {
     calendarObj.updateSize();
@@ -1013,3 +1000,12 @@ window.alternarVista = function(vista) {
     }
   }
 };
+
+// 🟢 UNIFICADO AL FINAL DE SCRIPT.JS: Recalcula dimensiones al regresar de otra página o pestaña
+window.addEventListener('pageshow', () => {
+  setTimeout(() => {
+    if (calendarObj) {
+      calendarObj.updateSize();
+    }
+  }, 300);
+});
