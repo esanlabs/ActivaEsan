@@ -9,6 +9,16 @@ let calendarObj = null;
 let idEventoEditando = null;
 let contadorFilas = 0;
 
+function borrarCacheLocal() {
+  localStorage.removeItem('registrosCargados'); // O localStorage.clear() si quieres borrar todo
+}
+
+function limpiarCacheLocal() {
+  localStorage.removeItem('dashboard_cache');
+  localStorage.removeItem('dashboard_cache_time');
+  console.log("🧹 Caché local eliminada.");
+}
+
 // Iniciar precarga en cuanto la página de login termine de cargar
 document.addEventListener('DOMContentLoaded', () => {
   precargarDatosSilencioso();
@@ -82,6 +92,7 @@ window.handleCredentialResponse = async function(response) {
 // --- CERRAR SESIÓN ---
 function cerrarSesion() {
   sessionStorage.removeItem('currentUser');
+  localStorage.removeItem('registrosCargados');
   location.reload();
 }
 
@@ -97,11 +108,50 @@ function mostrarToast(mensaje, tipo = 'exito') {
   setTimeout(() => toast.remove(), 4000);
 }
 
-// --- CARGA DE DATOS ---
-async function cargarDatosDesdeGoogle() {
+// --- FUNCIÓN PARA LIMPIAR CACHÉ LOCAL CUANDO SE HAGAN CAMBIOS ---
+function limpiarCacheLocal() {
+  localStorage.removeItem('dashboard_cache');
+  localStorage.removeItem('dashboard_cache_time');
+  console.log("🧹 Caché local eliminada tras cambio/modificación.");
+}
+
+// --- CARGA DE DATOS OPTIMIZADA CON USO DE CACHÉ LOCAL ---
+async function cargarDatosDesdeGoogle(forzarRed = false) {
   document.getElementById('loader').classList.remove('hidden');
 
+  const cacheData = localStorage.getItem('dashboard_cache');
+  const cacheTime = localStorage.getItem('dashboard_cache_time');
+  const DIEZ_MINUTOS = 10 * 60 * 1000;
+
+  // 1. SI EXISTE CACHÉ LOCAL VÁLIDA Y NO SE FORZA LA RED, SE CARGA INSTANTÁNEAMENTE
+  if (!forzarRed && cacheData && cacheTime && (Date.now() - Number(cacheTime) < DIEZ_MINUTOS)) {
+    try {
+      console.log("⚡ Carga instantánea desde localStorage.");
+      const datosProcesados = JSON.parse(cacheData);
+      
+      registrosCargados = datosProcesados.registros || [];
+      listaAdmins = datosProcesados.admins || ['mtello@esan.edu.pe'];
+
+      const esAdmin = listaAdmins.includes(currentUser.email);
+      currentUser.role = esAdmin ? 'SUPERADMIN' : 'CLIENTE';
+
+      configurarInterfazSegunRol();
+
+      document.getElementById('loader').classList.add('hidden');
+      document.getElementById('calendarContainer').classList.remove('hidden');
+
+      requestAnimationFrame(() => {
+        inicializarCalendario();
+      });
+      return; // Fin de la función (0 espera de red)
+    } catch (e) {
+      console.warn("Error al leer caché local, consultando al servidor...", e);
+    }
+  }
+
+  // 2. SI NO HAY CACHÉ O EXPIRÓ, SE CONSULTA A GOOGLE APPS SCRIPT
   try {
+    console.log("🌐 Consultando datos frescos desde Google Apps Script...");
     const respuesta = await fetch(GOOGLE_SCRIPT_URL);
     const resData = await respuesta.json();
 
@@ -111,6 +161,13 @@ async function cargarDatosDesdeGoogle() {
 
     registrosCargados = resData.registros || [];
     listaAdmins = resData.admins || ['mtello@esan.edu.pe'];
+
+    // Guardar en la caché local para las próximas aperturas
+    localStorage.setItem('dashboard_cache', JSON.stringify({
+      registros: registrosCargados,
+      admins: listaAdmins
+    }));
+    localStorage.setItem('dashboard_cache_time', Date.now().toString());
 
     const esAdmin = listaAdmins.includes(currentUser.email);
     currentUser.role = esAdmin ? 'SUPERADMIN' : 'CLIENTE';
@@ -659,6 +716,9 @@ window.cancelarRegistro = async function() {
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: 'cancel', numEvento: idEventoEditando })
     });
+
+    localStorage.removeItem('registrosCargados');
+    
     mostrarToast("Evento cancelado correctamente");
     await cargarDatosDesdeGoogle();
     cerrarModal();
@@ -870,8 +930,10 @@ async function ejecutarGuardado() {
       })
     });
 
+    limpiarCacheLocal(); // 🟢 Usa la clave correcta
+    
     mostrarToast("Guardado correctamente", "exito");
-    await cargarDatosDesdeGoogle();
+    await cargarDatosDesdeGoogle(true); // 🟢 'true' fuerza la consulta a Google Apps Script
     cerrarModalConfirmacion();
     cerrarModal();
   } catch (error) {
@@ -883,7 +945,9 @@ async function ejecutarGuardado() {
 
 // --- BOTÓN ACTUALIZAR --- 
 window.actualizarCalendario = async function() {
-  await cargarDatosDesdeGoogle();
+  limpiarCacheLocal(); // 🟢 Borra 'dashboard_cache' y 'dashboard_cache_time'
+  
+  await cargarDatosDesdeGoogle(true); // 🟢 Fuerza la carga por red
   mostrarToast("Calendario actualizado correctamente", "exito");
 };
 
