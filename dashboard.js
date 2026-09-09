@@ -632,29 +632,157 @@ function verRegistrosGrafico(tipoGrafico) {
    EXPORTACIONES (CORREGIDAS)
    ========================================================== */
 
-// 1. EXPORTAR EL DASHBOARD COMPLETO A PDF
-function exportarDashboardPDF() {
-  const contenedor = document.getElementById('dashboardContainer');
-  if (!contenedor) {
-    alert("No se encontró el contenedor del dashboard.");
+// EXPORTAR TABLA DE DATOS A PDF (DISEÑO EJECUTIVO Y FORMAL) 
+async function exportarTablaPDF() {
+  // Toma los registros del modal si está abierto, o la lista filtrada actual
+  const registros = (registrosModalActuales && registrosModalActuales.length > 0)
+    ? registrosModalActuales
+    : obtenerDatosFiltradosActuales();
+
+  if (!registros || registros.length === 0) {
+    alert("No hay registros disponibles para exportar.");
     return;
   }
 
-  // Opciones ajustadas para mantener el diseño ordenado y evitar cortes entre gráficos
-  const opciones = {
-    margin:       [0.3, 0.3, 0.3, 0.3],
-    filename:     `Reporte_Dashboard_${new Date().toISOString().split('T')[0]}.pdf`,
-    image:        { type: 'jpeg', quality: 0.98 },
-    html2canvas:  { 
-      scale: 2, 
-      useCORS: true,
-      windowWidth: 1280 // Fuerza el ancho de pantalla para que el Grid/Flex no se encoche
-    },
-    jsPDF:        { unit: 'in', format: 'a4', orientation: 'landscape' },
-    pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] } // Evita cortar elementos a la mitad
-  };
+  const loader = document.getElementById('loaderDashboard');
+  if (loader) loader.classList.remove('hidden');
 
-  html2pdf().set(opciones).from(contenedor).save();
+  try {
+    // Cálculo de acumulados para la cabecera
+    const totalRegistros = registros.length;
+    const totalMonto = registros.reduce((acc, r) => {
+      if (r.estado === 'Cancelado' || !r.costo) return acc;
+      const monto = parseFloat(String(r.costo).replace(/[^0-9.]/g, '')) || 0;
+      return acc + monto;
+    }, 0);
+
+    const fechaActual = new Date().toLocaleDateString('es-PE', {
+      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+
+    // Helper para badges de estado dentro de la tabla
+    const getBadgeStyle = (estado) => {
+      switch (String(estado).toLowerCase()) {
+        case 'confirmado': return 'background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0;';
+        case 'culminado': return 'background-color: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe;';
+        case 'pendiente': return 'background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a;';
+        case 'cancelado': return 'background-color: #ffe4e6; color: #9f1239; border: 1px solid #fecdd3;';
+        default: return 'background-color: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;';
+      }
+    };
+
+    // 1. Crear documento HTML invisible con estilos ejecutivos
+    const contenedor = document.createElement('div');
+    contenedor.style.padding = '25px 30px';
+    contenedor.style.fontFamily = "'Helvetica Neue', Arial, sans-serif";
+    contenedor.style.color = '#1e293b';
+    contenedor.style.backgroundColor = '#ffffff';
+
+    // Construcción de filas
+    const filasHTML = registros.map((r, idx) => {
+      const id = r.id || r.codigo || r.codigoSolicitud || `#${idx + 1}`;
+      const fecha = r.fecha ? String(r.fecha).split('T')[0] : '-';
+      const servicio = r.tipoServicio || '-';
+      const area = r.area || '-';
+      const estado = r.estado || 'Pendiente';
+      const costo = parseFloat(String(r.costo || 0).replace(/[^0-9.]/g, '')) || 0;
+      const bgFila = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+
+      return `
+        <tr style="background-color: ${bgFila}; border-bottom: 1px solid #f1f5f9;">
+          <td style="padding: 7px 10px; font-size: 10px; font-weight: bold; color: #475569;">${id}</td>
+          <td style="padding: 7px 10px; font-size: 10px; color: #334155;">${fecha}</td>
+          <td style="padding: 7px 10px; font-size: 10px; font-weight: 600; color: #0f172a;">${servicio}</td>
+          <td style="padding: 7px 10px; font-size: 10px; color: #334155;">${area}</td>
+          <td style="padding: 7px 10px; font-size: 10px; text-align: center;">
+            <span style="display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 9px; font-weight: bold; ${getBadgeStyle(estado)}">
+              ${estado}
+            </span>
+          </td>
+          <td style="padding: 7px 10px; font-size: 10px; text-align: right; font-weight: bold; color: #0f172a;">
+            S/ ${costo.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    // Estructura completa del PDF
+    contenedor.innerHTML = `
+      <!-- Encabezado Corporativo -->
+      <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #E3173E; padding-bottom: 12px; margin-bottom: 18px;">
+        <div>
+          <h1 style="margin: 0; font-size: 18px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px;">REPORTE DE ACTIVACIONES Y SERVICIOS</h1>
+          <p style="margin: 3px 0 0 0; font-size: 10px; color: #64748b;">Consolidado de Registros del Dashboard</p>
+        </div>
+        <div style="text-align: right;">
+          <p style="margin: 0; font-size: 9px; color: #64748b;"><strong>Fecha de Emisión:</strong> ${fechaActual}</p>
+          <p style="margin: 2px 0 0 0; font-size: 9px; color: #64748b;"><strong>Estado:</strong> Documento Oficial</p>
+        </div>
+      </div>
+
+      <!-- Tarjetas de Resumen Ejecutivo -->
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 18px;">
+        <tr>
+          <td style="width: 50%; padding-right: 8px;">
+            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px;">
+              <span style="font-size: 9px; color: #64748b; text-transform: uppercase; font-weight: bold; display: block;">Total Solicitudes</span>
+              <span style="font-size: 15px; font-weight: bold; color: #0f172a;">${totalRegistros} registros</span>
+            </div>
+          </td>
+          <td style="width: 50%; padding-left: 8px;">
+            <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 8px 12px;">
+              <span style="font-size: 9px; color: #166534; text-transform: uppercase; font-weight: bold; display: block;">Monto Total Consolidado</span>
+              <span style="font-size: 15px; font-weight: bold; color: #15803d;">S/ ${totalMonto.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Tabla Principal -->
+      <table style="width: 100%; border-collapse: collapse; text-align: left;">
+        <thead>
+          <tr style="background-color: #0f172a; color: #ffffff;">
+            <th style="padding: 8px 10px; font-size: 9px; font-weight: bold; text-transform: uppercase; border-top-left-radius: 4px;">ID / CÓDIGO</th>
+            <th style="padding: 8px 10px; font-size: 9px; font-weight: bold; text-transform: uppercase;">FECHA</th>
+            <th style="padding: 8px 10px; font-size: 9px; font-weight: bold; text-transform: uppercase;">ACTIVACIÓN</th>
+            <th style="padding: 8px 10px; font-size: 9px; font-weight: bold; text-transform: uppercase;">ÁREA</th>
+            <th style="padding: 8px 10px; font-size: 9px; font-weight: bold; text-transform: uppercase; text-align: center;">ESTADO</th>
+            <th style="padding: 8px 10px; font-size: 9px; font-weight: bold; text-transform: uppercase; text-align: right; border-top-right-radius: 4px;">COSTO (S/)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${filasHTML}
+        </tbody>
+      </table>
+
+      <!-- Pie de página -->
+      <div style="margin-top: 25px; border-top: 1px solid #e2e8f0; padding-top: 8px; display: flex; justify-content: space-between; font-size: 8px; color: #94a3b8;">
+        <span>Sistema de Gestión de Activaciones - Uso Confidencial</span>
+        <span>Generado automáticamente</span>
+      </div>
+    `;
+
+    document.body.appendChild(contenedor);
+
+    // 2. Configurar la salida a PDF (Vertical A4)
+    const opciones = {
+      margin:       [0.3, 0.3, 0.4, 0.3],
+      filename:     `Reporte_Tabla_${new Date().toISOString().split('T')[0]}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true, logging: false },
+      jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
+      pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+    };
+
+    await html2pdf().set(opciones).from(contenedor).save();
+    document.body.removeChild(contenedor);
+
+  } catch (error) {
+    console.error("Error al exportar PDF de la tabla:", error);
+    alert("Hubo un error al generar el PDF de la tabla.");
+  } finally {
+    if (loader) loader.classList.add('hidden');
+  }
 }
 
 // 2. EXPORTAR A EXCEL (CSV con UTF-8 BOM)
