@@ -9,6 +9,45 @@ let calendarObj = null;
 let idEventoEditando = null;
 let contadorFilas = 0;
 
+// Iniciar precarga en cuanto la página de login termine de cargar
+document.addEventListener('DOMContentLoaded', () => {
+  precargarDatosSilencioso();
+});
+
+function precargarDatosSilencioso() {
+  const cacheData = localStorage.getItem('dashboard_cache');
+  const cacheTime = localStorage.getItem('dashboard_cache_time');
+  const DIEZ_MINUTOS = 10 * 60 * 1000;
+
+  // Si ya hay caché reciente (menos de 10 min), no volvemos a hacer la petición
+  if (cacheData && cacheTime && (Date.now() - cacheTime < DIEZ_MINUTOS)) {
+    console.log("⚡ Datos previamente en caché local.");
+    return;
+  }
+
+  console.log("🔄 Iniciando precarga silenciosa de datos desde la pantalla de Login...");
+
+  fetch(GOOGLE_SCRIPT_URL, { method: 'GET', redirect: 'follow' })
+    .then(response => {
+      if (!response.ok) throw new Error("Error en respuesta HTTP");
+      return response.text();
+    })
+    .then(texto => {
+      if (!texto.trim().startsWith('<') && !texto.trim().toLowerCase().startsWith('<!doctype')) {
+        const resData = JSON.parse(texto);
+        if (resData.status !== 'error' && resData.registros) {
+          // Guardamos directamente los datos en la memoria local del navegador
+          localStorage.setItem('dashboard_cache', JSON.stringify(resData.registros));
+          localStorage.setItem('dashboard_cache_time', Date.now().toString());
+          console.log("✅ Precarga completada con éxito. El Dashboard abrirá de forma instantánea.");
+        }
+      }
+    })
+    .catch(err => {
+      console.warn("La precarga en segundo plano falló (se reintentará normalmente al ingresar al dashboard):", err);
+    });
+}
+
 // --- LOGIN DE GOOGLE ---
 function parseJwt(token) {
   const base64Url = token.split('.')[1];
