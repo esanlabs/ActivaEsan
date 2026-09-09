@@ -94,25 +94,23 @@ function limpiarCacheLocal() {
   console.log("🧹 Caché local eliminada tras cambio/modificación.");
 }
 
-// --- CARGA DE DATOS OPTIMIZADA CON VALIDACIÓN DE CACHÉ ---
+// --- CARGA DE DATOS OPTIMIZADA CON VALIDACIÓN Y ANTI-CACHÉ ---
 async function cargarDatosDesdeGoogle(forzarRed = false) {
-  document.getElementById('loader').classList.remove('hidden');
+  const loader = document.getElementById('loader');
+  if (loader) loader.classList.remove('hidden');
 
   const cacheData = localStorage.getItem('dashboard_cache');
   const cacheTime = localStorage.getItem('dashboard_cache_time');
   const DIEZ_MINUTOS = 10 * 60 * 1000;
 
-  // 1. INTENTAR CARGAR DESDE CACHÉ SI EXISTE Y NO ESTÁ EXPIRADA
+  // 1. INTENTAR CARGAR DESDE CACHÉ SI EXISTE, NO ESTÁ EXPIRADA Y NO SE FORZÓ LA RED
   if (!forzarRed && cacheData && cacheTime && (Date.now() - Number(cacheTime) < DIEZ_MINUTOS)) {
     try {
       const datosProcesados = JSON.parse(cacheData);
-      
-      // Soporta tanto formato de Objeto { registros: [...] } como de Array [...]
       const registrosExtraidos = Array.isArray(datosProcesados) 
         ? datosProcesados 
         : (datosProcesados.registros || []);
 
-      // Solo usamos la caché si realmente tiene registros cargados
       if (registrosExtraidos.length > 0) {
         console.log("⚡ Carga instantánea desde localStorage con", registrosExtraidos.length, "registros.");
         registrosCargados = registrosExtraidos;
@@ -123,23 +121,29 @@ async function cargarDatosDesdeGoogle(forzarRed = false) {
 
         configurarInterfazSegunRol();
 
-        document.getElementById('loader').classList.add('hidden');
-        document.getElementById('calendarContainer').classList.remove('hidden');
+        if (loader) loader.classList.add('hidden');
+        document.getElementById('calendarContainer')?.classList.remove('hidden');
 
         setTimeout(() => {
           inicializarCalendario();
         }, 100);
-        return; // Fin de la función
+        return; 
       }
     } catch (e) {
       console.warn("Error al leer caché local, consultando al servidor...", e);
     }
   }
 
-  // 2. SI NO HAY CACHÉ, ESTÁ VACÍA O EXPIRÓ, SE CONSULTA A GOOGLE APPS SCRIPT
+  // 2. SI NO HAY CACHÉ O SE PRESIONÓ "ACTUALIZAR", SE CONSULTA CON URL ANTI-CACHÉ
   try {
     console.log("🌐 Consultando datos frescos desde Google Apps Script...");
-    const respuesta = await fetch(GOOGLE_SCRIPT_URL);
+
+    // 🟢 AQUÍ VA EL SNIPPET DE ANTI-CACHÉ:
+    const urlConAntiCache = forzarRed 
+      ? `${GOOGLE_SCRIPT_URL}?t=${Date.now()}` 
+      : GOOGLE_SCRIPT_URL;
+
+    const respuesta = await fetch(urlConAntiCache);
     const resData = await respuesta.json();
 
     if (resData.status === 'error') {
@@ -149,7 +153,7 @@ async function cargarDatosDesdeGoogle(forzarRed = false) {
     registrosCargados = resData.registros || [];
     listaAdmins = resData.admins || ['mtello@esan.edu.pe'];
 
-    // Guardar estructura limpia e idéntica en caché
+    // Guardar en caché local la última versión traída de la nube
     localStorage.setItem('dashboard_cache', JSON.stringify({
       registros: registrosCargados,
       admins: listaAdmins
@@ -161,16 +165,17 @@ async function cargarDatosDesdeGoogle(forzarRed = false) {
 
     configurarInterfazSegunRol();
 
-    document.getElementById('loader').classList.add('hidden');
-    document.getElementById('calendarContainer').classList.remove('hidden');
+  } catch (error) {
+    console.error("Error al cargar datos:", error);
+    mostrarToast(`Error: ${error.message}`, "error");
+  } finally {
+    // 🟢 ESTO EVITA QUE EL LOADER SE QUEDE TRABADO
+    if (loader) loader.classList.add('hidden');
+    document.getElementById('calendarContainer')?.classList.remove('hidden');
 
     setTimeout(() => {
       inicializarCalendario();
     }, 100);
-  } catch (error) {
-    console.error("Error al cargar datos:", error);
-    mostrarToast(`Error: ${error.message}`, "error");
-    document.getElementById('loader').classList.add('hidden');
   }
 }
 
