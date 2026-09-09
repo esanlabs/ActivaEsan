@@ -44,7 +44,6 @@
 
   <main id="contenidoDashboard" class="space-y-6">
 
-    <!-- BARRA DE FILTROS DESPLEGABLES -->
     <!-- BARRA DE FILTROS DESPLEGABLES CON CHECKBOXES -->
       <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6">
         <div class="flex justify-between items-center mb-3">
@@ -135,6 +134,77 @@
         <p id="kpiRecaudado" class="text-2xl font-black text-teal-800 mt-1">S/ 0.00</p>
       </div>
     </div>
+
+    <!-- BANNER DE AUDITORÍA DE CALIDAD DE DATOS -->
+<div id="bannerAuditoria" class="bg-slate-950 text-white p-4 rounded-xl shadow-md border border-slate-800/80 mb-6">
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3 pb-3 border-b border-slate-800">
+    <div class="flex items-center gap-2 text-xs md:text-sm font-semibold text-rose-400">
+      <span class="text-base">⚠️</span>
+      <span class="font-bold text-rose-500">Auditoría de Calidad de Datos:</span>
+      <span class="text-slate-300 font-normal hidden md:inline">Registros excluidos por campos nulos/incompletos según regla de negocio:</span>
+    </div>
+    
+    <!-- Botón con total de excluidos -->
+    <button type="button" onclick="abrirModalAuditoria()" class="bg-rose-900/60 hover:bg-rose-800 text-rose-200 border border-rose-700/50 text-xs font-bold px-4 py-1.5 rounded-full transition-all flex items-center gap-2 shadow-sm">
+      <span id="lblTotalExcluidos">0</span> Excluidos
+    </button>
+  </div>
+
+  <!-- Desglose de sub-métricas (estilo consola/terminal) -->
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-mono text-slate-400">
+    <div>REQ 2025: <span id="auditReq2025" class="font-bold text-white">0</span></div>
+    <div>REQ 2026: <span id="auditReq2026" class="font-bold text-white">0</span></div>
+    <div>SER 2025: <span id="auditSer2025" class="font-bold text-white">0</span></div>
+    <div>SER 2026: <span id="auditSer2026" class="font-bold text-white">0</span></div>
+  </div>
+</div>
+
+<!-- MODAL / PANEL FLOTANTE DE ERRORES -->
+<div id="modalAuditoria" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[85vh] flex flex-col overflow-hidden border border-slate-200">
+    
+    <!-- Modal Header -->
+    <div class="p-4 bg-slate-900 text-white flex justify-between items-center border-b border-slate-800">
+      <div class="flex items-center gap-2">
+        <span class="text-rose-400 text-lg">⚠️</span>
+        <div>
+          <h3 class="font-bold text-sm md:text-base">Panel de Auditoría: Registros Incompletos</h3>
+          <p class="text-[11px] text-slate-400">Filas con campos vacíos o inconsistentes en el reporte</p>
+        </div>
+      </div>
+      <button type="button" onclick="cerrarModalAuditoria()" class="text-slate-400 hover:text-white text-2xl font-bold px-2 focus:outline-none">&times;</button>
+    </div>
+
+    <!-- Modal Body (Tabla con scroll) -->
+    <div class="p-4 overflow-y-auto flex-1 bg-slate-50">
+      <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr class="bg-slate-100 text-slate-700 uppercase font-bold border-b border-slate-200 text-[11px]">
+              <th class="p-3">Fila / ID</th>
+              <th class="p-3">Fecha</th>
+              <th class="p-3">Tipo Servicio</th>
+              <th class="p-3">Área</th>
+              <th class="p-3">Costo</th>
+              <th class="p-3">Estado</th>
+              <th class="p-3">Campos Faltantes / Fallos</th>
+            </tr>
+          </thead>
+          <tbody id="tablaAuditBody" class="divide-y divide-slate-100">
+            <!-- Filas inyectadas por JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Modal Footer -->
+    <div class="p-3 bg-white border-t border-slate-200 text-right">
+      <button type="button" onclick="cerrarModalAuditoria()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-lg transition-all">
+        Cerrar Panel
+      </button>
+    </div>
+  </div>
+</div>
 
     <!-- SECCIÓN DE GRÁFICAS -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
