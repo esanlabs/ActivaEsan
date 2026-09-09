@@ -805,3 +805,54 @@ function exportarDetalleExcel() {
   enlace.click();
   document.body.removeChild(enlace);
 }
+
+// === CACHÉ DE DATOS (10 MINUTOS) ===
+async function cargarDatosDashboard(forceRefresh = false) {
+  const loader = document.getElementById('loaderDashboard');
+  const cacheData = localStorage.getItem('dashboard_cache');
+  const cacheTime = localStorage.getItem('dashboard_cache_time');
+  const DIEZ_MINUTOS = 10 * 60 * 1000;
+
+  if (!forceRefresh && cacheData && cacheTime && (Date.now() - cacheTime < DIEZ_MINUTOS)) {
+    datosOriginales = JSON.parse(cacheData);
+    ejecutarAuditoriaCalidad(datosOriginales);
+    poblarFiltros(datosOriginales);
+    filtrarYRenderizar();
+    return;
+  }
+
+  if (loader) loader.classList.remove('hidden');
+  try {
+    const respuesta = await fetch(GOOGLE_SCRIPT_URL);
+    const resData = await respuesta.json();
+    if (resData.status === 'error') throw new Error(resData.error);
+
+    datosOriginales = resData.registros || [];
+    localStorage.setItem('dashboard_cache', JSON.stringify(datosOriginales));
+    localStorage.setItem('dashboard_cache_time', Date.now().toString());
+
+    ejecutarAuditoriaCalidad(datosOriginales);
+    poblarFiltros(datosOriginales);
+    filtrarYRenderizar();
+  } catch (error) {
+    console.error("Error al cargar datos:", error);
+  } finally {
+    if (loader) loader.classList.add('hidden');
+  }
+}
+
+// === TEMPORIZADOR DE INACTIVIDAD (20 MINUTOS) ===
+let inactividadTimer;
+function reiniciarTimerInactividad() {
+  clearTimeout(inactividadTimer);
+  inactividadTimer = setTimeout(() => {
+    sessionStorage.clear();
+    localStorage.removeItem('dashboard_cache');
+    alert("Sesión cerrada automáticamente por inactividad.");
+    window.location.href = 'index.html';
+  }, 20 * 60 * 1000);
+}
+
+['mousemove', 'keydown', 'click', 'scroll'].forEach(evt => {
+  document.addEventListener(evt, reiniciarTimerInactividad);
+});
