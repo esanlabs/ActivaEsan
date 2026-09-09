@@ -105,6 +105,7 @@ function filtrarYRenderizar() {
   document.getElementById('kpiTotal').innerText = filtrados.length;
   document.getElementById('kpiConfirmados').innerText = filtrados.filter(r => r.estado === 'Confirmado' || !r.estado).length;
   document.getElementById('kpiPendientes').innerText = filtrados.filter(r => r.estado === 'Pendiente').length;
+  document.getElementById('kpiCulminados').innerText = filtrados.filter(r => r.estado === 'Culminado').length;
   document.getElementById('kpiCancelados').innerText = filtrados.filter(r => r.estado === 'Cancelado').length;
   
   const elemRecaudado = document.getElementById('kpiRecaudado');
