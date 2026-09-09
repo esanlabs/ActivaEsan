@@ -98,7 +98,6 @@ function filtrarOpcionesDropdown(input) {
 }
 
 function poblarFiltros(registros) {
-  // 1. Meses
   const dropMes = document.getElementById('dropMes');
   if (dropMes) {
     const meses = [
@@ -121,7 +120,6 @@ function poblarFiltros(registros) {
     `).join('');
   }
 
-  // 2. Activaciones
   const dropServicio = document.getElementById('dropServicio');
   if (dropServicio) {
     const servicios = [...new Set(registros.map(r => r.tipoServicio).filter(Boolean))].sort();
@@ -137,7 +135,6 @@ function poblarFiltros(registros) {
     `).join('');
   }
 
-  // 3. Áreas
   const dropArea = document.getElementById('dropArea');
   if (dropArea) {
     const areas = [...new Set(registros.map(r => r.area).filter(Boolean))].sort();
@@ -153,7 +150,6 @@ function poblarFiltros(registros) {
     `).join('');
   }
 
-  // 4. Estados
   const dropEstado = document.getElementById('dropEstado');
   if (dropEstado) {
     const estados = ['Confirmado', 'Pendiente', 'Culminado', 'Cancelado'];
@@ -292,15 +288,31 @@ function renderizarGraficoServicios(datos) {
     conteo[s] = (conteo[s] || 0) + 1;
   });
 
+  // Mapeo fijo de colores por servicio para mantener consistencia
+  const mapaColores = {
+    'foto gif': '#E3173E',          // Rojo
+    'foto gif impresión': '#E3173E',
+    'foto booth': '#2563EB',        // Azul
+    '360°': '#16A34A',              // Verde
+    'cancelado': '#000000'          // Negro
+  };
+  const coloresFallback = ['#E3173E', '#2563EB', '#16A34A', '#F59E0B', '#8B5CF6'];
+
+  const etiquetas = Object.keys(conteo);
+  const coloresAsignados = etiquetas.map((label, idx) => {
+    const key = label.toLowerCase().trim();
+    return mapaColores[key] || coloresFallback[idx % coloresFallback.length];
+  });
+
   if (chartServicios) chartServicios.destroy();
 
   chartServicios = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: Object.keys(conteo),
+      labels: etiquetas,
       datasets: [{
         data: Object.values(conteo),
-        backgroundColor: ['#E3173E', '#2563EB', '#16A34A', '#F59E0B', '#8B5CF6'],
+        backgroundColor: coloresAsignados,
       }]
     },
     options: {
@@ -380,23 +392,42 @@ function renderizarGraficaDinero(registros) {
   const ctx = document.getElementById('graficaDinero')?.getContext('2d');
   if (!ctx) return;
 
+  // Determinar el año base según los datos o usar el año actual
+  const primerRegistro = registros.find(r => r.fecha);
+  const anio = primerRegistro ? String(primerRegistro.fecha).substring(0, 4) : '2026';
+
+  // Garantizar los 12 meses correlativos ordenados (YYYY-01 a YYYY-12)
   const ingresosPorMes = {};
+  for (let m = 1; m <= 12; m++) {
+    const mesNum = m < 10 ? `0${m}` : `${m}`;
+    ingresosPorMes[`${anio}-${mesNum}`] = 0;
+  }
+
+  // Asignar el acumulado de montos
   registros.forEach(r => {
-    if (!r.costo || r.estado === "Cancelado") return;
+    if (!r.costo || r.estado === "Cancelado" || !r.fecha) return;
     const monto = parseFloat(String(r.costo).replace(/[^0-9.]/g, '')) || 0;
-    const mes = r.fecha ? String(r.fecha).substring(0, 7) : "Sin fecha";
-    ingresosPorMes[mes] = (ingresosPorMes[mes] || 0) + monto;
+    const mesKey = String(r.fecha).substring(0, 7);
+
+    if (ingresosPorMes.hasOwnProperty(mesKey)) {
+      ingresosPorMes[mesKey] += monto;
+    } else {
+      ingresosPorMes[mesKey] = monto;
+    }
   });
+
+  const labelsOrdenadas = Object.keys(ingresosPorMes).sort();
+  const valoresOrdenados = labelsOrdenadas.map(k => ingresosPorMes[k]);
 
   if (chartDinero) chartDinero.destroy();
 
   chartDinero = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: Object.keys(ingresosPorMes),
+      labels: labelsOrdenadas,
       datasets: [{
         label: 'Ahorro (S/)',
-        data: Object.values(ingresosPorMes),
+        data: valoresOrdenados,
         backgroundColor: '#10b981',
         borderRadius: 6
       }]
