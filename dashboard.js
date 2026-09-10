@@ -1043,3 +1043,38 @@ async function exportarGraficosPDF() {
     if (loader) loader.classList.add('hidden');
   }
 }
+
+// Abrir y cerrar el panel de auditoría
+function togglePanelAuditoria() {
+  const panel = document.getElementById('panelAuditoria');
+  if (panel) {
+    panel.classList.toggle('hidden');
+  }
+}
+
+// Actualizar los datos verticales y cambiar el color del indicador (Verde / Naranja)
+function actualizarMetricasAuditoria(sinFecha = 0, sinCorreo = 0, sinArea = 0, sinSolicitante = 0) {
+  const total = sinFecha + sinCorreo + sinArea + sinSolicitante;
+
+  const elFecha = document.getElementById('auditSinFecha');
+  const elCorreo = document.getElementById('auditSinCorreo');
+  const elArea = document.getElementById('auditSinArea');
+  const elSolicitante = document.getElementById('auditSinSolicitante');
+  const elTotal = document.getElementById('auditTotalExcluidos');
+  const dot = document.getElementById('dotAuditoria');
+
+  if (elFecha) elFecha.textContent = sinFecha;
+  if (elCorreo) elCorreo.textContent = sinCorreo;
+  if (elArea) elArea.textContent = sinArea;
+  if (elSolicitante) elSolicitante.textContent = sinSolicitante;
+  if (elTotal) elTotal.textContent = total;
+
+  // Cambiar el color del círculo según el estado
+  if (dot) {
+    if (total > 0) {
+      dot.className = "w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"; // Anaranjado (Hay errores)
+    } else {
+      dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"; // Verde (Todo OK)
+    }
+  }
+}
