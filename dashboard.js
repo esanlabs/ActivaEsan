@@ -666,6 +666,13 @@ function renderizarTablaAuditoria() {
   });
 }
 
+function togglePanelAuditoria() {
+  const panel = document.getElementById('panelAuditoria');
+  if (panel) {
+    panel.classList.toggle('hidden');
+  }
+}
+
 /* ==========================================================
    MODAL DE REGISTROS Y BÚSQUEDA INTERNA
    ========================================================== */
