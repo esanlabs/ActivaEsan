@@ -30,99 +30,100 @@
 <body class="bg-gray-100 min-h-screen text-gray-800 font-sans p-4 md:p-6">
 
   <!-- CABECERA DE NAVEGACIÓN -->
-  <header class="bg-white p-4 rounded-xl shadow-sm mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-    <div class="flex items-center gap-3">
-      <h1 class="text-lg font-bold text-gray-800">📊 Dashboard de Métricas</h1>
-      <span class="text-xs bg-red-100 text-marca-rojo font-bold px-2.5 py-1 rounded-full uppercase">Super Admin</span>
-    </div>
+<header class="bg-white p-4 rounded-xl shadow-sm mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+  <div class="flex items-center gap-3">
+    <h1 class="text-lg font-bold text-gray-800">📊 Dashboard de Métricas</h1>
+    <span class="text-xs bg-red-100 text-marca-rojo font-bold px-2.5 py-1 rounded-full uppercase">Super Admin</span>
+  </div>
 
-    <!-- Buscador Global en Tiempo Real -->
-    <div class="relative w-full sm:w-80">
-      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 text-xs">
-        🔍
-      </div>
-      <input 
-        type="text" 
-        id="inputBusquedaGlobal" 
-        oninput="filtrarYRenderizar()" 
-        placeholder="Buscar por ID, área, activación, estado..." 
-        class="w-full text-xs pl-8 pr-8 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
-      >
-      <button 
-        onclick="limpiarBuscadorGlobal()" 
-        id="btnLimpiarBusqueda" 
-        class="hidden absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-gray-600 text-xs font-bold"
-      >
-        ✕
+  <!-- Buscador Global en Tiempo Real -->
+  <div class="relative w-full sm:w-80">
+    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 text-xs">
+      🔍
+    </div>
+    <input 
+      type="text" 
+      id="inputBusquedaGlobal" 
+      oninput="filtrarYRenderizar()" 
+      placeholder="Buscar por ID, área, activación, estado..." 
+      class="w-full text-xs pl-8 pr-8 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
+    >
+    <button 
+      onclick="limpiarBuscadorGlobal()" 
+      id="btnLimpiarBusqueda" 
+      class="hidden absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-gray-600 text-xs font-bold"
+    >
+      ✕
+    </button>
+  </div>
+
+  <div class="flex items-center gap-2">
+
+    <!-- Botón e Indicador de Auditoría con Panel Flotante -->
+    <div class="relative inline-block">
+      <button id="btnAuditoria" onclick="togglePanelAuditoria()" class="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs px-3 py-2 rounded shadow flex items-center gap-2 cursor-pointer">
+        <span id="dotAuditoria" class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span>Auditoría</span>
       </button>
-    </div>
 
-    <div class="flex items-center gap-2">
-
-      <!-- Botón e Indicador de Auditoría con Panel Flotante -->
-      <div class="relative inline-block">
-        <button id="btnAuditoria" onclick="togglePanelAuditoria()" class="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs px-3 py-2 rounded shadow flex items-center gap-2 cursor-pointer">
-          <span id="dotAuditoria" class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>Auditoría</span>
-        </button>
-      
-        <!-- Panel Desplegable Vertical -->
-        <div id="panelAuditoria" class="hidden absolute right-0 top-full mt-2 z-50 w-64 bg-white border border-slate-200 rounded-xl shadow-xl p-4">
-          <div class="flex items-center justify-between pb-2 mb-3 border-b border-slate-100">
-            <span class="text-xs font-bold text-slate-800">⚠️ Auditoría de Calidad</span>
-            <button onclick="togglePanelAuditoria()" class="text-slate-400 hover:text-slate-600 text-xs font-bold">✕</button>
-          </div>
-          
-          <p class="text-[11px] text-slate-500 mb-3 leading-tight">
-            Registros excluidos por campos nulos/incompletos:
-          </p>
-        
-          <!-- Datos Organizados en Vertical -->
-          <div class="space-y-2 text-xs">
-            <div class="flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-100">
-              <span class="text-slate-600 font-medium">SIN FECHA:</span>
-              <span id="auditSinFecha" class="font-bold text-slate-800">0</span>
-            </div>
-            <div class="flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-100">
-              <span class="text-slate-600 font-medium">SIN CORREO:</span>
-              <span id="auditSinCorreo" class="font-bold text-slate-800">0</span>
-            </div>
-            <div class="flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-100">
-              <span class="text-slate-600 font-medium">SIN ÁREA:</span>
-              <span id="auditSinArea" class="font-bold text-slate-800">0</span>
-            </div>
-            <div class="flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-100">
-              <span class="text-slate-600 font-medium">SIN SOLICITANTE:</span>
-              <span id="auditSinSolicitante" class="font-bold text-slate-800">0</span>
-            </div>
-          </div>
-        
-          <div class="mt-3 pt-2 border-t border-slate-100 flex justify-between items-center text-xs mb-3">
-            <span class="font-bold text-slate-700">Total Excluidos:</span>
-            <span id="auditTotalExcluidos" class="font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">0</span>
-          </div>
-        
-          <!-- NUEVO: Botón para mostrar/ocultar la tabla de excluidos -->
-          <button id="btnToggleTablaAuditoria" onclick="toggleTablaAuditoria()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold py-1.5 px-2 rounded border border-slate-300 transition text-center cursor-pointer">
-            📋 Mostrar Tabla de Excluidos
-          </button>
+      <!-- Panel Desplegable Vertical -->
+      <div id="panelAuditoria" class="hidden absolute right-0 top-full mt-2 z-50 w-64 bg-white border border-slate-200 rounded-xl shadow-xl p-4">
+        <div class="flex items-center justify-between pb-2 mb-3 border-b border-slate-100">
+          <span class="text-xs font-bold text-slate-800">⚠️ Auditoría de Calidad</span>
+          <button onclick="togglePanelAuditoria()" class="text-slate-400 hover:text-slate-600 text-xs font-bold">✕</button>
         </div>
-      
-      <!-- Botón Actualizar Data -->
-      <button type="button" onclick="cargarDatosDashboard(true)" class="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-lg border border-slate-200 shadow-sm transition-colors cursor-pointer">
-        🔄 Actualizar Data
-      </button>
-    
-      <!-- Botón Exportar Gráficos PDF -->
-      <button onclick="exportarGraficosPDF()" class="bg-red-600 hover:bg-red-700 text-white font-semibold text-xs px-3 py-2 rounded shadow flex items-center gap-1.5 cursor-pointer">
-        <span>📊 Exportar PDF</span>
-      </button>
+        
+        <p class="text-[11px] text-slate-500 mb-3 leading-tight">
+          Registros excluidos por campos nulos/incompletos:
+        </p>
 
-      <a id="btnCalendario" href="index.html" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5">
-        📅 Volver al Calendario
-      </a>
-    </div>
-  </header>
+        <!-- Datos Organizados en Vertical -->
+        <div class="space-y-2 text-xs">
+          <div class="flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-100">
+            <span class="text-slate-600 font-medium">SIN FECHA:</span>
+            <span id="auditSinFecha" class="font-bold text-slate-800">0</span>
+          </div>
+          <div class="flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-100">
+            <span class="text-slate-600 font-medium">SIN CORREO:</span>
+            <span id="auditSinCorreo" class="font-bold text-slate-800">0</span>
+          </div>
+          <div class="flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-100">
+            <span class="text-slate-600 font-medium">SIN ÁREA:</span>
+            <span id="auditSinArea" class="font-bold text-slate-800">0</span>
+          </div>
+          <div class="flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-100">
+            <span class="text-slate-600 font-medium">SIN SOLICITANTE:</span>
+            <span id="auditSinSolicitante" class="font-bold text-slate-800">0</span>
+          </div>
+        </div>
+
+        <div class="mt-3 pt-2 border-t border-slate-100 flex justify-between items-center text-xs mb-3">
+          <span class="font-bold text-slate-700">Total Excluidos:</span>
+          <span id="auditTotalExcluidos" class="font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">0</span>
+        </div>
+
+        <!-- Botón para mostrar/ocultar la tabla de excluidos -->
+        <button id="btnToggleTablaAuditoria" onclick="toggleTablaAuditoria()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold py-1.5 px-2 rounded border border-slate-300 transition text-center cursor-pointer">
+          📋 Mostrar Tabla de Excluidos
+        </button>
+      </div>
+    </div> <!-- AQUÍ SE AGREGÓ EL DIV QUE FALTABA -->
+
+    <!-- Botón Actualizar Data -->
+    <button type="button" onclick="cargarDatosDashboard(true)" class="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-lg border border-slate-200 shadow-sm transition-colors cursor-pointer">
+      🔄 Actualizar Data
+    </button>
+
+    <!-- Botón Exportar Gráficos PDF -->
+    <button onclick="exportarGraficosPDF()" class="bg-red-600 hover:bg-red-700 text-white font-semibold text-xs px-3 py-2 rounded shadow flex items-center gap-1.5 cursor-pointer">
+      <span>📊 Exportar PDF</span>
+    </button>
+
+    <a id="btnCalendario" href="index.html" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5">
+      📅 Volver al Calendario
+    </a>
+  </div>
+</header>
 
   <!-- LOADER METRICAS -->
   <div id="loaderDashboard" class="flex justify-center items-center py-12">
