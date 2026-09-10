@@ -537,38 +537,43 @@ function renderizarGraficaDinero(registros) {
    AUDITORÍA DE DATOS
    ========================================================== */
 
+let registrosIncompletos = [];
+
 function ejecutarAuditoriaCalidad(registros) {
   registrosIncompletos = [];
-  let req2025 = 0, req2026 = 0, ser2025 = 0, ser2026 = 0;
+  let sinFecha = 0, sinCorreo = 0, sinArea = 0, sinSolicitante = 0;
 
   registros.forEach((r, idx) => {
     const faltantes = [];
-    if (!r.fecha) faltantes.push('Fecha');
-    if (!r.tipoServicio) faltantes.push('Tipo Servicio');
-    if (!r.area) faltantes.push('Área');
-    if (!r.costo && r.costo !== 0) faltantes.push('Costo');
-    if (!r.estado) faltantes.push('Estado');
 
+    // Normalización de llaves considerando posibles variaciones entre las 3 activaciones
+    const fecha = r.fecha ? String(r.fecha).trim() : '';
+    const correo = (r.correoSolicitante || r.correo || r.email) ? String(r.correoSolicitante || r.correo || r.email).trim() : '';
+    const area = r.area ? String(r.area).trim() : '';
+    const solicitante = (r.solicita || r.nombreCliente || r.solicitante) ? String(r.solicita || r.nombreCliente || r.solicitante).trim() : '';
+
+    // Evaluación de campos nulos / incompletos
+    if (!fecha) { faltantes.push('Fecha'); sinFecha++; }
+    if (!correo) { faltantes.push('Correo'); sinCorreo++; }
+    if (!area) { faltantes.push('Área'); sinArea++; }
+    if (!solicitante) { faltantes.push('Solicitante'); sinSolicitante++; }
+
+    // Si le falta al menos un campo obligatorio, entra en la lista de excluidos
     if (faltantes.length > 0) {
-      registrosIncompletos.push({ numFila: idx + 1, data: r, faltantes: faltantes });
-      const fechaStr = r.fecha ? String(r.fecha) : '';
-      const anio = fechaStr.includes('2026') ? '2026' : '2025';
-      const tipo = String(r.tipoServicio || '').toUpperCase();
-      const esServicio = tipo.includes('SER') || tipo.includes('SERVICIO');
-
-      if (esServicio) {
-        if (anio === '2026') ser2026++; else ser2025++;
-      } else {
-        if (anio === '2026') req2026++; else req2025++;
-      }
+      registrosIncompletos.push({
+        numFila: idx + 1,
+        data: { ...r, _correoNorm: correo, _solicitanteNorm: solicitante },
+        faltantes: faltantes
+      });
     }
   });
 
+  // Actualización de contadores en el Banner superior
   document.getElementById('lblTotalExcluidos').innerText = registrosIncompletos.length;
-  document.getElementById('auditReq2025').innerText = req2025;
-  document.getElementById('auditReq2026').innerText = req2026;
-  document.getElementById('auditSer2025').innerText = ser2025;
-  document.getElementById('auditSer2026').innerText = ser2026;
+  if (document.getElementById('auditSinFecha')) document.getElementById('auditSinFecha').innerText = sinFecha;
+  if (document.getElementById('auditSinCorreo')) document.getElementById('auditSinCorreo').innerText = sinCorreo;
+  if (document.getElementById('auditSinArea')) document.getElementById('auditSinArea').innerText = sinArea;
+  if (document.getElementById('auditSinSolicitante')) document.getElementById('auditSinSolicitante').innerText = sinSolicitante;
 }
 
 function abrirModalAuditoria() {
@@ -576,20 +581,19 @@ function abrirModalAuditoria() {
   if (!tbody) return;
 
   if (registrosIncompletos.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" class="text-center p-6 text-emerald-600 font-bold text-xs">✅ No se encontraron registros con campos vacíos.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center p-6 text-emerald-600 font-bold text-xs">✅ No se encontraron registros con campos vacíos.</td></tr>`;
   } else {
     tbody.innerHTML = registrosIncompletos.map(item => {
       const r = item.data;
-      const chips = item.faltantes.map(f => `<span class="bg-rose-100 text-rose-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-rose-200 mr-1">${f}</span>`).join('');
+      const chips = item.faltantes.map(f => `<span class="bg-rose-100 text-rose-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-rose-200 mr-1 inline-block my-0.5">${f}</span>`).join('');
 
       return `
         <tr class="hover:bg-slate-50 transition-colors">
           <td class="p-3 font-mono font-bold text-slate-500">#${item.numFila}</td>
-          <td class="p-3 ${!r.fecha ? 'text-rose-500 italic' : 'text-slate-700'}">${r.fecha || 'Sin fecha'}</td>
-          <td class="p-3 ${!r.tipoServicio ? 'text-rose-500 italic' : 'text-slate-700'}">${r.tipoServicio || 'Sin especificar'}</td>
-          <td class="p-3 ${!r.area ? 'text-rose-500 italic' : 'text-slate-700'}">${r.area || 'Sin área'}</td>
-          <td class="p-3 ${!r.costo ? 'text-rose-500 italic' : 'text-slate-700'}">${r.costo ? 'S/ ' + r.costo : 'Sin costo'}</td>
-          <td class="p-3 ${!r.estado ? 'text-rose-500 italic' : 'text-slate-700'}">${r.estado || 'Sin estado'}</td>
+          <td class="p-3 ${!r.fecha ? 'text-rose-500 italic font-medium' : 'text-slate-700'}">${r.fecha || 'Sin fecha'}</td>
+          <td class="p-3 ${!r._correoNorm ? 'text-rose-500 italic font-medium' : 'text-slate-700'}">${r._correoNorm || 'Sin correo'}</td>
+          <td class="p-3 ${!r.area ? 'text-rose-500 italic font-medium' : 'text-slate-700'}">${r.area || 'Sin área'}</td>
+          <td class="p-3 ${!r._solicitanteNorm ? 'text-rose-500 italic font-medium' : 'text-slate-700'}">${r._solicitanteNorm || 'Sin solicitante'}</td>
           <td class="p-3">${chips}</td>
         </tr>
       `;
