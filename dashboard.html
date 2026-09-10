@@ -30,100 +30,100 @@
 <body class="bg-gray-100 min-h-screen text-gray-800 font-sans p-4 md:p-6">
 
   <!-- CABECERA DE NAVEGACIÓN -->
-<header class="bg-white p-4 rounded-xl shadow-sm mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-  <div class="flex items-center gap-3">
-    <h1 class="text-lg font-bold text-gray-800">📊 Dashboard de Métricas</h1>
-    <span class="text-xs bg-red-100 text-marca-rojo font-bold px-2.5 py-1 rounded-full uppercase">Super Admin</span>
-  </div>
-
-  <!-- Buscador Global en Tiempo Real -->
-  <div class="relative w-full sm:w-80">
-    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 text-xs">
-      🔍
+  <header class="bg-white p-4 rounded-xl shadow-sm mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+    <div class="flex items-center gap-3">
+      <h1 class="text-lg font-bold text-gray-800">📊 Dashboard de Métricas</h1>
+      <span class="text-xs bg-red-100 text-marca-rojo font-bold px-2.5 py-1 rounded-full uppercase">Super Admin</span>
     </div>
-    <input 
-      type="text" 
-      id="inputBusquedaGlobal" 
-      oninput="filtrarYRenderizar()" 
-      placeholder="Buscar por ID, área, activación, estado..." 
-      class="w-full text-xs pl-8 pr-8 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
-    >
-    <button 
-      onclick="limpiarBuscadorGlobal()" 
-      id="btnLimpiarBusqueda" 
-      class="hidden absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-gray-600 text-xs font-bold"
-    >
-      ✕
-    </button>
-  </div>
 
-  <div class="flex items-center gap-2">
+    <!-- Buscador Global en Tiempo Real -->
+    <div class="relative w-full sm:w-80">
+      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 text-xs">
+        🔍
+      </div>
+      <input 
+        type="text" 
+        id="inputBusquedaGlobal" 
+        oninput="filtrarYRenderizar()" 
+        placeholder="Buscar por ID, área, activación, estado..." 
+        class="w-full text-xs pl-8 pr-8 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
+      >
+      <button 
+        onclick="limpiarBuscadorGlobal()" 
+        id="btnLimpiarBusqueda" 
+        class="hidden absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-gray-600 text-xs font-bold"
+      >
+        ✕
+      </button>
+    </div>
 
-    <!-- Botón e Indicador de Auditoría con Panel Flotante -->
-    <div class="relative inline-block">
-      <button id="btnAuditoria" onclick="togglePanelAuditoria()" class="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs px-3 py-2 rounded shadow flex items-center gap-2 cursor-pointer">
-        <span id="dotAuditoria" class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-        <span>Auditoría</span>
+    <div class="flex items-center gap-2">
+
+      <!-- Botón e Indicador de Auditoría con Panel Flotante -->
+      <div class="relative inline-block">
+        <button id="btnAuditoria" onclick="togglePanelAuditoria()" class="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs px-3 py-2 rounded shadow flex items-center gap-2 cursor-pointer">
+          <span id="dotAuditoria" class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>Auditoría</span>
+        </button>
+
+        <!-- Panel Desplegable Vertical -->
+        <div id="panelAuditoria" class="hidden absolute right-0 top-full mt-2 z-50 w-64 bg-white border border-slate-200 rounded-xl shadow-xl p-4">
+          <div class="flex items-center justify-between pb-2 mb-3 border-b border-slate-100">
+            <span class="text-xs font-bold text-slate-800">⚠️ Auditoría de Calidad</span>
+            <button onclick="togglePanelAuditoria()" class="text-slate-400 hover:text-slate-600 text-xs font-bold">✕</button>
+          </div>
+          
+          <p class="text-[11px] text-slate-500 mb-3 leading-tight">
+            Registros excluidos por campos nulos/incompletos:
+          </p>
+
+          <!-- Datos Organizados en Vertical -->
+          <div class="space-y-2 text-xs">
+            <div class="flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-100">
+              <span class="text-slate-600 font-medium">SIN FECHA:</span>
+              <span id="auditSinFecha" class="font-bold text-slate-800">0</span>
+            </div>
+            <div class="flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-100">
+              <span class="text-slate-600 font-medium">SIN CORREO:</span>
+              <span id="auditSinCorreo" class="font-bold text-slate-800">0</span>
+            </div>
+            <div class="flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-100">
+              <span class="text-slate-600 font-medium">SIN ÁREA:</span>
+              <span id="auditSinArea" class="font-bold text-slate-800">0</span>
+            </div>
+            <div class="flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-100">
+              <span class="text-slate-600 font-medium">SIN SOLICITANTE:</span>
+              <span id="auditSinSolicitante" class="font-bold text-slate-800">0</span>
+            </div>
+          </div>
+
+          <div class="mt-3 pt-2 border-t border-slate-100 flex justify-between items-center text-xs mb-3">
+            <span class="font-bold text-slate-700">Total Excluidos:</span>
+            <span id="auditTotalExcluidos" class="font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">0</span>
+          </div>
+
+          <!-- Botón para mostrar/ocultar la tabla de excluidos -->
+          <button id="btnToggleTablaAuditoria" onclick="toggleTablaAuditoria()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold py-1.5 px-2 rounded border border-slate-300 transition text-center cursor-pointer">
+            📋 Mostrar Tabla de Excluidos
+          </button>
+        </div>
+      </div>
+
+      <!-- Botón Actualizar Data -->
+      <button type="button" onclick="cargarDatosDashboard(true)" class="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-lg border border-slate-200 shadow-sm transition-colors cursor-pointer">
+        🔄 Actualizar Data
       </button>
 
-      <!-- Panel Desplegable Vertical -->
-      <div id="panelAuditoria" class="hidden absolute right-0 top-full mt-2 z-50 w-64 bg-white border border-slate-200 rounded-xl shadow-xl p-4">
-        <div class="flex items-center justify-between pb-2 mb-3 border-b border-slate-100">
-          <span class="text-xs font-bold text-slate-800">⚠️ Auditoría de Calidad</span>
-          <button onclick="togglePanelAuditoria()" class="text-slate-400 hover:text-slate-600 text-xs font-bold">✕</button>
-        </div>
-        
-        <p class="text-[11px] text-slate-500 mb-3 leading-tight">
-          Registros excluidos por campos nulos/incompletos:
-        </p>
+      <!-- Botón Exportar Gráficos PDF -->
+      <button onclick="exportarGraficosPDF()" class="bg-red-600 hover:bg-red-700 text-white font-semibold text-xs px-3 py-2 rounded shadow flex items-center gap-1.5 cursor-pointer">
+        <span>📊 Exportar PDF</span>
+      </button>
 
-        <!-- Datos Organizados en Vertical -->
-        <div class="space-y-2 text-xs">
-          <div class="flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-100">
-            <span class="text-slate-600 font-medium">SIN FECHA:</span>
-            <span id="auditSinFecha" class="font-bold text-slate-800">0</span>
-          </div>
-          <div class="flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-100">
-            <span class="text-slate-600 font-medium">SIN CORREO:</span>
-            <span id="auditSinCorreo" class="font-bold text-slate-800">0</span>
-          </div>
-          <div class="flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-100">
-            <span class="text-slate-600 font-medium">SIN ÁREA:</span>
-            <span id="auditSinArea" class="font-bold text-slate-800">0</span>
-          </div>
-          <div class="flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-100">
-            <span class="text-slate-600 font-medium">SIN SOLICITANTE:</span>
-            <span id="auditSinSolicitante" class="font-bold text-slate-800">0</span>
-          </div>
-        </div>
-
-        <div class="mt-3 pt-2 border-t border-slate-100 flex justify-between items-center text-xs mb-3">
-          <span class="font-bold text-slate-700">Total Excluidos:</span>
-          <span id="auditTotalExcluidos" class="font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">0</span>
-        </div>
-
-        <!-- Botón para mostrar/ocultar la tabla de excluidos -->
-        <button id="btnToggleTablaAuditoria" onclick="toggleTablaAuditoria()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold py-1.5 px-2 rounded border border-slate-300 transition text-center cursor-pointer">
-          📋 Mostrar Tabla de Excluidos
-        </button>
-      </div>
-    </div> <!-- AQUÍ SE AGREGÓ EL DIV QUE FALTABA -->
-
-    <!-- Botón Actualizar Data -->
-    <button type="button" onclick="cargarDatosDashboard(true)" class="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-lg border border-slate-200 shadow-sm transition-colors cursor-pointer">
-      🔄 Actualizar Data
-    </button>
-
-    <!-- Botón Exportar Gráficos PDF -->
-    <button onclick="exportarGraficosPDF()" class="bg-red-600 hover:bg-red-700 text-white font-semibold text-xs px-3 py-2 rounded shadow flex items-center gap-1.5 cursor-pointer">
-      <span>📊 Exportar PDF</span>
-    </button>
-
-    <a id="btnCalendario" href="index.html" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5">
-      📅 Volver al Calendario
-    </a>
-  </div>
-</header>
+      <a id="btnCalendario" href="index.html" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5">
+        📅 Volver al Calendario
+      </a>
+    </div>
+  </header>
 
   <!-- LOADER METRICAS -->
   <div id="loaderDashboard" class="flex justify-center items-center py-12">
@@ -141,7 +141,6 @@
     </div>
   
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-      
       <!-- Filtro Mes -->
       <div class="relative dropdown-container">
         <label class="block text-xs font-bold text-gray-600 mb-1">Mes</label>
@@ -181,7 +180,6 @@
         </button>
         <div id="dropEstado" class="hidden absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-2 max-h-48 overflow-y-auto space-y-1"></div>
       </div>
-  
     </div>
   </div>
 
@@ -219,43 +217,42 @@
       </div>
     </div>
 
-   <!-- BANNER DE AUDITORÍA DE CALIDAD DE DATOS -->
-  <div id="bannerAuditoria" class="bg-white text-gray-800 p-4 rounded-xl shadow-sm border border-amber-200">
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3 pb-3 border-b border-gray-100">
-      <div class="flex items-center gap-2 text-xs md:text-sm font-semibold text-amber-900">
-        <span class="text-base">⚠️</span>
-        <span class="font-bold text-amber-800">Auditoría de Calidad de Datos:</span>
-        <span class="text-gray-500 font-normal hidden md:inline">Registros excluidos por campos nulos/incompletos según regla de negocio:</span>
+    <!-- BANNER DE AUDITORÍA DE CALIDAD DE DATOS (IDs independientes) -->
+    <div id="bannerAuditoria" class="bg-white text-gray-800 p-4 rounded-xl shadow-sm border border-amber-200">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3 pb-3 border-b border-gray-100">
+        <div class="flex items-center gap-2 text-xs md:text-sm font-semibold text-amber-900">
+          <span class="text-base">⚠️</span>
+          <span class="font-bold text-amber-800">Auditoría de Calidad de Datos:</span>
+          <span class="text-gray-500 font-normal hidden md:inline">Registros excluidos por campos nulos/incompletos según regla de negocio:</span>
+        </div>
+        
+        <button type="button" onclick="abrirModalAuditoria()" class="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold px-3 py-1.5 rounded-full transition-all flex items-center gap-2 cursor-pointer">
+          <span id="lblTotalExcluidos" class="bg-rose-600 text-white px-2 py-0.5 rounded-full text-[11px] font-extrabold">0</span> Excluidos
+        </button>
       </div>
-      
-      <button type="button" onclick="abrirModalAuditoria()" class="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold px-3 py-1.5 rounded-full transition-all flex items-center gap-2 cursor-pointer">
-        <span id="lblTotalExcluidos" class="bg-rose-600 text-white px-2 py-0.5 rounded-full text-[11px] font-extrabold">0</span> Excluidos
-      </button>
+    
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-gray-600 font-medium">
+        <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100 flex justify-between items-center">
+          <span>SIN FECHA:</span>
+          <span id="bannerSinFecha" class="font-bold text-gray-900">0</span>
+        </div>
+        <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100 flex justify-between items-center">
+          <span>SIN CORREO:</span>
+          <span id="bannerSinCorreo" class="font-bold text-gray-900">0</span>
+        </div>
+        <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100 flex justify-between items-center">
+          <span>SIN ÁREA:</span>
+          <span id="bannerSinArea" class="font-bold text-gray-900">0</span>
+        </div>
+        <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100 flex justify-between items-center">
+          <span>SIN SOLICITANTE:</span>
+          <span id="bannerSinSolicitante" class="font-bold text-gray-900">0</span>
+        </div>
+      </div>
     </div>
-  
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-gray-600 font-medium">
-      <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100 flex justify-between items-center">
-        <span>SIN FECHA:</span>
-        <span id="auditSinFecha" class="font-bold text-gray-900">0</span>
-      </div>
-      <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100 flex justify-between items-center">
-        <span>SIN CORREO:</span>
-        <span id="auditSinCorreo" class="font-bold text-gray-900">0</span>
-      </div>
-      <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100 flex justify-between items-center">
-        <span>SIN ÁREA:</span>
-        <span id="auditSinArea" class="font-bold text-gray-900">0</span>
-      </div>
-      <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100 flex justify-between items-center">
-        <span>SIN SOLICITANTE:</span>
-        <span id="auditSinSolicitante" class="font-bold text-gray-900">0</span>
-      </div>
-    </div>
-  </div>
 
     <!-- SECCIÓN DE GRÁFICOS -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      
       <!-- Tarjeta 1: Distribución por Activaciones -->
       <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-80 flex flex-col">
         <div class="flex items-center justify-between mb-2">
@@ -282,9 +279,8 @@
         </div>
       </div>
       
-<!-- Tarjeta 3: Ahorro por Mes (Ancho Completo) -->
+      <!-- Tarjeta 3: Ahorro por Mes (Ancho Completo) -->
       <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col md:col-span-2 gap-4">
-        
         <div class="flex items-center justify-between">
           <h3 class="text-xs font-bold text-gray-500 uppercase">Ahorro por Mes (S/)</h3>
           <button onclick="verRegistrosGrafico('dinero')" class="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-md transition-colors border border-slate-200 cursor-pointer">
@@ -292,21 +288,17 @@
           </button>
         </div>
 
-        <!-- Gráfico -->
         <div class="relative h-64 w-full">
           <canvas id="graficaDinero"></canvas>
         </div>
 
-        <!-- TARJETA DE TARIFAS Y SUSTENTOS INDIVIDUALES DE PRECIO DE MERCADO -->
+        <!-- TARJETA DE TARIFAS Y SUSTENTOS -->
         <div class="pt-3 border-t border-slate-100 flex flex-col items-center">
-          
           <span class="text-xs font-bold text-slate-700 flex items-center justify-center gap-1.5 uppercase tracking-wide mb-3">
             🏷️ Tarifas Oficiales y Sustentos de Mercado
           </span>
 
-          <!-- TRES ACTIVACIONES SEPARADAS Y CENTRADAS -->
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3 w-full mb-3">
-            
             <!-- 1. Foto Booth -->
             <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex flex-col items-center text-center justify-between gap-3 shadow-xs">
               <div class="flex flex-col items-center gap-1">
@@ -317,7 +309,6 @@
                   Foto virtual donde el usuario se podrá llevar su foto escaneando un QR. Foto tomada en formato 1x1 (con o sin marco), ideal para fotos de LinkedIn, redes o perfil.
                 </p>
               </div>
-              
               <a href="https://www.fotomarca.pe/" target="_blank" rel="noopener noreferrer" class="text-[11px] font-semibold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-lg transition-colors flex items-center justify-center gap-1 w-full cursor-pointer mt-2">
                 🔗 Ver Sustento Foto Booth
               </a>
@@ -333,7 +324,6 @@
                   Video con efecto bumerán que gira 4 o 5 veces alrededor de las personas. La entrega del video es inmediata mediante el escaneo de un código QR.
                 </p>
               </div>
-
               <a href="https://www.fotomarca.pe/" target="_blank" rel="noopener noreferrer" class="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-3 py-1.5 rounded-lg transition-colors flex items-center justify-center gap-1 w-full cursor-pointer mt-2">
                 🔗 Ver Sustento Video 360°
               </a>
@@ -349,29 +339,24 @@
                   Fotos en secuencia de 3 (individual o en grupos de 2). Se imprimen al instante para llevar en físico y se pueden enviar vía correo en formato virtual.
                 </p>
               </div>
-
-              <a href=https://www.fotomarca.pe/" target="_blank" rel="noopener noreferrer" class="text-[11px] font-semibold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-1.5 rounded-lg transition-colors flex items-center justify-center gap-1 w-full cursor-pointer mt-2">
+              <a href="https://www.fotomarca.pe/" target="_blank" rel="noopener noreferrer" class="text-[11px] font-semibold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-1.5 rounded-lg transition-colors flex items-center justify-center gap-1 w-full cursor-pointer mt-2">
                 🔗 Ver Sustento Foto GIF
               </a>
             </div>
-
           </div>
 
-          <!-- FRASE RECORDATORIA CENTRADA -->
           <p class="text-[11px] text-slate-600 italic bg-amber-50/80 border border-amber-200/80 p-2.5 rounded-lg flex items-center justify-center text-center gap-1.5 w-full">
             <span>💡</span>
             <span><strong>Recuerda:</strong> Estos montos corresponden al valor estimado en el mercado actual para este tipo de servicios y sirven como referencia base para el cálculo del ahorro consolidado.</span>
           </p>
         </div>
-
       </div>
     </div>
-
   </main>
 
-  <!-- MODAL DE AUDITORÍA DE DATOS -->
-<div id="seccionTablaExcluidos" class="hidden mt-6 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-  <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[85vh] flex flex-col overflow-hidden border border-gray-200">    
+  <!-- MODAL DE AUDITORÍA DE DATOS (TABLA DE EXCLUIDOS) -->
+  <div id="seccionTablaExcluidos" class="hidden mt-6 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[85vh] flex flex-col overflow-hidden border border-gray-200 mx-auto">    
       <div class="p-4 bg-white text-gray-800 flex justify-between items-center border-b border-gray-200">
         <div class="flex items-center gap-2">
           <span class="text-amber-500 text-lg">⚠️</span>
