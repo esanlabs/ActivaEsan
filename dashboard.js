@@ -537,8 +537,6 @@ function renderizarGraficaDinero(registros) {
    AUDITORÍA DE DATOS
    ========================================================== */
 
-let registrosIncompletos = [];
-
 function ejecutarAuditoriaCalidad(registros) {
   registrosIncompletos = [];
   let sinFecha = 0, sinCorreo = 0, sinArea = 0, sinSolicitante = 0;
