@@ -1078,3 +1078,18 @@ function actualizarMetricasAuditoria(sinFecha = 0, sinCorreo = 0, sinArea = 0, s
     }
   }
 }
+
+function toggleTablaAuditoria() {
+  // Pon aquí entre comillas el ID exacto que ya tiene el contenedor de tu tabla
+  const tabla = document.getElementById('TU_ID_DE_TABLA_AQUI');
+  const btn = document.getElementById('btnToggleTablaAuditoria');
+
+  if (tabla) {
+    tabla.classList.toggle('hidden');
+    if (btn) {
+      btn.textContent = tabla.classList.contains('hidden') 
+        ? "📋 Mostrar Tabla de Excluidos" 
+        : "👁️ Ocultar Tabla de Excluidos";
+    }
+  }
+}
