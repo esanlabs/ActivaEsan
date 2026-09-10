@@ -297,6 +297,16 @@ function inicializarCalendario() {
     events: generarEventosProcesados(),
     
     dateClick: function(info) {
+      // Obtener la fecha actual en formato local "YYYY-MM-DD"
+      const hoy = new Date();
+      const hoyStr = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+      
+      // Bloquear si se hace clic en una fecha anterior a hoy
+      if (info.dateStr < hoyStr) {
+        mostrarToast("No puedes registrar activaciones en días pasados.", "error");
+        return;
+      }
+      
       abrirModalNuevo(info.dateStr);
     },
 
