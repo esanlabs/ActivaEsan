@@ -526,21 +526,20 @@ function renderizarGraficaDinero(registros) {
   });
 }
 
-/* ==========================================================
-   AUDITORÍA DE DATOS CORREGIDA (CALCULO DE SUMAS Y LUZ LED)
-   ========================================================== */
-
 function ejecutarAuditoriaCalidad(registros) {
   registrosIncompletos = [];
   let sinFecha = 0, sinCorreo = 0, sinArea = 0, sinSolicitante = 0;
 
+  // Función robusta para leer valores nulos o "undefined" como texto
+  const getSafeString = (val) => (val && val !== "undefined" && val !== "null" ? String(val).trim() : '');
+
   registros.forEach((r, idx) => {
     const faltantes = [];
 
-    const fecha = r.fecha ? String(r.fecha).trim() : '';
-    const correo = (r.correoSolicitante || r.correo || r.email) ? String(r.correoSolicitante || r.correo || r.email).trim() : '';
-    const area = r.area ? String(r.area).trim() : '';
-    const solicitante = (r.solicita || r.nombreCliente || r.solicitante) ? String(r.solicita || r.nombreCliente || r.solicitante).trim() : '';
+    const fecha = getSafeString(r.fecha);
+    const correo = getSafeString(r.correoSolicitante || r.correo || r.email);
+    const area = getSafeString(r.area);
+    const solicitante = getSafeString(r.solicita || r.nombreCliente || r.solicitante);
 
     if (!fecha) { faltantes.push('Fecha'); sinFecha++; }
     if (!correo) { faltantes.push('Correo'); sinCorreo++; }
@@ -572,9 +571,9 @@ function ejecutarAuditoriaCalidad(registros) {
   if (elSolicitante) elSolicitante.innerText = sinSolicitante;
   if (elTotal) elTotal.innerText = totalExcluidos;
 
-  // Cambiar luz LED: Verde (0) vs Naranja (> 0)
+  // Cambiar luz LED de forma estricta: Naranja si falta CUALQUIER dato[cite: 8]
   if (dot) {
-    if (totalExcluidos > 0) {
+    if (totalExcluidos > 0 || sinFecha > 0 || sinCorreo > 0 || sinArea > 0 || sinSolicitante > 0) {
       dot.className = "w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse";
     } else {
       dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse";
@@ -594,58 +593,22 @@ function ejecutarAuditoriaCalidad(registros) {
   if (bArea) bArea.innerText = sinArea;
   if (bSolicitante) bSolicitante.innerText = sinSolicitante;
 
-  // 3. Renderizar las filas en la tabla de auditoría
+  // 3. Renderizar las filas
   renderizarTablaAuditoria();
-}
-
-function renderizarTablaAuditoria() {
-  const tbody = document.getElementById('tablaAuditBody');
-  if (!tbody) return;
-
-  if (registrosIncompletos.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center p-6 text-emerald-600 font-bold text-xs">✅ No se encontraron registros con campos vacíos.</td></tr>`;
-  } else {
-    tbody.innerHTML = registrosIncompletos.map(item => {
-      const r = item.data;
-      const chips = item.faltantes.map(f => `<span class="bg-rose-100 text-rose-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-rose-200 mr-1 inline-block my-0.5">${f}</span>`).join('');
-
-      return `
-        <tr class="hover:bg-slate-50 transition-colors border-b border-gray-100">
-          <td class="p-3 font-mono font-bold text-slate-500">#${item.numFila}</td>
-          <td class="p-3 ${!r.fecha ? 'text-rose-500 italic font-medium' : 'text-slate-700'}">${r.fecha || 'Sin fecha'}</td>
-          <td class="p-3 ${!r._correoNorm ? 'text-rose-500 italic font-medium' : 'text-slate-700'}">${r._correoNorm || 'Sin correo'}</td>
-          <td class="p-3 ${!r.area ? 'text-rose-500 italic font-medium' : 'text-slate-700'}">${r.area || 'Sin área'}</td>
-          <td class="p-3 ${!r._solicitanteNorm ? 'text-rose-500 italic font-medium' : 'text-slate-700'}">${r._solicitanteNorm || 'Sin solicitante'}</td>
-          <td class="p-3">${chips}</td>
-        </tr>
-      `;
-    }).join('');
-  }
-}
-
-function togglePanelAuditoria() {
-  const panel = document.getElementById('panelAuditoria');
-  if (panel) {
-    panel.classList.toggle('hidden');
-  }
 }
 
 function toggleTablaAuditoria() {
   const tabla = document.getElementById('seccionTablaExcluidos');
-  const btn = document.getElementById('btnToggleTablaAuditoria');
+  const panelOpciones = document.getElementById('panelAuditoria');
 
   if (tabla) {
     renderizarTablaAuditoria();
-    tabla.classList.toggle('hidden');
-    const estaOculta = tabla.classList.contains('hidden');
-
-    if (!estaOculta) {
-      tabla.scrollIntoView({ behavior: 'smooth' });
-    }
-
-    if (btn) {
-      btn.textContent = estaOculta ? "📋 Mostrar Tabla de Excluidos" : "👁️ Ocultar Tabla de Excluidos";
-    }
+    tabla.classList.remove('hidden'); // Abre como modal superpuesto
+  }
+  
+  // Cierra el menú desplegable pequeño automáticamente
+  if (panelOpciones) {
+    panelOpciones.classList.add('hidden');
   }
 }
 
@@ -654,16 +617,12 @@ function abrirModalAuditoria() {
   if (tabla) {
     renderizarTablaAuditoria();
     tabla.classList.remove('hidden');
-    tabla.scrollIntoView({ behavior: 'smooth' });
   }
 }
 
 function cerrarModalAuditoria() {
   const tabla = document.getElementById('seccionTablaExcluidos');
-  const btn = document.getElementById('btnToggleTablaAuditoria');
-
   if (tabla) tabla.classList.add('hidden');
-  if (btn) btn.textContent = "📋 Mostrar Tabla de Excluidos";
 }
 
 /* ==========================================================
