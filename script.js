@@ -140,7 +140,7 @@ async function cargarDatosDesdeGoogle(forzarRed = false) {
 
     // 🟢 AQUÍ VA EL SNIPPET DE ANTI-CACHÉ:
     const urlConAntiCache = forzarRed 
-      ? `${GOOGLE_SCRIPT_URL}?t=${Date.now()}` 
+      ? `${GOOGLE_SCRIPT_URL}?refresh=true&t=${Date.now()}` 
       : GOOGLE_SCRIPT_URL;
 
     const respuesta = await fetch(urlConAntiCache);
