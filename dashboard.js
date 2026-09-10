@@ -625,6 +625,47 @@ function cerrarModalAuditoria() {
   if (tabla) tabla.classList.add('hidden');
 }
 
+function renderizarTablaAuditoria() {
+  const tbody = document.getElementById('tablaAuditBody');
+  if (!tbody) return;
+
+  tbody.innerHTML = '';
+
+  // Si no hay errores, mostrar mensaje vacío
+  if (!registrosIncompletos || registrosIncompletos.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-gray-500 italic">No se detectaron registros incompletos.</td></tr>`;
+    return;
+  }
+
+  // Generar las filas para cada registro incompleto
+  registrosIncompletos.forEach(item => {
+    const r = item.data;
+    
+    // Crear etiquetas visuales para los campos que faltan
+    const faltantesHTML = item.faltantes.map(f => 
+      `<span class="bg-red-100 text-red-700 border border-red-200 px-2 py-0.5 rounded text-[10px] font-bold">${f}</span>`
+    ).join(' ');
+    
+    const tr = document.createElement('tr');
+    tr.className = "hover:bg-gray-50 border-b border-gray-100 transition-colors";
+    
+    // Extraer un ID de ticket si existe, o dejar en blanco
+    const ticketId = r.ticketId || r.id || '';
+    const ticketDisplay = ticketId ? `<br><span class="text-[10px] text-gray-400">ID: ${ticketId}</span>` : '';
+
+    tr.innerHTML = `
+      <td class="p-3 font-bold text-gray-700 whitespace-nowrap">Fila ${item.numFila} ${ticketDisplay}</td>
+      <td class="p-3 ${r.fecha ? 'text-gray-700' : 'text-red-400 italic'}">${r.fecha || 'Sin fecha'}</td>
+      <td class="p-3 ${r._correoNorm ? 'text-gray-700' : 'text-red-400 italic'}">${r._correoNorm || 'Sin correo'}</td>
+      <td class="p-3 ${r.area ? 'text-gray-700' : 'text-red-400 italic'}">${r.area || 'Sin área'}</td>
+      <td class="p-3 ${r._solicitanteNorm ? 'text-gray-700' : 'text-red-400 italic'}">${r._solicitanteNorm || 'Sin solicitante'}</td>
+      <td class="p-3 flex flex-wrap gap-1 items-center min-h-[40px]">${faltantesHTML}</td>
+    `;
+    
+    tbody.appendChild(tr);
+  });
+}
+
 /* ==========================================================
    MODAL DE REGISTROS Y BÚSQUEDA INTERNA
    ========================================================== */
