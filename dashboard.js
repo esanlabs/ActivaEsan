@@ -898,7 +898,7 @@ function reiniciarTimerInactividad() {
 });
 
 /* ==========================================================
-   EXPORTACIÓN DE GRÁFICOS A PDF (SIN TABLAS)
+   EXPORTACIÓN DE GRÁFICOS A PDF (SIN DISTORSIÓN DE ASPECT RATIO)
    ========================================================== */
 
 async function exportarGraficosPDF() {
@@ -915,12 +915,8 @@ async function exportarGraficosPDF() {
   if (loader) loader.classList.remove('hidden');
 
   try {
-    // Usamos el jsPDF incluido dentro del bundle de html2pdf.js
     const jsPDF = window.jspdf ? window.jspdf.jsPDF : (window.jsPDF || null);
-
-    if (!jsPDF) {
-      throw new Error("La librería jsPDF no está disponible.");
-    }
+    if (!jsPDF) throw new Error("La librería jsPDF no está disponible.");
 
     const doc = new jsPDF({
       orientation: 'portrait',
@@ -930,29 +926,29 @@ async function exportarGraficosPDF() {
 
     const pageWidth = doc.internal.pageSize.getWidth();  // 210mm
     const pageHeight = doc.internal.pageSize.getHeight(); // 297mm
-    const margin = 14;
-    const contentWidth = pageWidth - (margin * 2); // 182mm
+    const margin = 12;
+    const contentWidth = pageWidth - (margin * 2); // 186mm
 
-    // --- ENCABEZADO ---
+    // --- ENCABEZADO CORPORATIVO ---
     doc.setFillColor(15, 23, 42); // slate-900
-    doc.rect(0, 0, pageWidth, 22, 'F');
+    doc.rect(0, 0, pageWidth, 20, 'F');
 
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
+    doc.setFontSize(11);
     doc.setTextColor(255, 255, 255);
-    doc.text("REPORTE VISUAL DE GRÁFICOS Y MÉTRICAS", margin, 14);
+    doc.text("REPORTE VISUAL DE GRÁFICOS Y MÉTRICAS", margin, 13);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    doc.setTextColor(203, 213, 225); // slate-300
+    doc.setTextColor(203, 213, 225);
     const fechaActual = new Date().toLocaleDateString('es-PE', {
       day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
     });
-    doc.text(`Emitido: ${fechaActual}`, pageWidth - margin - 45, 14);
+    doc.text(`Emitido: ${fechaActual}`, pageWidth - margin - 45, 13);
 
-    let currentY = 30;
+    let currentY = 26;
 
-    // Helper para garantizar fondo blanco en el canvas al exportar
+    // Helper para obtener imagen en PNG con fondo blanco y calcular su relación de aspecto
     const getCanvasImage = (canvas) => {
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = canvas.width;
@@ -961,56 +957,83 @@ async function exportarGraficosPDF() {
       ctx.fillStyle = '#FFFFFF';
       ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
       ctx.drawImage(canvas, 0, 0);
-      return tempCanvas.toDataURL('image/png', 1.0);
+      return {
+        dataUrl: tempCanvas.toDataURL('image/png', 1.0),
+        aspectRatio: canvas.width / canvas.height
+      };
+    };
+
+    // Helper para renderizar la imagen centrada sin deformar las proporciones
+    const drawAspectFitImage = (imgObj, boxX, boxY, maxW, maxH) => {
+      let renderW = maxW;
+      let renderH = maxW / imgObj.aspectRatio;
+
+      if (renderH > maxH) {
+        renderH = maxH;
+        renderW = maxH * imgObj.aspectRatio;
+      }
+
+      const offsetX = boxX + (maxW - renderW) / 2;
+      const offsetY = boxY + (maxH - renderH) / 2;
+
+      doc.addImage(imgObj.dataUrl, 'PNG', offsetX, offsetY, renderW, renderH);
     };
 
     const imgServicios = getCanvasImage(chartServiciosCanvas);
     const imgAreas = getCanvasImage(chartAreasCanvas);
     const imgDinero = getCanvasImage(graficaDineroCanvas);
 
-    // --- FILA 1: DOUGHNUT Y BARRA ÁREAS (Side by side) ---
-    const gap = 8;
-    const halfWidth = (contentWidth - gap) / 2; // ~87mm
-    const boxHeight = 72;
+    // --- FILA 1: DOUGHNUT Y ÁREAS (Lado a lado) ---
+    const gap = 6;
+    const halfWidth = (contentWidth - gap) / 2; // ~90mm
+    const boxHeight1 = 85;
 
-    // Caja Gráfico 1: Distribución por Activaciones
+    // Tarjeta 1: Servicios (Fondo blanco y borde claro)
     doc.setDrawColor(226, 232, 240);
-    doc.setFillColor(248, 250, 252);
-    doc.roundedRect(margin, currentY, halfWidth, boxHeight, 3, 3, 'FD');
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(margin, currentY, halfWidth, boxHeight1, 3, 3, 'FD');
 
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.setTextColor(51, 65, 85);
     doc.text("DISTRIBUCIÓN POR ACTIVACIONES", margin + 4, currentY + 7);
-    doc.addImage(imgServicios, 'PNG', margin + 3, currentY + 11, halfWidth - 6, boxHeight - 14);
 
-    // Caja Gráfico 2: Activaciones por Área
+    drawAspectFitImage(imgServicios, margin + 3, currentY + 10, halfWidth - 6, boxHeight1 - 14);
+
+    // Tarjeta 2: Áreas
     const xPos2 = margin + halfWidth + gap;
-    doc.roundedRect(xPos2, currentY, halfWidth, boxHeight, 3, 3, 'FD');
-
-    doc.text("ACTIVACIONES POR ÁREA", xPos2 + 4, currentY + 7);
-    doc.addImage(imgAreas, 'PNG', xPos2 + 3, currentY + 11, halfWidth - 6, boxHeight - 14);
-
-    currentY += boxHeight + 10;
-
-    // --- FILA 2: AHORRO POR MES (Ancho Completo) ---
-    const fullBoxHeight = 88;
-    doc.roundedRect(margin, currentY, contentWidth, fullBoxHeight, 3, 3, 'FD');
+    doc.setDrawColor(226, 232, 240);
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(xPos2, currentY, halfWidth, boxHeight1, 3, 3, 'FD');
 
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.setTextColor(51, 65, 85);
-    doc.text("AHORRO POR MES (S/)", margin + 5, currentY + 8);
+    doc.text("ACTIVACIONES POR ÁREA", xPos2 + 4, currentY + 7);
 
-    doc.addImage(imgDinero, 'PNG', margin + 4, currentY + 12, contentWidth - 8, fullBoxHeight - 16);
+    drawAspectFitImage(imgAreas, xPos2 + 3, currentY + 10, halfWidth - 6, boxHeight1 - 14);
+
+    currentY += boxHeight1 + 8;
+
+    // --- FILA 2: AHORRO POR MES (Ancho Completo) ---
+    const boxHeight2 = 115;
+    doc.setDrawColor(226, 232, 240);
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(margin, currentY, contentWidth, boxHeight2, 3, 3, 'FD');
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(51, 65, 85);
+    doc.text("AHORRO POR MES (S/)", margin + 5, currentY + 7);
+
+    drawAspectFitImage(imgDinero, margin + 4, currentY + 10, contentWidth - 8, boxHeight2 - 14);
 
     // --- PIE DE PÁGINA ---
     doc.setFont("helvetica", "italic");
-    doc.setFontSize(8);
+    doc.setFontSize(7.5);
     doc.setTextColor(148, 163, 184);
-    doc.text("Reporte generado automáticamente respetando los filtros activos del Dashboard.", margin, pageHeight - 10);
+    doc.text("Reporte generado automáticamente respetando los filtros activos del Dashboard.", margin, pageHeight - 8);
 
-    // Guardar PDF
     doc.save(`Reporte_Graficos_${new Date().toISOString().split('T')[0]}.pdf`);
 
   } catch (error) {
