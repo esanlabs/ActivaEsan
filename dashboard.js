@@ -1052,9 +1052,18 @@ function togglePanelAuditoria() {
   }
 }
 
-// Actualizar los datos verticales y cambiar el color del indicador (Verde / Naranja)
+/* ==========================================================
+   CORRECCIÓN: AUDITORÍA (SUMA, COLOR Y DESPLIEGUE DE TABLA)
+   ========================================================== */
+
+// 1. Actualiza métricas, calcula total real y cambia el color del indicador
 function actualizarMetricasAuditoria(sinFecha = 0, sinCorreo = 0, sinArea = 0, sinSolicitante = 0) {
-  const total = sinFecha + sinCorreo + sinArea + sinSolicitante;
+  // Convertimos explícitamente a números
+  const f = Number(sinFecha) || 0;
+  const c = Number(sinCorreo) || 0;
+  const a = Number(sinArea) || 0;
+  const s = Number(sinSolicitante) || 0;
+  const total = f + c + a + s;
 
   const elFecha = document.getElementById('auditSinFecha');
   const elCorreo = document.getElementById('auditSinCorreo');
@@ -1063,33 +1072,46 @@ function actualizarMetricasAuditoria(sinFecha = 0, sinCorreo = 0, sinArea = 0, s
   const elTotal = document.getElementById('auditTotalExcluidos');
   const dot = document.getElementById('dotAuditoria');
 
-  if (elFecha) elFecha.textContent = sinFecha;
-  if (elCorreo) elCorreo.textContent = sinCorreo;
-  if (elArea) elArea.textContent = sinArea;
-  if (elSolicitante) elSolicitante.textContent = sinSolicitante;
+  if (elFecha) elFecha.textContent = f;
+  if (elCorreo) elCorreo.textContent = c;
+  if (elArea) elArea.textContent = a;
+  if (elSolicitante) elSolicitante.textContent = s;
   if (elTotal) elTotal.textContent = total;
 
-  // Cambiar el color del círculo según el estado
+  // Cambiar el color del círculo: Verde (0) vs Naranja (> 0)
   if (dot) {
     if (total > 0) {
-      dot.className = "w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"; // Anaranjado (Hay errores)
+      dot.className = "w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"; // Naranja
     } else {
-      dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"; // Verde (Todo OK)
+      dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"; // Verde
     }
   }
 }
 
+// 2. Mostrar/Ocultar la tabla de excluidos
 function toggleTablaAuditoria() {
-  // Pon aquí entre comillas el ID exacto que ya tiene el contenedor de tu tabla
-  const tabla = document.getElementById('TU_ID_DE_TABLA_AQUI');
+  // Busca el contenedor de tu tabla por los IDs más probables
+  const tabla = document.getElementById('seccionTablaExcluidos') 
+             || document.getElementById('contenedorTablaExcluidos') 
+             || document.getElementById('tablaExcluidos')
+             || document.getElementById('seccionAuditoria');
+  
   const btn = document.getElementById('btnToggleTablaAuditoria');
 
   if (tabla) {
     tabla.classList.toggle('hidden');
-    if (btn) {
-      btn.textContent = tabla.classList.contains('hidden') 
-        ? "📋 Mostrar Tabla de Excluidos" 
-        : "👁️ Ocultar Tabla de Excluidos";
+    
+    const estaOculta = tabla.classList.contains('hidden');
+    
+    // Si la tabla se muestra, desliza la pantalla hacia ella
+    if (!estaOculta) {
+      tabla.scrollIntoView({ behavior: 'smooth' });
     }
+
+    if (btn) {
+      btn.textContent = estaOculta ? "📋 Mostrar Tabla de Excluidos" : "👁️ Ocultar Tabla de Excluidos";
+    }
+  } else {
+    alert("Para mostrar la tabla, asegúrate de colocar id='seccionTablaExcluidos' al <div> que envuelve tu tabla de excluidos.");
   }
 }
