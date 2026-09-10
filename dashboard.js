@@ -53,12 +53,7 @@ async function cargarDatosDashboard(forceRefresh = false) {
 
   if (loader) loader.classList.remove('hidden');
   
-  // Busca estas líneas dentro de async function cargarDatosDashboard(forceRefresh = false)
-  
-  if (loader) loader.classList.remove('hidden');
-  
   try {
-    // 🟢 Construimos la URL agregando refresh=true y el timestamp si forceRefresh es true
     const urlFinal = forceRefresh 
       ? `${GOOGLE_SCRIPT_URL}?refresh=true&t=${Date.now()}` 
       : GOOGLE_SCRIPT_URL;
@@ -74,7 +69,6 @@ async function cargarDatosDashboard(forceRefresh = false) {
 
     const textoRespuesta = await respuesta.text();
 
-    // Validar si la respuesta devuelta es HTML en lugar de JSON (bloqueo de Google Apps Script)
     if (textoRespuesta.trim().startsWith('<') || textoRespuesta.trim().toLowerCase().startsWith('<!doctype')) {
       throw new Error("El script de Google devolvió una página HTML en lugar de datos JSON. Verifica en Google Apps Script que 'Quién tiene acceso' esté configurado como 'Cualquier persona' (Anyone).");
     }
@@ -215,7 +209,6 @@ function obtenerSeleccionados(selector) {
   return Array.from(document.querySelectorAll(`${selector}:checked`)).map(cb => cb.value);
 }
 
-// Inserción de la X individual justo al lado de la flecha en cada selector
 function actualizarEtiquetasFiltros(selMeses, selServicios, selAreas, selEstados) {
   actualizarSelectorUI('labelMes', '.chk-mes', 'mes', selMeses.length, 'Todos los meses');
   actualizarSelectorUI('labelServicio', '.chk-servicio', 'servicio', selServicios.length, 'Todas las activaciones');
@@ -534,7 +527,7 @@ function renderizarGraficaDinero(registros) {
 }
 
 /* ==========================================================
-   AUDITORÍA DE DATOS
+   AUDITORÍA DE DATOS CORREGIDA (CALCULO DE SUMAS Y LUZ LED)
    ========================================================== */
 
 function ejecutarAuditoriaCalidad(registros) {
@@ -544,19 +537,16 @@ function ejecutarAuditoriaCalidad(registros) {
   registros.forEach((r, idx) => {
     const faltantes = [];
 
-    // Normalización de llaves considerando posibles variaciones entre las 3 activaciones
     const fecha = r.fecha ? String(r.fecha).trim() : '';
     const correo = (r.correoSolicitante || r.correo || r.email) ? String(r.correoSolicitante || r.correo || r.email).trim() : '';
     const area = r.area ? String(r.area).trim() : '';
     const solicitante = (r.solicita || r.nombreCliente || r.solicitante) ? String(r.solicita || r.nombreCliente || r.solicitante).trim() : '';
 
-    // Evaluación de campos nulos / incompletos
     if (!fecha) { faltantes.push('Fecha'); sinFecha++; }
     if (!correo) { faltantes.push('Correo'); sinCorreo++; }
     if (!area) { faltantes.push('Área'); sinArea++; }
     if (!solicitante) { faltantes.push('Solicitante'); sinSolicitante++; }
 
-    // Si le falta al menos un campo obligatorio, entra en la lista de excluidos
     if (faltantes.length > 0) {
       registrosIncompletos.push({
         numFila: idx + 1,
@@ -566,15 +556,49 @@ function ejecutarAuditoriaCalidad(registros) {
     }
   });
 
-  // Actualización de contadores en el Banner superior
-  document.getElementById('lblTotalExcluidos').innerText = registrosIncompletos.length;
-  if (document.getElementById('auditSinFecha')) document.getElementById('auditSinFecha').innerText = sinFecha;
-  if (document.getElementById('auditSinCorreo')) document.getElementById('auditSinCorreo').innerText = sinCorreo;
-  if (document.getElementById('auditSinArea')) document.getElementById('auditSinArea').innerText = sinArea;
-  if (document.getElementById('auditSinSolicitante')) document.getElementById('auditSinSolicitante').innerText = sinSolicitante;
+  const totalExcluidos = registrosIncompletos.length;
+
+  // 1. Actualizar Panel Flotante en Header
+  const elFecha = document.getElementById('auditSinFecha');
+  const elCorreo = document.getElementById('auditSinCorreo');
+  const elArea = document.getElementById('auditSinArea');
+  const elSolicitante = document.getElementById('auditSinSolicitante');
+  const elTotal = document.getElementById('auditTotalExcluidos');
+  const dot = document.getElementById('dotAuditoria');
+
+  if (elFecha) elFecha.innerText = sinFecha;
+  if (elCorreo) elCorreo.innerText = sinCorreo;
+  if (elArea) elArea.innerText = sinArea;
+  if (elSolicitante) elSolicitante.innerText = sinSolicitante;
+  if (elTotal) elTotal.innerText = totalExcluidos;
+
+  // Cambiar luz LED: Verde (0) vs Naranja (> 0)
+  if (dot) {
+    if (totalExcluidos > 0) {
+      dot.className = "w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse";
+    } else {
+      dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse";
+    }
+  }
+
+  // 2. Actualizar Banner Central
+  const lblTotal = document.getElementById('lblTotalExcluidos');
+  const bFecha = document.getElementById('bannerSinFecha');
+  const bCorreo = document.getElementById('bannerSinCorreo');
+  const bArea = document.getElementById('bannerSinArea');
+  const bSolicitante = document.getElementById('bannerSinSolicitante');
+
+  if (lblTotal) lblTotal.innerText = totalExcluidos;
+  if (bFecha) bFecha.innerText = sinFecha;
+  if (bCorreo) bCorreo.innerText = sinCorreo;
+  if (bArea) bArea.innerText = sinArea;
+  if (bSolicitante) bSolicitante.innerText = sinSolicitante;
+
+  // 3. Renderizar las filas en la tabla de auditoría
+  renderizarTablaAuditoria();
 }
 
-function abrirModalAuditoria() {
+function renderizarTablaAuditoria() {
   const tbody = document.getElementById('tablaAuditBody');
   if (!tbody) return;
 
@@ -586,7 +610,7 @@ function abrirModalAuditoria() {
       const chips = item.faltantes.map(f => `<span class="bg-rose-100 text-rose-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-rose-200 mr-1 inline-block my-0.5">${f}</span>`).join('');
 
       return `
-        <tr class="hover:bg-slate-50 transition-colors">
+        <tr class="hover:bg-slate-50 transition-colors border-b border-gray-100">
           <td class="p-3 font-mono font-bold text-slate-500">#${item.numFila}</td>
           <td class="p-3 ${!r.fecha ? 'text-rose-500 italic font-medium' : 'text-slate-700'}">${r.fecha || 'Sin fecha'}</td>
           <td class="p-3 ${!r._correoNorm ? 'text-rose-500 italic font-medium' : 'text-slate-700'}">${r._correoNorm || 'Sin correo'}</td>
@@ -597,12 +621,49 @@ function abrirModalAuditoria() {
       `;
     }).join('');
   }
+}
 
-  document.getElementById('modalAuditoria').classList.remove('hidden');
+function togglePanelAuditoria() {
+  const panel = document.getElementById('panelAuditoria');
+  if (panel) {
+    panel.classList.toggle('hidden');
+  }
+}
+
+function toggleTablaAuditoria() {
+  const tabla = document.getElementById('seccionTablaExcluidos');
+  const btn = document.getElementById('btnToggleTablaAuditoria');
+
+  if (tabla) {
+    renderizarTablaAuditoria();
+    tabla.classList.toggle('hidden');
+    const estaOculta = tabla.classList.contains('hidden');
+
+    if (!estaOculta) {
+      tabla.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    if (btn) {
+      btn.textContent = estaOculta ? "📋 Mostrar Tabla de Excluidos" : "👁️ Ocultar Tabla de Excluidos";
+    }
+  }
+}
+
+function abrirModalAuditoria() {
+  const tabla = document.getElementById('seccionTablaExcluidos');
+  if (tabla) {
+    renderizarTablaAuditoria();
+    tabla.classList.remove('hidden');
+    tabla.scrollIntoView({ behavior: 'smooth' });
+  }
 }
 
 function cerrarModalAuditoria() {
-  document.getElementById('modalAuditoria').classList.add('hidden');
+  const tabla = document.getElementById('seccionTablaExcluidos');
+  const btn = document.getElementById('btnToggleTablaAuditoria');
+
+  if (tabla) tabla.classList.add('hidden');
+  if (btn) btn.textContent = "📋 Mostrar Tabla de Excluidos";
 }
 
 /* ==========================================================
@@ -728,13 +789,13 @@ function cerrarModalGrafico() {
    EXPORTACIONES (PDF Y EXCEL)
    ========================================================== */
 
-async function exportarTablaPDF() {
-  const registros = (registrosModalActuales && registrosModalActuales.length > 0)
-    ? registrosModalActuales
-    : obtenerDatosFiltradosActuales();
+async function exportarGraficosPDF() {
+  const chartServiciosCanvas = document.getElementById('chartServicios');
+  const chartAreasCanvas = document.getElementById('chartAreas');
+  const graficaDineroCanvas = document.getElementById('graficaDinero');
 
-  if (!registros || registros.length === 0) {
-    alert("No hay registros disponibles para exportar.");
+  if (!chartServiciosCanvas || !chartAreasCanvas || !graficaDineroCanvas) {
+    alert("No se encontraron los elementos canvas de los gráficos.");
     return;
   }
 
@@ -742,106 +803,122 @@ async function exportarTablaPDF() {
   if (loader) loader.classList.remove('hidden');
 
   try {
-    const totalRegistros = registros.length;
-    const totalMonto = registros.reduce((acc, r) => {
-      if (r.estado === 'Cancelado' || !r.costo) return acc;
-      const monto = parseFloat(String(r.costo).replace(/[^0-9.]/g, '')) || 0;
-      return acc + monto;
-    }, 0);
+    const jsPDF = window.jspdf ? window.jspdf.jsPDF : (window.jsPDF || null);
+    if (!jsPDF) throw new Error("La librería jsPDF no está disponible.");
 
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 12;
+    const contentWidth = pageWidth - (margin * 2);
+
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, pageWidth, 20, 'F');
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(255, 255, 255);
+    doc.text("REPORTE VISUAL DE GRÁFICOS Y MÉTRICAS", margin, 13);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(203, 213, 225);
     const fechaActual = new Date().toLocaleDateString('es-PE', {
       day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
     });
+    doc.text(`Emitido: ${fechaActual}`, pageWidth - margin - 45, 13);
 
-    const contenedor = document.createElement('div');
-    contenedor.style.padding = '25px 30px';
-    contenedor.style.fontFamily = "'Helvetica Neue', Arial, sans-serif";
-    contenedor.style.color = '#1e293b';
-    contenedor.style.backgroundColor = '#ffffff';
+    let currentY = 26;
 
-    const filasHTML = registros.map((r, idx) => {
-      const id = r.id || r.codigo || r.codigoSolicitud || `#${idx + 1}`;
-      const fecha = r.fecha ? String(r.fecha).split('T')[0] : '-';
-      const servicio = r.tipoServicio || '-';
-      const area = r.area || '-';
-      const estado = r.estado || 'Pendiente';
-      const costo = parseFloat(String(r.costo || 0).replace(/[^0-9.]/g, '')) || 0;
-      const bgFila = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
-
-      return `
-        <tr style="background-color: ${bgFila}; border-bottom: 1px solid #f1f5f9;">
-          <td style="padding: 7px 10px; font-size: 10px; font-weight: bold; color: #475569;">${id}</td>
-          <td style="padding: 7px 10px; font-size: 10px; color: #334155;">${fecha}</td>
-          <td style="padding: 7px 10px; font-size: 10px; font-weight: 600; color: #0f172a;">${servicio}</td>
-          <td style="padding: 7px 10px; font-size: 10px; color: #334155;">${area}</td>
-          <td style="padding: 7px 10px; font-size: 10px; text-align: center;">${estado}</td>
-          <td style="padding: 7px 10px; font-size: 10px; text-align: right; font-weight: bold; color: #0f172a;">
-            S/ ${costo.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </td>
-        </tr>
-      `;
-    }).join('');
-
-    contenedor.innerHTML = `
-      <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #E3173E; padding-bottom: 12px; margin-bottom: 18px;">
-        <div>
-          <h1 style="margin: 0; font-size: 18px; font-weight: 800; color: #0f172a; text-transform: uppercase;">REPORTE DE ACTIVACIONES Y SERVICIOS</h1>
-          <p style="margin: 3px 0 0 0; font-size: 10px; color: #64748b;">Consolidado de Registros del Dashboard</p>
-        </div>
-        <div style="text-align: right;">
-          <p style="margin: 0; font-size: 9px; color: #64748b;"><strong>Fecha de Emisión:</strong> ${fechaActual}</p>
-        </div>
-      </div>
-
-      <table style="width: 100%; border-collapse: collapse; margin-bottom: 18px;">
-        <tr>
-          <td style="width: 50%; padding-right: 8px;">
-            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px;">
-              <span style="font-size: 9px; color: #64748b; text-transform: uppercase; font-weight: bold; display: block;">Total Solicitudes</span>
-              <span style="font-size: 15px; font-weight: bold; color: #0f172a;">${totalRegistros} registros</span>
-            </div>
-          </td>
-          <td style="width: 50%; padding-left: 8px;">
-            <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 8px 12px;">
-              <span style="font-size: 9px; color: #166534; text-transform: uppercase; font-weight: bold; display: block;">Monto Total Consolidado</span>
-              <span style="font-size: 15px; font-weight: bold; color: #15803d;">S/ ${totalMonto.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-            </div>
-          </td>
-        </tr>
-      </table>
-
-      <table style="width: 100%; border-collapse: collapse; text-align: left;">
-        <thead>
-          <tr style="background-color: #0f172a; color: #ffffff;">
-            <th style="padding: 8px 10px; font-size: 9px; text-transform: uppercase;">ID / CÓDIGO</th>
-            <th style="padding: 8px 10px; font-size: 9px; text-transform: uppercase;">FECHA</th>
-            <th style="padding: 8px 10px; font-size: 9px; text-transform: uppercase;">ACTIVACIÓN</th>
-            <th style="padding: 8px 10px; font-size: 9px; text-transform: uppercase;">ÁREA</th>
-            <th style="padding: 8px 10px; font-size: 9px; text-transform: uppercase; text-align: center;">ESTADO</th>
-            <th style="padding: 8px 10px; font-size: 9px; text-transform: uppercase; text-align: right;">COSTO (S/)</th>
-          </tr>
-        </thead>
-        <tbody>${filasHTML}</tbody>
-      </table>
-    `;
-
-    document.body.appendChild(contenedor);
-
-    const opciones = {
-      margin: [0.3, 0.3, 0.4, 0.3],
-      filename: `Reporte_Tabla_${new Date().toISOString().split('T')[0]}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, logging: false },
-      jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    const getCanvasImage = (canvas) => {
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = canvas.height;
+      const ctx = tempCanvas.getContext('2d');
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+      ctx.drawImage(canvas, 0, 0);
+      return {
+        dataUrl: tempCanvas.toDataURL('image/png', 1.0),
+        aspectRatio: canvas.width / canvas.height
+      };
     };
 
-    await html2pdf().set(opciones).from(contenedor).save();
-    document.body.removeChild(contenedor);
+    const drawAspectFitImage = (imgObj, boxX, boxY, maxW, maxH) => {
+      let renderW = maxW;
+      let renderH = maxW / imgObj.aspectRatio;
+
+      if (renderH > maxH) {
+        renderH = maxH;
+        renderW = maxH * imgObj.aspectRatio;
+      }
+
+      const offsetX = boxX + (maxW - renderW) / 2;
+      const offsetY = boxY + (maxH - renderH) / 2;
+
+      doc.addImage(imgObj.dataUrl, 'PNG', offsetX, offsetY, renderW, renderH);
+    };
+
+    const imgServicios = getCanvasImage(chartServiciosCanvas);
+    const imgAreas = getCanvasImage(chartAreasCanvas);
+    const imgDinero = getCanvasImage(graficaDineroCanvas);
+
+    const gap = 6;
+    const halfWidth = (contentWidth - gap) / 2;
+    const boxHeight1 = 85;
+
+    doc.setDrawColor(226, 232, 240);
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(margin, currentY, halfWidth, boxHeight1, 3, 3, 'FD');
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(51, 65, 85);
+    doc.text("DISTRIBUCIÓN POR ACTIVACIONES", margin + 4, currentY + 7);
+
+    drawAspectFitImage(imgServicios, margin + 3, currentY + 10, halfWidth - 6, boxHeight1 - 14);
+
+    const xPos2 = margin + halfWidth + gap;
+    doc.setDrawColor(226, 232, 240);
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(xPos2, currentY, halfWidth, boxHeight1, 3, 3, 'FD');
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(51, 65, 85);
+    doc.text("ACTIVACIONES POR ÁREA", xPos2 + 4, currentY + 7);
+
+    drawAspectFitImage(imgAreas, xPos2 + 3, currentY + 10, halfWidth - 6, boxHeight1 - 14);
+
+    currentY += boxHeight1 + 8;
+
+    const boxHeight2 = 115;
+    doc.setDrawColor(226, 232, 240);
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(margin, currentY, contentWidth, boxHeight2, 3, 3, 'FD');
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(51, 65, 85);
+    doc.text("AHORRO POR MES (S/)", margin + 5, currentY + 7);
+
+    drawAspectFitImage(imgDinero, margin + 4, currentY + 10, contentWidth - 8, boxHeight2 - 14);
+
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(7.5);
+    doc.setTextColor(148, 163, 184);
+    doc.text("Reporte generado automáticamente respetando los filtros activos del Dashboard.", margin, pageHeight - 8);
+
+    doc.save(`Reporte_Graficos_${new Date().toISOString().split('T')[0]}.pdf`);
 
   } catch (error) {
-    console.error("Error al exportar PDF de la tabla:", error);
-    alert("Hubo un error al generar el PDF de la tabla.");
+    console.error("Error al exportar gráficos a PDF:", error);
+    alert("Ocurrió un error al generar el PDF de gráficos: " + error.message);
   } finally {
     if (loader) loader.classList.add('hidden');
   }
@@ -896,222 +973,3 @@ function reiniciarTimerInactividad() {
 ['mousemove', 'keydown', 'click', 'scroll'].forEach(evt => {
   document.addEventListener(evt, reiniciarTimerInactividad);
 });
-
-/* ==========================================================
-   EXPORTACIÓN DE GRÁFICOS A PDF (SIN DISTORSIÓN DE ASPECT RATIO)
-   ========================================================== */
-
-async function exportarGraficosPDF() {
-  const chartServiciosCanvas = document.getElementById('chartServicios');
-  const chartAreasCanvas = document.getElementById('chartAreas');
-  const graficaDineroCanvas = document.getElementById('graficaDinero');
-
-  if (!chartServiciosCanvas || !chartAreasCanvas || !graficaDineroCanvas) {
-    alert("No se encontraron los elementos canvas de los gráficos.");
-    return;
-  }
-
-  const loader = document.getElementById('loaderDashboard');
-  if (loader) loader.classList.remove('hidden');
-
-  try {
-    const jsPDF = window.jspdf ? window.jspdf.jsPDF : (window.jsPDF || null);
-    if (!jsPDF) throw new Error("La librería jsPDF no está disponible.");
-
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4'
-    });
-
-    const pageWidth = doc.internal.pageSize.getWidth();  // 210mm
-    const pageHeight = doc.internal.pageSize.getHeight(); // 297mm
-    const margin = 12;
-    const contentWidth = pageWidth - (margin * 2); // 186mm
-
-    // --- ENCABEZADO CORPORATIVO ---
-    doc.setFillColor(15, 23, 42); // slate-900
-    doc.rect(0, 0, pageWidth, 20, 'F');
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.setTextColor(255, 255, 255);
-    doc.text("REPORTE VISUAL DE GRÁFICOS Y MÉTRICAS", margin, 13);
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(203, 213, 225);
-    const fechaActual = new Date().toLocaleDateString('es-PE', {
-      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-    });
-    doc.text(`Emitido: ${fechaActual}`, pageWidth - margin - 45, 13);
-
-    let currentY = 26;
-
-    // Helper para obtener imagen en PNG con fondo blanco y calcular su relación de aspecto
-    const getCanvasImage = (canvas) => {
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = canvas.width;
-      tempCanvas.height = canvas.height;
-      const ctx = tempCanvas.getContext('2d');
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-      ctx.drawImage(canvas, 0, 0);
-      return {
-        dataUrl: tempCanvas.toDataURL('image/png', 1.0),
-        aspectRatio: canvas.width / canvas.height
-      };
-    };
-
-    // Helper para renderizar la imagen centrada sin deformar las proporciones
-    const drawAspectFitImage = (imgObj, boxX, boxY, maxW, maxH) => {
-      let renderW = maxW;
-      let renderH = maxW / imgObj.aspectRatio;
-
-      if (renderH > maxH) {
-        renderH = maxH;
-        renderW = maxH * imgObj.aspectRatio;
-      }
-
-      const offsetX = boxX + (maxW - renderW) / 2;
-      const offsetY = boxY + (maxH - renderH) / 2;
-
-      doc.addImage(imgObj.dataUrl, 'PNG', offsetX, offsetY, renderW, renderH);
-    };
-
-    const imgServicios = getCanvasImage(chartServiciosCanvas);
-    const imgAreas = getCanvasImage(chartAreasCanvas);
-    const imgDinero = getCanvasImage(graficaDineroCanvas);
-
-    // --- FILA 1: DOUGHNUT Y ÁREAS (Lado a lado) ---
-    const gap = 6;
-    const halfWidth = (contentWidth - gap) / 2; // ~90mm
-    const boxHeight1 = 85;
-
-    // Tarjeta 1: Servicios (Fondo blanco y borde claro)
-    doc.setDrawColor(226, 232, 240);
-    doc.setFillColor(255, 255, 255);
-    doc.roundedRect(margin, currentY, halfWidth, boxHeight1, 3, 3, 'FD');
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8.5);
-    doc.setTextColor(51, 65, 85);
-    doc.text("DISTRIBUCIÓN POR ACTIVACIONES", margin + 4, currentY + 7);
-
-    drawAspectFitImage(imgServicios, margin + 3, currentY + 10, halfWidth - 6, boxHeight1 - 14);
-
-    // Tarjeta 2: Áreas
-    const xPos2 = margin + halfWidth + gap;
-    doc.setDrawColor(226, 232, 240);
-    doc.setFillColor(255, 255, 255);
-    doc.roundedRect(xPos2, currentY, halfWidth, boxHeight1, 3, 3, 'FD');
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8.5);
-    doc.setTextColor(51, 65, 85);
-    doc.text("ACTIVACIONES POR ÁREA", xPos2 + 4, currentY + 7);
-
-    drawAspectFitImage(imgAreas, xPos2 + 3, currentY + 10, halfWidth - 6, boxHeight1 - 14);
-
-    currentY += boxHeight1 + 8;
-
-    // --- FILA 2: AHORRO POR MES (Ancho Completo) ---
-    const boxHeight2 = 115;
-    doc.setDrawColor(226, 232, 240);
-    doc.setFillColor(255, 255, 255);
-    doc.roundedRect(margin, currentY, contentWidth, boxHeight2, 3, 3, 'FD');
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8.5);
-    doc.setTextColor(51, 65, 85);
-    doc.text("AHORRO POR MES (S/)", margin + 5, currentY + 7);
-
-    drawAspectFitImage(imgDinero, margin + 4, currentY + 10, contentWidth - 8, boxHeight2 - 14);
-
-    // --- PIE DE PÁGINA ---
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(7.5);
-    doc.setTextColor(148, 163, 184);
-    doc.text("Reporte generado automáticamente respetando los filtros activos del Dashboard.", margin, pageHeight - 8);
-
-    doc.save(`Reporte_Graficos_${new Date().toISOString().split('T')[0]}.pdf`);
-
-  } catch (error) {
-    console.error("Error al exportar gráficos a PDF:", error);
-    alert("Ocurrió un error al generar el PDF de gráficos: " + error.message);
-  } finally {
-    if (loader) loader.classList.add('hidden');
-  }
-}
-
-// Abrir y cerrar el panel de auditoría
-function togglePanelAuditoria() {
-  const panel = document.getElementById('panelAuditoria');
-  if (panel) {
-    panel.classList.toggle('hidden');
-  }
-}
-
-/* ==========================================================
-   CORRECCIÓN: AUDITORÍA (SUMA, COLOR Y DESPLIEGUE DE TABLA)
-   ========================================================== */
-
-// 1. Actualiza métricas, calcula total real y cambia el color del indicador
-function actualizarMetricasAuditoria(sinFecha = 0, sinCorreo = 0, sinArea = 0, sinSolicitante = 0) {
-  // Convertimos explícitamente a números
-  const f = Number(sinFecha) || 0;
-  const c = Number(sinCorreo) || 0;
-  const a = Number(sinArea) || 0;
-  const s = Number(sinSolicitante) || 0;
-  const total = f + c + a + s;
-
-  const elFecha = document.getElementById('auditSinFecha');
-  const elCorreo = document.getElementById('auditSinCorreo');
-  const elArea = document.getElementById('auditSinArea');
-  const elSolicitante = document.getElementById('auditSinSolicitante');
-  const elTotal = document.getElementById('auditTotalExcluidos');
-  const dot = document.getElementById('dotAuditoria');
-
-  if (elFecha) elFecha.textContent = f;
-  if (elCorreo) elCorreo.textContent = c;
-  if (elArea) elArea.textContent = a;
-  if (elSolicitante) elSolicitante.textContent = s;
-  if (elTotal) elTotal.textContent = total;
-
-  // Cambiar el color del círculo: Verde (0) vs Naranja (> 0)
-  if (dot) {
-    if (total > 0) {
-      dot.className = "w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"; // Naranja
-    } else {
-      dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"; // Verde
-    }
-  }
-}
-
-// 2. Mostrar/Ocultar la tabla de excluidos
-function toggleTablaAuditoria() {
-  // Busca el contenedor de tu tabla por los IDs más probables
-  const tabla = document.getElementById('seccionTablaExcluidos') 
-             || document.getElementById('contenedorTablaExcluidos') 
-             || document.getElementById('tablaExcluidos')
-             || document.getElementById('seccionAuditoria');
-  
-  const btn = document.getElementById('btnToggleTablaAuditoria');
-
-  if (tabla) {
-    tabla.classList.toggle('hidden');
-    
-    const estaOculta = tabla.classList.contains('hidden');
-    
-    // Si la tabla se muestra, desliza la pantalla hacia ella
-    if (!estaOculta) {
-      tabla.scrollIntoView({ behavior: 'smooth' });
-    }
-
-    if (btn) {
-      btn.textContent = estaOculta ? "📋 Mostrar Tabla de Excluidos" : "👁️ Ocultar Tabla de Excluidos";
-    }
-  } else {
-    alert("Para mostrar la tabla, asegúrate de colocar id='seccionTablaExcluidos' al <div> que envuelve tu tabla de excluidos.");
-  }
-}
