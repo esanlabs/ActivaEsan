@@ -53,8 +53,17 @@ async function cargarDatosDashboard(forceRefresh = false) {
 
   if (loader) loader.classList.remove('hidden');
   
+  // Busca estas líneas dentro de async function cargarDatosDashboard(forceRefresh = false)
+  
+  if (loader) loader.classList.remove('hidden');
+  
   try {
-    const respuesta = await fetch(GOOGLE_SCRIPT_URL, {
+    // 🟢 Construimos la URL agregando refresh=true y el timestamp si forceRefresh es true
+    const urlFinal = forceRefresh 
+      ? `${GOOGLE_SCRIPT_URL}?refresh=true&t=${Date.now()}` 
+      : GOOGLE_SCRIPT_URL;
+  
+    const respuesta = await fetch(urlFinal, {
       method: 'GET',
       redirect: 'follow'
     });
