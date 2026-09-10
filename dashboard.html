@@ -166,39 +166,39 @@
       </div>
     </div>
 
-    <!-- BANNER DE AUDITORÍA DE CALIDAD DE DATOS -->
-    <div id="bannerAuditoria" class="bg-white text-gray-800 p-4 rounded-xl shadow-sm border border-amber-200">
-      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3 pb-3 border-b border-gray-100">
-        <div class="flex items-center gap-2 text-xs md:text-sm font-semibold text-amber-900">
-          <span class="text-base">⚠️</span>
-          <span class="font-bold text-amber-800">Auditoría de Calidad de Datos:</span>
-          <span class="text-gray-500 font-normal hidden md:inline">Registros excluidos por campos nulos/incompletos según regla de negocio:</span>
-        </div>
-        
-        <button type="button" onclick="abrirModalAuditoria()" class="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold px-3 py-1.5 rounded-full transition-all flex items-center gap-2 cursor-pointer">
-          <span id="lblTotalExcluidos" class="bg-rose-600 text-white px-2 py-0.5 rounded-full text-[11px] font-extrabold">0</span> Excluidos
-        </button>
+   <!-- BANNER DE AUDITORÍA DE CALIDAD DE DATOS -->
+  <div id="bannerAuditoria" class="bg-white text-gray-800 p-4 rounded-xl shadow-sm border border-amber-200">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3 pb-3 border-b border-gray-100">
+      <div class="flex items-center gap-2 text-xs md:text-sm font-semibold text-amber-900">
+        <span class="text-base">⚠️</span>
+        <span class="font-bold text-amber-800">Auditoría de Calidad de Datos:</span>
+        <span class="text-gray-500 font-normal hidden md:inline">Registros excluidos por campos nulos/incompletos según regla de negocio:</span>
       </div>
-
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-gray-600 font-medium">
-        <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100 flex justify-between items-center">
-          <span>REQ 2025:</span>
-          <span id="auditReq2025" class="font-bold text-gray-900">0</span>
-        </div>
-        <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100 flex justify-between items-center">
-          <span>REQ 2026:</span>
-          <span id="auditReq2026" class="font-bold text-gray-900">0</span>
-        </div>
-        <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100 flex justify-between items-center">
-          <span>SER 2025:</span>
-          <span id="auditSer2025" class="font-bold text-gray-900">0</span>
-        </div>
-        <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100 flex justify-between items-center">
-          <span>SER 2026:</span>
-          <span id="auditSer2026" class="font-bold text-gray-900">0</span>
-        </div>
+      
+      <button type="button" onclick="abrirModalAuditoria()" class="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold px-3 py-1.5 rounded-full transition-all flex items-center gap-2 cursor-pointer">
+        <span id="lblTotalExcluidos" class="bg-rose-600 text-white px-2 py-0.5 rounded-full text-[11px] font-extrabold">0</span> Excluidos
+      </button>
+    </div>
+  
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-gray-600 font-medium">
+      <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100 flex justify-between items-center">
+        <span>SIN FECHA:</span>
+        <span id="auditSinFecha" class="font-bold text-gray-900">0</span>
+      </div>
+      <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100 flex justify-between items-center">
+        <span>SIN CORREO:</span>
+        <span id="auditSinCorreo" class="font-bold text-gray-900">0</span>
+      </div>
+      <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100 flex justify-between items-center">
+        <span>SIN ÁREA:</span>
+        <span id="auditSinArea" class="font-bold text-gray-900">0</span>
+      </div>
+      <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-100 flex justify-between items-center">
+        <span>SIN SOLICITANTE:</span>
+        <span id="auditSinSolicitante" class="font-bold text-gray-900">0</span>
       </div>
     </div>
+  </div>
 
     <!-- SECCIÓN DE GRÁFICOS -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
