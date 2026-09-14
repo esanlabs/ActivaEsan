@@ -39,7 +39,8 @@ async function cargarDatosDashboard(forceRefresh = false) {
 
   if (!forceRefresh && cacheData && cacheTime && (Date.now() - cacheTime < DIEZ_MINUTOS)) {
     try {
-      datosOriginales = JSON.parse(cacheData);
+      const datosProcesados = JSON.parse(cacheData);
+      datosOriginales = Array.isArray(datosProcesados) ? datosProcesados : (datosProcesados.registros || []);
       ejecutarAuditoriaCalidad(datosOriginales);
       poblarFiltros(datosOriginales);
       filtrarYRenderizar();
@@ -80,7 +81,10 @@ async function cargarDatosDashboard(forceRefresh = false) {
     }
 
     datosOriginales = resData.registros || [];
-    localStorage.setItem('dashboard_cache', JSON.stringify(datosOriginales));
+    localStorage.setItem('dashboard_cache', JSON.stringify({
+      registros: datosOriginales,
+      admins: resData.admins || ['mtello@esan.edu.pe']
+    }));
     localStorage.setItem('dashboard_cache_time', Date.now().toString());
 
     ejecutarAuditoriaCalidad(datosOriginales);
