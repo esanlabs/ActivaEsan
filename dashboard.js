@@ -1,6 +1,6 @@
 // Registrar plugin para mostrar siempre las etiquetas en los gráficos
 Chart.register(ChartDataLabels);
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzoxLf6Au7NsKGunDpDcl_4sUCbZZVZ_vuz5DenBjzw6l4WOCiFH8CvPxGtpEpzNkqy/exec';
+let catalogoDashboard = [];
 
 // Variables Globales de Estado
 let datosOriginales = [];
@@ -22,7 +22,7 @@ function verificarAcceso() {
   const sesion = sessionStorage.getItem('currentUser');
   const usuario = sesion ? JSON.parse(sesion) : null;
 
-  if (!usuario || usuario.role !== 'SUPERADMIN') {
+  if (!usuario || !sessionStorage.getItem('activaciones_id_token')) {
     alert("Acceso denegado: Esta vista es exclusiva para Super Administradores.");
     window.location.href = 'index.html';
     return false;
@@ -33,70 +33,19 @@ function verificarAcceso() {
 // === CARGA DE DATOS CON CACHÉ (10 MINUTOS) Y VALIDACIÓN ROBUSTA DE JSON ===
 async function cargarDatosDashboard(forceRefresh = false) {
   const loader = document.getElementById('loaderDashboard');
-  const cacheData = localStorage.getItem('dashboard_cache');
-  const cacheTime = localStorage.getItem('dashboard_cache_time');
-  const DIEZ_MINUTOS = 10 * 60 * 1000;
-
-  if (!forceRefresh && cacheData && cacheTime && (Date.now() - cacheTime < DIEZ_MINUTOS)) {
-    try {
-      const datosProcesados = JSON.parse(cacheData);
-      datosOriginales = Array.isArray(datosProcesados) ? datosProcesados : (datosProcesados.registros || []);
-      ejecutarAuditoriaCalidad(datosOriginales);
-      poblarFiltros(datosOriginales);
-      filtrarYRenderizar();
-      if (loader) loader.classList.add('hidden');
-      return;
-    } catch (e) {
-      console.warn("Caché corrupto, recargando desde servidor...");
-      localStorage.removeItem('dashboard_cache');
-    }
-  }
-
   if (loader) loader.classList.remove('hidden');
-  
   try {
-    const urlFinal = forceRefresh 
-      ? `${GOOGLE_SCRIPT_URL}?refresh=true&t=${Date.now()}` 
-      : GOOGLE_SCRIPT_URL;
-  
-    const respuesta = await fetch(urlFinal, {
-      method: 'GET',
-      redirect: 'follow'
-    });
-
-    if (!respuesta.ok) {
-      throw new Error(`Error HTTP en el servidor: ${respuesta.status} ${respuesta.statusText}`);
-    }
-
-    const textoRespuesta = await respuesta.text();
-
-    if (textoRespuesta.trim().startsWith('<') || textoRespuesta.trim().toLowerCase().startsWith('<!doctype')) {
-      throw new Error("El script de Google devolvió una página HTML en lugar de datos JSON. Verifica en Google Apps Script que 'Quién tiene acceso' esté configurado como 'Cualquier persona' (Anyone).");
-    }
-
-    const resData = JSON.parse(textoRespuesta);
-
-    if (resData.status === 'error') {
-      throw new Error(resData.error || resData.errorDetallado || 'Error desconocido en Apps Script');
-    }
-
-    datosOriginales = resData.registros || [];
-    localStorage.setItem('dashboard_cache', JSON.stringify({
-      registros: datosOriginales,
-      admins: resData.admins || ['mtello@esan.edu.pe']
-    }));
-    localStorage.setItem('dashboard_cache_time', Date.now().toString());
-
-    ejecutarAuditoriaCalidad(datosOriginales);
-    poblarFiltros(datosOriginales);
-    filtrarYRenderizar();
-
-  } catch (error) {
-    console.error("Error al cargar datos del dashboard:", error);
-    alert(`Error de acceso/carga: ${error.message}`);
-  } finally {
-    if (loader) loader.classList.add('hidden');
-  }
+    const res = await ApiActivaciones.llamar('read');
+    if(res.user.role !== 'SUPERADMIN') { window.location.href='index.html'; return; }
+    datosOriginales=res.registros; catalogoDashboard=res.catalogo;
+    const destino=document.getElementById('dashboardCatalogo');
+    if(destino) destino.innerHTML=catalogoDashboard.map(s => {
+      const enlace=ApiActivaciones.enlace(s.sustentoUrl), e=ApiActivaciones.escapar;
+      return `<article class="bg-white rounded-xl border p-4 space-y-2"><h3 class="font-bold text-sm" style="color:${s.color}">${e(s.nombre)}</h3><p class="text-xs text-slate-600">${e(s.descripcion)}</p><p class="text-xs font-bold">Referencia: S/ ${Number(s.costo).toFixed(2)} · ${s.tablets} tablet(s)</p>${enlace ? `<a class="text-xs underline" href="${e(enlace)}" target="_blank" rel="noopener noreferrer">Ver sustento ↗</a>` : '<span class="text-xs text-slate-400">Sustento pendiente</span>'}</article>`;
+    }).join('');
+    ejecutarAuditoriaCalidad(datosOriginales); poblarFiltros(datosOriginales); filtrarYRenderizar();
+  } catch(error) { alert(error.message); }
+  finally { if(loader) loader.classList.add('hidden'); }
 }
 
 /* ==========================================================
@@ -172,8 +121,8 @@ function poblarFiltros(registros) {
       </div>
       ` + servicios.map(s => `
       <label class="option-item flex items-center gap-2 text-xs p-1.5 hover:bg-gray-50 rounded cursor-pointer select-none">
-        <input type="checkbox" value="${s}" class="chk-servicio rounded border-gray-300 text-marca-rojo focus:ring-0" onchange="filtrarYRenderizar()">
-        <span>${s}</span>
+        <input type="checkbox" value="${ApiActivaciones.escapar(s)}" class="chk-servicio rounded border-gray-300 text-marca-rojo focus:ring-0" onchange="filtrarYRenderizar()">
+        <span>${ApiActivaciones.escapar(s)}</span>
       </label>
     `).join('');
   }
@@ -187,8 +136,8 @@ function poblarFiltros(registros) {
       </div>
       ` + areas.map(a => `
       <label class="option-item flex items-center gap-2 text-xs p-1.5 hover:bg-gray-50 rounded cursor-pointer select-none">
-        <input type="checkbox" value="${a}" class="chk-area rounded border-gray-300 text-marca-rojo focus:ring-0" onchange="filtrarYRenderizar()">
-        <span>${a}</span>
+        <input type="checkbox" value="${ApiActivaciones.escapar(a)}" class="chk-area rounded border-gray-300 text-marca-rojo focus:ring-0" onchange="filtrarYRenderizar()">
+        <span>${ApiActivaciones.escapar(a)}</span>
       </label>
     `).join('');
   }
@@ -202,8 +151,8 @@ function poblarFiltros(registros) {
       </div>
       ` + estados.map(e => `
       <label class="option-item flex items-center gap-2 text-xs p-1.5 hover:bg-gray-50 rounded cursor-pointer select-none">
-        <input type="checkbox" value="${e}" class="chk-estado rounded border-gray-300 text-marca-rojo focus:ring-0" onchange="filtrarYRenderizar()">
-        <span>${e}</span>
+        <input type="checkbox" value="${ApiActivaciones.escapar(e)}" class="chk-estado rounded border-gray-300 text-marca-rojo focus:ring-0" onchange="filtrarYRenderizar()">
+        <span>${ApiActivaciones.escapar(e)}</span>
       </label>
     `).join('');
   }
@@ -296,7 +245,7 @@ function obtenerDatosFiltradosActuales() {
     if (selEstados.length > 0 && !selEstados.includes(r.estado)) return false;
 
     if (textoBusqueda !== '') {
-      const id = String(r.id || r.codigo || r.codigoSolicitud || '').toLowerCase();
+      const id = String(r.numEvento || r.id || r.codigo || r.codigoSolicitud || '').toLowerCase();
       const servicio = String(r.tipoServicio || '').toLowerCase();
       const area = String(r.area || '').toLowerCase();
       const estado = String(r.estado || '').toLowerCase();
@@ -362,20 +311,8 @@ function renderizarGraficoServicios(datos) {
     conteo[s] = (conteo[s] || 0) + 1;
   });
 
-  const mapaColores = {
-    'foto gif': '#E3173E',
-    'foto gif impresión': '#E3173E',
-    'foto booth': '#2563EB',
-    '360°': '#16A34A',
-    'cancelado': '#000000'
-  };
-  const coloresFallback = ['#E3173E', '#2563EB', '#16A34A', '#F59E0B', '#8B5CF6'];
-
   const etiquetas = Object.keys(conteo);
-  const coloresAsignados = etiquetas.map((label, idx) => {
-    const key = label.toLowerCase().trim();
-    return mapaColores[key] || coloresFallback[idx % coloresFallback.length];
-  });
+  const coloresAsignados = etiquetas.map(label => (Reservas.servicio({tipoServicio:label},catalogoDashboard) || {}).color || '#64748B');
 
   if (chartServicios) chartServicios.destroy();
 
@@ -647,7 +584,7 @@ function renderizarTablaAuditoria() {
     
     // Crear etiquetas visuales para los campos que faltan
     const faltantesHTML = item.faltantes.map(f => 
-      `<span class="bg-red-100 text-red-700 border border-red-200 px-2 py-0.5 rounded text-[10px] font-bold">${f}</span>`
+      `<span class="bg-red-100 text-red-700 border border-red-200 px-2 py-0.5 rounded text-[10px] font-bold">${ApiActivaciones.escapar(f)}</span>`
     ).join(' ');
     
     const tr = document.createElement('tr');
@@ -655,14 +592,14 @@ function renderizarTablaAuditoria() {
     
     // Extraer un ID de ticket si existe, o dejar en blanco
     const ticketId = r.ticketId || r.id || '';
-    const ticketDisplay = ticketId ? `<br><span class="text-[10px] text-gray-400">ID: ${ticketId}</span>` : '';
+    const ticketDisplay = ticketId ? `<br><span class="text-[10px] text-gray-400">ID: ${ApiActivaciones.escapar(ticketId)}</span>` : '';
 
     tr.innerHTML = `
       <td class="p-3 font-bold text-gray-700 whitespace-nowrap">Fila ${item.numFila} ${ticketDisplay}</td>
-      <td class="p-3 ${r.fecha ? 'text-gray-700' : 'text-red-400 italic'}">${r.fecha || 'Sin fecha'}</td>
-      <td class="p-3 ${r._correoNorm ? 'text-gray-700' : 'text-red-400 italic'}">${r._correoNorm || 'Sin correo'}</td>
-      <td class="p-3 ${r.area ? 'text-gray-700' : 'text-red-400 italic'}">${r.area || 'Sin área'}</td>
-      <td class="p-3 ${r._solicitanteNorm ? 'text-gray-700' : 'text-red-400 italic'}">${r._solicitanteNorm || 'Sin solicitante'}</td>
+      <td class="p-3 ${r.fecha ? 'text-gray-700' : 'text-red-400 italic'}">${ApiActivaciones.escapar(r.fecha || 'Sin fecha')}</td>
+      <td class="p-3 ${r._correoNorm ? 'text-gray-700' : 'text-red-400 italic'}">${ApiActivaciones.escapar(r._correoNorm || 'Sin correo')}</td>
+      <td class="p-3 ${r.area ? 'text-gray-700' : 'text-red-400 italic'}">${ApiActivaciones.escapar(r.area || 'Sin área')}</td>
+      <td class="p-3 ${r._solicitanteNorm ? 'text-gray-700' : 'text-red-400 italic'}">${ApiActivaciones.escapar(r._solicitanteNorm || 'Sin solicitante')}</td>
       <td class="p-3 flex flex-wrap gap-1 items-center min-h-[40px]">${faltantesHTML}</td>
     `;
     
@@ -718,7 +655,7 @@ function filtrarTablaModal() {
     registrosModalActuales = [...registrosModalBase];
   } else {
     registrosModalActuales = registrosModalBase.filter(r => {
-      const id = String(r.id || r.codigo || r.codigoSolicitud || '').toLowerCase();
+      const id = String(r.numEvento || r.id || r.codigo || r.codigoSolicitud || '').toLowerCase();
       const fecha = String(r.fecha || '').toLowerCase();
       const evento = String(obtenerNombreEvento(r)).toLowerCase();
       const servicio = String(r.tipoServicio || '').toLowerCase();
@@ -746,7 +683,7 @@ function renderizarTablaModal(lista) {
   }
 
   tbody.innerHTML = lista.map((r, idx) => {
-    const id = r.id || r.codigo || r.codigoSolicitud || `#${idx + 1}`;
+    const id = r.numEvento || r.id || r.codigo || r.codigoSolicitud || `#${idx + 1}`;
     const fecha = r.fecha ? String(r.fecha).split('T')[0] : '-';
     const evento = obtenerNombreEvento(r);
     const servicio = r.tipoServicio || '-';
@@ -756,13 +693,13 @@ function renderizarTablaModal(lista) {
 
     return `
       <tr class="hover:bg-slate-50/80 transition-colors border-b border-gray-100">
-        <td class="p-2.5 font-bold text-slate-700">${id}</td>
-        <td class="p-2.5 text-gray-600">${fecha}</td>
-        <td class="p-2.5 font-medium text-slate-800">${evento}</td>
-        <td class="p-2.5 font-medium text-slate-900">${servicio}</td>
-        <td class="p-2.5 text-gray-600">${area}</td>
+        <td class="p-2.5 font-bold text-slate-700">${ApiActivaciones.escapar(id)}</td>
+        <td class="p-2.5 text-gray-600">${ApiActivaciones.escapar(fecha)}</td>
+        <td class="p-2.5 font-medium text-slate-800">${ApiActivaciones.escapar(evento)}</td>
+        <td class="p-2.5 font-medium text-slate-900">${ApiActivaciones.escapar(servicio)}</td>
+        <td class="p-2.5 text-gray-600">${ApiActivaciones.escapar(area)}</td>
         <td class="p-2.5 text-center">
-          <span class="inline-block px-2 py-0.5 rounded-full text-[10px] ${getBadgeColor(estado)}">${estado}</span>
+          <span class="inline-block px-2 py-0.5 rounded-full text-[10px] ${getBadgeColor(estado)}">${ApiActivaciones.escapar(estado)}</span>
         </td>
         <td class="p-2.5 text-right font-bold text-slate-800">
           S/ ${costo.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -948,12 +885,12 @@ function exportarDetalleExcel() {
     const fecha = r.fecha ? String(r.fecha).split('T')[0] : '-';
     const costo = parseFloat(String(r.costo || 0).replace(/[^0-9.]/g, '')) || 0;
     
-    const valorId = r.id || r.codigo || r.codigoSolicitud || `#${idx + 1}`;
-    const id = String(valorId).replace(/"/g, '""');
-    const evento = String(obtenerNombreEvento(r)).replace(/"/g, '""');
-    const servicio = String(r.tipoServicio || '-').replace(/"/g, '""');
-    const area = String(r.area || '-').replace(/"/g, '""');
-    const estado = String(r.estado || 'Pendiente').replace(/"/g, '""');
+    const valorId = r.numEvento || r.id || r.codigo || r.codigoSolicitud || `#${idx + 1}`;
+    const id = String(valorId).replace(/^[=+@-]/, m => "'"+m).replace(/"/g, '""');
+    const evento = String(obtenerNombreEvento(r)).replace(/^[=+@-]/, m => "'"+m).replace(/"/g, '""');
+    const servicio = String(r.tipoServicio || '-').replace(/^[=+@-]/, m => "'"+m).replace(/"/g, '""');
+    const area = String(r.area || '-').replace(/^[=+@-]/, m => "'"+m).replace(/"/g, '""');
+    const estado = String(r.estado || 'Pendiente').replace(/^[=+@-]/, m => "'"+m).replace(/"/g, '""');
 
     csvContent += `"${id}";"${fecha}";"${evento}";"${servicio}";"${area}";"${estado}";"${costo.toFixed(2)}"\n`;
   });

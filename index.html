@@ -6,6 +6,7 @@
   <title>Activaciones | ESAN Labs</title>
   
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>window.handleCredentialResponse = function(r) { window.__credencialPendiente = r; };</script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   
   <script>
@@ -66,6 +67,7 @@
           <button onclick="cerrarSesion()" class="text-marca-rojo font-bold hover:underline ml-2">Salir</button>
         </div>
 
+        <button id="btnCatalogo" onclick="abrirCatalogo()" class="hidden admin-catalog-button">Servicios y recursos</button>
         <button id="btnGestionAdmins" onclick="abrirModalAdmins()" class="hidden bg-gray-800 hover:bg-black text-white px-4 py-2.5 rounded-full font-medium text-xs transition-all shadow-md">
           Gestionar Admins
         </button>
@@ -99,6 +101,8 @@
     </div>
 
     <div id="calendarContainer" class="hidden space-y-4">
+      <section class="page-intro"><div><p class="eyebrow">ESAN LABS / RESERVAS</p><h2>Tu próxima activación,<br>con todo en orden.</h2><p>Consulta la agenda, elige un servicio y reserva sus equipos.</p></div><div class="resource-badge"><span class="live-dot"></span><span id="resumenRecursos"></span></div></section>
+      <div id="avisoConfiguracion" class="inline-warning hidden">Configuración inicial pendiente: Administración debe revisar la cantidad de tablets por servicio, impresoras y valores referenciales en «Servicios y recursos». Luego guardar para habilitar reservas.</div>
       <div class="bg-marca-blanco p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-wrap gap-4 items-center justify-between">
         <div class="flex flex-wrap items-center gap-3">
           <span class="text-xs font-bold text-marca-gris uppercase">Buscar & Filtros:</span>
@@ -125,32 +129,22 @@
             <option value="DPA">DPA</option>
           </select>
 
-          <select id="filtroServicio" onchange="aplicarFiltros()" class="border-gray-200 rounded-lg p-2 text-xs border focus:outline-none bg-gray-50">
-            <option value="TODOS">Todos los Servicios</option>
-            <option value="Foto Booth">Foto Booth</option>
-            <option value="360°">360°</option>
-            <option value="Foto Gif Impresión">Foto Gif Impresión</option>
-            <option value="Foto Gif Virtual">Foto Gif Virtual</option>
-          </select>
+          <select id="filtroServicio" onchange="aplicarFiltros()" class="border-gray-200 rounded-lg p-2 text-xs border"><option value="TODOS">Todas las activaciones</option></select>
         </div>
 
-        <div class="flex items-center gap-4 text-xs font-medium text-marca-gris">
-          <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-[#E3173E]"></span> Foto Gif</div>
-          <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-[#2563EB]"></span> Foto Booth</div>
-          <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-[#16A34A]"></span> 360°</div>
-          <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-[#000000]"></span> Cancelado</div>
-        </div>
+        <div id="leyendaServicios" class="legend"></div>
       </div>
 
       <div class="bg-marca-blanco p-6 rounded-2xl shadow-lg border border-gray-100">
         <div id="calendar" class="min-h-[650px]"></div>
       </div>
+      <section class="catalog-section"><div class="section-heading"><h2>Conoce las activaciones</h2><p>Servicios y recursos para tu evento</p></div><div id="catalogoServicios" class="service-grid"></div></section>
     </div>
   </main>
 
   <!-- MODAL DE REGISTRO / EDICIÓN -->
-  <div id="modalOverlay" class="fixed inset-0 bg-marca-negro/40 backdrop-blur-sm hidden z-50 flex items-center justify-center opacity-0 transition-opacity duration-300">
-    <div id="modalBox" class="bg-marca-blanco rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto transform scale-95 transition-transform duration-300 relative">
+  <div id="modalOverlay" role="dialog" aria-modal="true" aria-label="Solicitud de activación" class="fixed inset-0 bg-marca-negro/40 backdrop-blur-sm hidden z-50 flex items-center justify-center opacity-0 transition-opacity duration-300">
+    <div id="modalBox" tabindex="-1" class="bg-marca-blanco rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto transform scale-95 transition-transform duration-300 relative">
       
       <div class="sticky top-0 bg-marca-blanco px-8 py-5 border-b border-gray-100 flex justify-between items-center z-10">
         <h2 id="modalTitulo" class="text-2xl font-bold text-marca-negro">Registrar Activación</h2>
@@ -222,7 +216,7 @@
               <div class="flex justify-between items-center">
                 <h3 class="text-sm font-bold text-marca-negro uppercase tracking-wider">Detalle de Activaciones</h3>
               </div>
-              <div id="contenedorBloques" class="space-y-3"></div>
+              <div id="contenedorBloques" class="space-y-3"></div><p id="avisoDisponibilidad" class="availability" role="status"></p>
             </div>
 
             <!-- HISTORIAL DE CAMBIOS -->
@@ -237,20 +231,12 @@
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label class="block text-xs font-bold text-marca-rojo mb-1">Tablet Asignada</label>
-                  <select id="tablet" class="w-full border-gray-300 rounded-lg p-2.5 text-sm border focus:outline-none">
-                    <option value="">-- Sin asignar --</option>
-                    <option value="Tablet 1">Tablet 1</option>
-                    <option value="Tablet 2">Tablet 2</option>
-                    <option value="Tablet 3">Tablet 3</option>
-                    <option value="Tablet 4">Tablet 4</option>
-                    <option value="Tablet 5">Tablet 5</option>
-                    <option value="Tablet 6">Tablet 6</option>
-                  </select>
+                  <input id="tablet" type="text" maxlength="200" placeholder="Ej.: Tablet 1, Tablet 3" class="w-full border rounded-lg p-2.5 text-sm"><small class="muted">Asignación interna. El consumo se calcula con el servicio.</small>
                 </div>
                 
                 <div>
                   <label class="block text-xs font-bold text-marca-rojo mb-1">N° Fotos Realizadas</label>
-                  <input type="number" id="fotos" class="w-full border-gray-300 rounded-lg p-2.5 text-sm border focus:outline-none">
+                  <input type="number" id="fotos" min="0" step="1" class="w-full border-gray-300 rounded-lg p-2.5 text-sm border focus:outline-none">
                 </div>
 
                 <div class="col-span-1 md:col-span-2">
@@ -288,7 +274,7 @@
   </div>
 
   <!-- Modal de Confirmación de Guardado -->
-  <div id="modalConfirmacion" class="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
+  <div id="modalConfirmacion" role="dialog" aria-modal="true" aria-label="Confirmar reserva" class="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
     <div class="bg-white rounded-2xl w-full max-w-2xl mx-4 overflow-hidden shadow-2xl transform scale-95 transition-transform duration-300" id="modalConfirmacionBox">
       <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
         <h3 class="text-lg font-bold text-gray-800">Verifica tus Activaciones</h3>
@@ -300,14 +286,14 @@
       <div class="bg-gray-50 px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
         <button type="button" onclick="cerrarModalConfirmacion()" class="px-5 py-2 text-sm font-bold text-gray-600 hover:bg-gray-200 rounded-lg transition-colors">Volver a Editar</button>
         <button type="button" id="btnConfirmarGuardado" class="px-5 py-2 text-sm font-bold text-white bg-marca-rojo rounded-lg transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed">
-          Confirmar (5)
+          Confirmar reserva
         </button>
       </div>
     </div>
   </div>
 
   <!-- MODAL GESTION ADMINS -->
-  <div id="modalAdminsOverlay" class="fixed inset-0 bg-marca-negro/40 backdrop-blur-sm hidden z-50 flex items-center justify-center">
+  <div id="modalAdminsOverlay" role="dialog" aria-modal="true" aria-label="Administradores" class="fixed inset-0 bg-marca-negro/40 backdrop-blur-sm hidden z-50 flex items-center justify-center">
     <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4 relative">
       
       <div class="flex justify-between items-center border-b pb-3">
@@ -324,7 +310,26 @@
     </div>
   </div>
 
-  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
-  <script src="script.js?v=4" defer></script>
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-[80] flex flex-col gap-2 pointer-events-none"></div>
+
+  <div id="modalCatalogo" class="hidden catalog-overlay" role="dialog" aria-modal="true" aria-labelledby="tituloCatalogo">
+    <div class="catalog-panel"><form id="formCatalogo">
+      <header class="catalog-header"><div><p class="eyebrow">ADMINISTRACIÓN</p><h2 id="tituloCatalogo">Servicios y recursos</h2></div><button type="button" onclick="cerrarCatalogo()" aria-label="Cerrar administración" class="icon-close">×</button></header>
+      <div class="catalog-body"><p class="inline-warning">Revisa los valores iniciales: 1 tablet por servicio y 2 impresoras son valores de partida. Foto Carnet tiene valor referencial S/ 0 pendiente de definir. Los cambios de consumo y margen se aplican a nuevas reservas o a reservas cuyo servicio u horario se modifique.</p>
+      <section class="resource-settings"><h3>Equipos compartidos y margen del pack con impresión</h3><div class="fields-grid">
+        <label>Tablets disponibles<input id="cfg_tabletsTotal" type="number" min="1" max="10000" step="1" required></label>
+        <label>Impresoras disponibles<input id="cfg_impresorasTotal" type="number" min="0" max="10000" step="1" required></label>
+        <label>Horas antes<input id="cfg_margenAntes" type="number" min="0" max="168" step="0.25" required></label>
+        <label>Horas después<input id="cfg_margenDespues" type="number" min="0" max="168" step="0.25" required></label>
+      </div><p class="muted">El margen ocupa impresora y tablets. Los demás servicios reservan únicamente su horario. Zona horaria: Lima (UTC−05:00).</p></section>
+      <div class="section-heading"><h3>Catálogo de activaciones</h3><button type="button" onclick="nuevoServicio()" class="secondary-button">+ Agregar activación</button></div>
+      <div id="editorCatalogo"></div></div>
+      <footer class="catalog-footer"><button type="button" onclick="cerrarCatalogo()" class="secondary-button">Cerrar</button><button type="submit" id="guardarCatalogo" class="primary-button">Guardar configuración</button></footer>
+    </form></div>
+  </div>
+  <script src="config.js"></script>
+  <script src="reservas.js"></script>
+  <script src="api.js"></script>
+  <script src="script.js" defer></script>
 </body>
 </html>

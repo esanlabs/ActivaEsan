@@ -1,1055 +1,259 @@
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzoxLf6Au7NsKGunDpDcl_4sUCbZZVZ_vuz5DenBjzw6l4WOCiFH8CvPxGtpEpzNkqy/exec'; 
-
-let datosPendientesGuardar = [];
-let intervaloConfirmacion = null;
-let currentUser = null; 
-let registrosCargados = [];
-let listaAdmins = [];
-let calendarObj = null;
-let idEventoEditando = null;
-let contadorFilas = 0;
-
-function limpiarCacheLocal() {
-  localStorage.removeItem('dashboard_cache');
-  localStorage.removeItem('dashboard_cache_time');
-  console.log("🧹 Caché local eliminada.");
-}
-
-// 2. PRECARGA SILENCIOSA CORREGIDA
-function precargarDatosSilencioso() {
-  const cacheData = localStorage.getItem('dashboard_cache');
-  const cacheTime = localStorage.getItem('dashboard_cache_time');
-  const DIEZ_MINUTOS = 10 * 60 * 1000;
-
-  if (cacheData && cacheTime && (Date.now() - cacheTime < DIEZ_MINUTOS)) return;
-
-  fetch(GOOGLE_SCRIPT_URL, { method: 'GET', redirect: 'follow' })
-    .then(response => response.json())
-    .then(resData => {
-      if (resData.status !== 'error' && resData.registros) {
-        localStorage.setItem('dashboard_cache', JSON.stringify({
-          registros: resData.registros,
-          admins: resData.admins || []
-        }));
-        localStorage.setItem('dashboard_cache_time', Date.now().toString());
-      }
-    })
-    .catch(err => console.warn("Fallo precarga silenciosa:", err));
-}
-
-// --- LOGIN DE GOOGLE ---
-function parseJwt(token) {
-  const base64Url = token.split('.')[1];
-  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-  const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
-  return JSON.parse(jsonPayload);
-}
-
-window.handleCredentialResponse = async function(response) {
-  const data = parseJwt(response.credential);
-  const email = data.email.toLowerCase().trim();
-
-  if (!email.endsWith('@esan.edu.pe')) {
-    const err = document.getElementById('loginError');
-    err.innerText = "Acceso denegado: Se requiere una cuenta con dominio @esan.edu.pe";
-    err.classList.remove('hidden');
-    return;
-  }
-
-  currentUser = { email: email, name: data.name };
-  sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
-
-  document.getElementById('loginScreen').classList.add('hidden');
-  document.getElementById('mainHeader').classList.remove('hidden');
-  document.getElementById('mainContent').classList.remove('hidden');
-  document.getElementById('userNombre').innerText = currentUser.name;
-  document.getElementById('solicita').value = currentUser.name;
-
-  await cargarDatosDesdeGoogle();
-};
-
-// --- CERRAR SESIÓN ---
-function cerrarSesion() {
-  sessionStorage.removeItem('currentUser');
-  localStorage.removeItem('registrosCargados');
-  location.reload();
-}
-
-// --- TOASTS ---
+'use strict';
+let currentUser = null, registrosCargados = [], listaAdmins = [], catalogo = [], configRecursos = {}, calendarObj = null;
+let idEventoEditando = null, registroEditando = null, contadorFilas = 0, datosPendientesGuardar = [], requestId = null;
+let catalogoBorrador = [], revisionBorrador = 0, guardando = false;
+const $ = id => document.getElementById(id), esc = ApiActivaciones.escapar;
+const formato = n => new Intl.DateTimeFormat('es-PE', {dateStyle:'short', timeStyle:'short', hourCycle:'h23', timeZone:'America/Lima'}).format(new Date(n));
+const hoyLima = () => new Intl.DateTimeFormat('en-CA', {timeZone:'America/Lima', year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 function mostrarToast(mensaje, tipo = 'exito') {
-  const container = document.getElementById('toastContainer');
-  if (!container) return;
-  const toast = document.createElement('div');
-  const bgColor = tipo === 'exito' ? 'bg-emerald-600' : 'bg-marca-rojo';
-  toast.className = `${bgColor} text-white px-4 py-3 rounded-xl shadow-xl text-xs font-medium flex items-center gap-3 pointer-events-auto transition-all z-50`;
-  toast.innerHTML = `<span>${mensaje}</span><button onclick="this.parentElement.remove()" class="ml-auto font-bold">✕</button>`;
-  container.appendChild(toast);
-  setTimeout(() => toast.remove(), 4000);
+  const t = document.createElement('div'); t.className = 'toast ' + (tipo === 'error' ? 'toast-error' : ''); t.role = 'status';
+  t.textContent = mensaje; $('toastContainer').append(t); setTimeout(() => t.remove(), 7000);
 }
-
-// --- FUNCIÓN PARA LIMPIAR CACHÉ LOCAL CUANDO SE HAGAN CAMBIOS ---
-function limpiarCacheLocal() {
-  localStorage.removeItem('dashboard_cache');
-  localStorage.removeItem('dashboard_cache_time');
-  console.log("🧹 Caché local eliminada tras cambio/modificación.");
-}
-
-// --- CARGA DE DATOS OPTIMIZADA CON VALIDACIÓN Y ANTI-CACHÉ ---
-async function cargarDatosDesdeGoogle(forzarRed = false) {
-  const loader = document.getElementById('loader');
-  if (loader) loader.classList.remove('hidden');
-
-  const cacheData = localStorage.getItem('dashboard_cache');
-  const cacheTime = localStorage.getItem('dashboard_cache_time');
-  const DIEZ_MINUTOS = 10 * 60 * 1000;
-
-  // 1. INTENTAR CARGAR DESDE CACHÉ SI EXISTE, NO ESTÁ EXPIRADA Y NO SE FORZÓ LA RED
-  if (!forzarRed && cacheData && cacheTime && (Date.now() - Number(cacheTime) < DIEZ_MINUTOS)) {
-    try {
-      const datosProcesados = JSON.parse(cacheData);
-      const registrosExtraidos = Array.isArray(datosProcesados) 
-        ? datosProcesados 
-        : (datosProcesados.registros || []);
-
-      if (registrosExtraidos.length > 0) {
-        console.log("⚡ Carga instantánea desde localStorage con", registrosExtraidos.length, "registros.");
-        registrosCargados = registrosExtraidos;
-        listaAdmins = datosProcesados.admins || ['mtello@esan.edu.pe'];
-
-        const esAdmin = listaAdmins.includes(currentUser.email);
-        currentUser.role = esAdmin ? 'SUPERADMIN' : 'CLIENTE';
-
-        configurarInterfazSegunRol();
-
-        if (loader) loader.classList.add('hidden');
-        document.getElementById('calendarContainer')?.classList.remove('hidden');
-
-        setTimeout(() => {
-          inicializarCalendario();
-        }, 100);
-        return; 
-      }
-    } catch (e) {
-      console.warn("Error al leer caché local, consultando al servidor...", e);
-    }
-  }
-
-  // 2. SI NO HAY CACHÉ O SE PRESIONÓ "ACTUALIZAR", SE CONSULTA CON URL ANTI-CACHÉ
+function limpiarCacheLocal() { localStorage.removeItem('dashboard_cache'); localStorage.removeItem('dashboard_cache_time'); }
+function cerrarSesion() { sessionStorage.removeItem('currentUser'); sessionStorage.removeItem('activaciones_id_token'); limpiarCacheLocal(); location.href = 'index.html'; }
+window.handleCredentialResponse = async function (r) {
+  sessionStorage.setItem('activaciones_id_token', r.credential);
+  try { await cargarDatosDesdeGoogle(); } catch (e) { $('loginError').textContent = e.message; $('loginError').classList.remove('hidden'); }
+};
+async function cargarDatosDesdeGoogle() {
+  $('loader').classList.remove('hidden');
   try {
-    console.log("🌐 Consultando datos frescos desde Google Apps Script...");
-
-    // 🟢 AQUÍ VA EL SNIPPET DE ANTI-CACHÉ:
-    const urlConAntiCache = forzarRed 
-      ? `${GOOGLE_SCRIPT_URL}?refresh=true&t=${Date.now()}` 
-      : GOOGLE_SCRIPT_URL;
-
-    const respuesta = await fetch(urlConAntiCache);
-    const resData = await respuesta.json();
-
-    if (resData.status === 'error') {
-      throw new Error(`[Google Apps Script] ${resData.error || resData.errorDetallado}`);
-    }
-
-    registrosCargados = resData.registros || [];
-    listaAdmins = resData.admins || ['mtello@esan.edu.pe'];
-
-    // Guardar en caché local la última versión traída de la nube
-    localStorage.setItem('dashboard_cache', JSON.stringify({
-      registros: registrosCargados,
-      admins: listaAdmins
-    }));
-    localStorage.setItem('dashboard_cache_time', Date.now().toString());
-
-    const esAdmin = listaAdmins.includes(currentUser.email);
-    currentUser.role = esAdmin ? 'SUPERADMIN' : 'CLIENTE';
-
-    configurarInterfazSegunRol();
-
-  } catch (error) {
-    console.error("Error al cargar datos:", error);
-    mostrarToast(`Error: ${error.message}`, "error");
-  } finally {
-    // 🟢 ESTO EVITA QUE EL LOADER SE QUEDE TRABADO
-    if (loader) loader.classList.add('hidden');
-    document.getElementById('calendarContainer')?.classList.remove('hidden');
-
-    setTimeout(() => {
-      inicializarCalendario();
-    }, 100);
-  }
+    const data = await ApiActivaciones.llamar('read');
+    currentUser = data.user; registrosCargados = data.registros; listaAdmins = data.admins;
+    catalogo = data.catalogo; configRecursos = data.config;
+    sessionStorage.setItem('currentUser', JSON.stringify(currentUser)); limpiarCacheLocal();
+    $('loginScreen').classList.add('hidden'); $('mainHeader').classList.remove('hidden'); $('mainContent').classList.remove('hidden');
+    $('userNombre').textContent = currentUser.name; $('badgeRol').textContent = currentUser.role === 'SUPERADMIN' ? 'Administración' : 'Solicitante';
+    ['btnGestionAdmins','btnExcel','btnDashboard','btnCatalogo'].forEach(id => $(id).classList.toggle('hidden', currentUser.role !== 'SUPERADMIN'));
+    $('calendarContainer').classList.remove('hidden');
+    actualizarCatalogoUI(); inicializarCalendario();
+  } finally { $('loader').classList.add('hidden'); }
 }
-
-function configurarInterfazSegunRol() {
-  const badge = document.getElementById('badgeRol');
-  const filtroArea = document.getElementById('filtroArea');
-  const filtroServicio = document.getElementById('filtroServicio');
-  const btnDashboard = document.getElementById('btnDashboard'); // 🟢 AGREGAR
-
-  // 🟢 AGREGAR: Actualiza el almacenamiento con el rol verificado
-  sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
-
-  if (currentUser.role === 'SUPERADMIN') {
-    badge.innerText = 'Super Admin';
-    badge.className = 'text-xs bg-red-100 text-marca-rojo px-2 py-0.5 rounded-full uppercase ml-2 font-bold';
-    document.getElementById('btnGestionAdmins').classList.remove('hidden');
-    document.getElementById('btnExcel').classList.remove('hidden');
-    if (btnDashboard) btnDashboard.classList.remove('hidden'); // 🟢 Muestra botón a SuperAdmin
-
-    if (filtroArea) filtroArea.classList.remove('hidden');
-    if (filtroServicio) filtroServicio.classList.remove('hidden');
-  } else {
-    badge.innerText = 'Cliente';
-    badge.className = 'text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full uppercase ml-2 font-bold';
-    document.getElementById('btnGestionAdmins').classList.add('hidden');
-    document.getElementById('btnExcel').classList.add('hidden');
-    if (btnDashboard) btnDashboard.classList.add('hidden'); // 🔴 Oculta botón a Clientes
-
-    if (filtroArea) filtroArea.classList.add('hidden');
-    if (filtroServicio) filtroServicio.classList.add('hidden');
-  }
+function actualizarCatalogoUI() {
+  const valor = $('filtroServicio').value;
+  $('filtroServicio').innerHTML = '<option value="TODOS">Todas las activaciones</option>' + catalogo.map(s => `<option value="${esc(s.id)}">${esc(s.nombre)}${s.activo ? '' : ' · inactivo'}</option>`).join('');
+  if ([...$('filtroServicio').options].some(o => o.value === valor)) $('filtroServicio').value = valor;
+  $('leyendaServicios').innerHTML = catalogo.filter(s => s.activo).map(s => `<span class="legend-item"><i style="background:${s.color}"></i>${esc(s.nombre)}</span>`).join('');
+  $('resumenRecursos').textContent = `${configRecursos.tabletsTotal} tablets · ${configRecursos.impresorasTotal} impresoras · Hora de Lima`;
+  $('avisoConfiguracion').classList.toggle('hidden', configRecursos.revisado);
+  $('btnNuevaActivacion').disabled = !configRecursos.revisado;
+  $('catalogoServicios').innerHTML = catalogo.filter(s => s.activo).map(s => {
+    const enlace = ApiActivaciones.enlace(s.sustentoUrl);
+    return `<article class="service-card" style="--service-color:${s.color}"><div class="card-heading"><i class="service-dot"></i><h3>${esc(s.nombre)}</h3></div><p>${esc(s.descripcion || 'Sin descripción.')}</p><div class="service-meta">${s.tablets} tablet(s) por activación${s.permiteImpresora ? ' · Impresión opcional' : ''}</div>${enlace ? `<a href="${esc(enlace)}" target="_blank" rel="noopener noreferrer">Ver sustento ↗</a>` : '<span class="muted">Sustento pendiente</span>'}</article>`;
+  }).join('');
 }
-
-// --- CALENDARIO Y FILTROS ---
-function generarEventosProcesados() {
-  const areaFiltro = document.getElementById('filtroArea')?.value || 'TODAS';
-  const servicioFiltro = document.getElementById('filtroServicio')?.value || 'TODOS';
-  const busquedaTexto = (document.getElementById('buscadorTexto')?.value || '').toLowerCase().trim();
-
-  // Obtener fecha actual en formato YYYY-MM-DD
-  const hoy = new Date();
-  const hoyStr = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
-
-  return registrosCargados
-    .filter(r => r && r.fecha)
-    .filter(r => {
-      if (areaFiltro !== 'TODAS' && (r.area || '') !== areaFiltro) return false;
-      if (servicioFiltro !== 'TODOS' && (r.tipoServicio || '') !== servicioFiltro) return false;
-      
-      if (busquedaTexto) {
-        const matchEvento = (r.tipoEvento || '').toLowerCase().includes(busquedaTexto);
-        const matchSolicita = (r.solicita || '').toLowerCase().includes(busquedaTexto);
-        if (!matchEvento && !matchSolicita) return false;
-      }
-      return true;
-    })
-    .map(r => {
-      const fechaISO = String(r.fecha).split('T')[0];
-      const esCancelado = r.estado === 'Cancelado';
-      const servicio = r.tipoServicio || '';
-      
-      const correoReg = (r.correoSolicitante || '').toLowerCase().trim();
-      const esMiEvento = correoReg === currentUser.email;
-      const esSuperUsuario = currentUser.role === 'SUPERADMIN';
-      const tienePermiso = esSuperUsuario || esMiEvento;
-
-      if (!tienePermiso) {
-        return {
-          id: r.numEvento,
-          title: r.tipoEvento || 'Sin título',
-          start: fechaISO,
-          backgroundColor: '#000000',
-          borderColor: '#000000',
-          textColor: '#ffffff',
-          extendedProps: { permitirClick: false }
-        };
-      }
-
-      // ASIGNACIÓN DE COLORES
-      let color = '#6B7280'; 
-      if (esCancelado) {
-        color = '#000000'; // Negro: Eventos cancelados
-      } else if (fechaISO < hoyStr) {
-        color = '#6B7280'; // Gris: Eventos anteriores al día actual
-      } else if (servicio.includes('Foto Gif')) {
-        color = '#E3173E'; // Rojo
-      } else if (servicio === 'Foto Booth') {
-        color = '#2563EB'; // Azul
-      } else if (servicio === '360°') {
-        color = '#16A34A'; // Verde
-      }
-
-      return {
-        id: r.numEvento,
-        title: `${r.tipoEvento || 'Sin título'} [${servicio}]`,
-        start: fechaISO,
-        backgroundColor: color,
-        borderColor: color,
-        extendedProps: { ...r, permitirClick: true } 
-      };
-    });
+function eventosCalendario() {
+  const query = $('buscadorTexto').value.toLowerCase().trim(), area = $('filtroArea').value, servicio = $('filtroServicio').value;
+  return registrosCargados.filter(r => {
+    const s = Reservas.servicio(r, catalogo);
+    return (servicio === 'TODOS' || s?.id === servicio) && (area === 'TODAS' || r.area === area) &&
+      (!query || [r.tipoEvento,r.solicita,r.tipoServicio].some(t => String(t || '').toLowerCase().includes(query)));
+  }).map(r => {
+    const s = Reservas.servicio(r, catalogo), legacy = !r.horaInicio || !r.horaFin;
+    return {id: String(r.numEvento), title: `${r.tipoEvento} · ${s?.nombre || r.tipoServicio}${Reservas.imprime(r) ? ' + impresión' : ''} · ${r.estado}`,
+      start: r.fecha + (legacy ? '' : 'T' + r.horaInicio + ':00-05:00'),
+      end: legacy ? Reservas.sumarDias(r.fecha, r.diasServicio || 1) : (r.fechaFin || r.fecha) + 'T' + r.horaFin + ':00-05:00',
+      allDay: legacy, backgroundColor: s?.color || '#64748B', borderColor: s?.color || '#64748B', textColor: contraste(s?.color || '#64748B'),
+      classNames: r.estado === 'Cancelado' ? ['evento-cancelado'] : [], extendedProps: {...r}};
+  });
 }
-
+function contraste(hex) {
+  const h = hex.replace('#',''), rgb = [0,2,4].map(i => parseInt(h.slice(i,i+2),16));
+  return rgb[0] * .299 + rgb[1] * .587 + rgb[2] * .114 > 160 ? '#152033' : '#FFFFFF';
+}
 function inicializarCalendario() {
-  const calendarEl = document.getElementById('calendar');
-  if (!calendarEl) return;
-  if (calendarObj) calendarObj.destroy(); 
-
-  calendarObj = new FullCalendar.Calendar(calendarEl, {
-    initialView: 'dayGridMonth',
-    locale: 'es',
-    contentHeight: 'auto',
-    handleWindowResize: true,
-    headerToolbar: { 
-      left: 'prev,next today', 
-      center: 'title', 
-      right: 'dayGridMonth,timeGridWeek,listWeek' 
-    },
-    events: generarEventosProcesados(),
-    
-    dateClick: function(info) {
-      // Obtener la fecha actual en formato local "YYYY-MM-DD"
-      const hoy = new Date();
-      const hoyStr = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
-      
-      // Bloquear si se hace clic en una fecha anterior a hoy
-      if (info.dateStr < hoyStr) {
-        mostrarToast("No puedes registrar activaciones en días pasados.", "error");
-        return;
-      }
-      
-      abrirModalNuevo(info.dateStr);
-    },
-
-    eventClick: (info) => {
-      const p = info.event.extendedProps;
-      
-      if (!p.permitirClick) return; 
-      
-      const esDuenio = (p.correoSolicitante || '').toLowerCase().trim() === currentUser.email;
-      
-      if (currentUser.role !== 'SUPERADMIN' && !esDuenio) {
-        mostrarToast("Solo puedes editar tus propias activaciones.", "error");
-        return;
-      }
-
-      idEventoEditando = p.numEvento; 
-      document.getElementById('modalTitulo').innerText = "Editar Activación";
-      document.getElementById('btnGuardar').innerText = "Actualizar";
-      document.getElementById('btnCancelar').classList.remove('hidden');
-
-      if (currentUser.role === 'SUPERADMIN') {
-        document.getElementById('contenedorEdicion').classList.remove('hidden');
-      } else {
-        document.getElementById('contenedorEdicion').classList.add('hidden');
-      }
-
-      document.getElementById('chkUnificarCostos').checked = true;
-      toggleUnificarCostos();
-
-      document.getElementById('area').value = p.area || "DPA";
-      document.getElementById('solicita').value = p.solicita || currentUser.name;
-      document.getElementById('costos').value = p.centroCostos || "";
-      document.getElementById('observaciones').value = p.observaciones || "";
-
-      document.getElementById('contenedorBloques').innerHTML = "";
-      contadorFilas = 0;
-      
-      agregarFilaActivacion(String(p.fecha).split('T')[0], p.tipoServicio || "", p.tipoEvento || "", p.centroCostos || "", p.observaciones || "", p.diasServicio || 1);
-
-      if (currentUser.role === 'SUPERADMIN') {
-        document.getElementById('tablet').value = p.tablet || "";
-        document.getElementById('fotos').value = p.cantFotos || "";
-        document.getElementById('link').value = p.link || ""; 
-      }
-
-      abrirModal();
+  const fecha = calendarObj?.getDate(), vista = calendarObj?.view.type;
+  if (calendarObj) calendarObj.destroy();
+  calendarObj = new FullCalendar.Calendar($('calendar'), {
+    initialView: vista || 'dayGridMonth', initialDate: fecha || hoyLima(), locale:'es', timeZone:'UTC', now: () => new Date(Date.now()-5*3600000), height:'auto', displayEventTime: true, eventDisplay:'block', dayMaxEvents:3,
+    // Enviar fechas de presentación locales; el motor valida siempre con UTC-05:00.
+    events: eventosCalendario().map(e => ({...e,start: typeof e.start === 'string' ? e.start.replace('-05:00','Z') : e.start,end: typeof e.end === 'string' ? e.end.replace('-05:00','Z') : e.end})),
+    headerToolbar:{left:'prev,next today',center:'title',right:'dayGridMonth,timeGridWeek,listWeek'},
+    buttonText:{today:'Hoy',month:'Mes',week:'Semana',list:'Agenda'},
+    eventTimeFormat:{hour:'2-digit',minute:'2-digit',hour12:false},
+    dateClick: i => abrirModalNuevo(i.dateStr.slice(0,10)),
+    eventClick: i => { if (!i.event.extendedProps.ocupado) editarRegistro(i.event.extendedProps); },
+    eventDidMount: info => {
+      const r = info.event.extendedProps;
+      info.el.title = `${r.tipoEvento} · ${r.tipoServicio}\n${r.estado}${!r.horaInicio ? '\nReserva antigua sin horario: ocupa días completos.' : ''}`;
     }
   });
-
   calendarObj.render();
-
-  // 🟢 AJUSTE DE TAMAÑO EN DOS TIEMPOS PARA EVITAR PANTALLA EN BLANCO
-  setTimeout(() => { if (calendarObj) calendarObj.updateSize(); }, 150);
-  setTimeout(() => { if (calendarObj) calendarObj.updateSize(); }, 400);
 }
-
-function agregarFilaActivacion(fechaPorDefecto = "", servicioDef = "", nombreDef = "", costoDef = "", obsDef = "", diasDef = 1) {
-  const container = document.getElementById('contenedorBloques');
-  const index = contadorFilas++;
-  const esEdicion = idEventoEditando !== null;
-  const hoyISO = new Date().toISOString().split('T')[0];
-  const minAttr = (esEdicion || currentUser.role === 'SUPERADMIN') ? '' : `min="${hoyISO}"`;
-
-  const unificado = document.getElementById('chkUnificarCostos') ? document.getElementById('chkUnificarCostos').checked : true;
-  const estadoDisabled = unificado ? 'disabled' : '';
-  const opacidad = unificado ? 'opacity-50' : '';
-
-  const div = document.createElement('div');
-  div.className = "bg-white p-4 rounded-xl border border-gray-200 space-y-3 relative fila-activacion";
-  div.id = `fila_${index}`;
-
-  const tieneFecha = !!fechaPorDefecto;
-
-  div.innerHTML = `
-    <div class="flex justify-between items-center border-b pb-2">
-      <span class="text-xs font-bold text-gray-500 uppercase">Activación #${container.children.length + 1}</span>
-      ${(!esEdicion && container.children.length > 0) ? `<button type="button" onclick="eliminarFila(${index})" class="text-xs text-red-600 font-bold hover:underline">Quitar</button>` : ''}
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
-      <div>
-        <label class="block text-xs font-bold text-gray-600 mb-1">Nombre del Evento *</label>
-        <input type="text" id="nombreEvento_${index}" value="${nombreDef}" required class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo">
-      </div>
-
-      <div>
-        <label class="block text-xs font-bold text-gray-600 mb-1">Fecha y Días *</label>
-        <div class="flex gap-2">
-          <input type="date" id="fechaEvento_${index}" onchange="manejarCambioFecha(${index})" ${minAttr} value="${fechaPorDefecto}" required class="w-2/3 border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo">
-          <input type="number" id="diasServicio_${index}" min="1" value="${diasDef}" onchange="validarImpresorasEnTiempoReal()" class="w-1/3 border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo" title="Días de servicio">
-        </div>
-      </div>
-
-      <div>
-        <label class="block text-xs font-bold text-gray-600 mb-1">Servicio *</label>
-        <select id="servicio_${index}" onchange="toggleImpresora(${index})" required class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo disabled:bg-gray-100 disabled:opacity-60 disabled:cursor-not-allowed">
-          <option value="">-- Seleccionar --</option>
-          <option value="Foto Booth" ${servicioDef === 'Foto Booth' ? 'selected' : ''}>Foto Booth</option>
-          <option value="Foto Gif" ${servicioDef.includes('Foto Gif') ? 'selected' : ''}>Foto Gif</option>
-          <option value="360°" ${servicioDef === '360°' ? 'selected' : ''}>360°</option>
-        </select>
-
-        <div id="divImpresora_${index}" class="mt-2 ${servicioDef.includes('Foto Gif') ? '' : 'hidden'}">
-          <label class="inline-flex items-center gap-1.5 text-xs font-bold text-marca-rojo cursor-pointer transition-all">
-            <input type="checkbox" id="checkImpresora_${index}" onchange="validarImpresorasEnTiempoReal()" ${servicioDef === 'Foto Gif Impresión' ? 'checked' : ''} class="rounded text-marca-rojo focus:ring-marca-rojo">
-            Con Impresora
-          </label>
-        </div>
-      </div>
-    </div>
-
-    <div id="divCostosUnitario_${index}" class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2 pt-2 border-t border-gray-100 transition-opacity ${opacidad}">
-      <div>
-        <label class="block text-xs font-bold text-gray-600 mb-1">Centro de Costos (Unitario)</label>
-        <input type="text" id="costos_${index}" value="${costoDef}" ${estadoDisabled} class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo disabled:bg-gray-100">
-      </div>
-      <div>
-        <label class="block text-xs font-bold text-gray-600 mb-1">Observaciones (Unitario)</label>
-        <textarea id="observaciones_${index}" rows="1" ${estadoDisabled} class="w-full border-gray-300 rounded-lg p-2 text-xs border focus:outline-none focus:border-marca-rojo disabled:bg-gray-100">${obsDef}</textarea>
-      </div>
-    </div>
-  `;
-
-  container.appendChild(div);
-
-  const selectServicio = document.getElementById(`servicio_${index}`);
-  if (selectServicio) {
-    selectServicio.disabled = !tieneFecha;
-  }
-
-  setTimeout(validarImpresorasEnTiempoReal, 50);
+function aplicarFiltros() { inicializarCalendario(); }
+async function actualizarCalendario() { try { await cargarDatosDesdeGoogle(); mostrarToast('Datos actualizados.'); } catch(e) { mostrarToast(e.message,'error'); } }
+function abrirModal() { $('modalOverlay').classList.remove('hidden','opacity-0'); $('modalBox').classList.remove('scale-95'); $('modalBox').focus(); }
+function cerrarModal() { if (!guardando) { $('modalOverlay').classList.add('hidden'); registroEditando = null; idEventoEditando = null; } }
+function abrirModalNuevo(fecha = '') {
+  if (!configRecursos.revisado) return mostrarToast('Administración debe revisar primero los recursos y servicios.','error');
+  registroEditando = null; idEventoEditando = null; contadorFilas = 0;
+  $('formActivacion').reset(); $('contenedorBloques').replaceChildren();
+  $('solicita').value = currentUser.name; $('contenedorEdicion').classList.add('hidden'); $('btnCancelar').classList.add('hidden');
+  $('modalTitulo').textContent = 'Nueva solicitud'; $('btnGuardar').textContent = 'Revisar solicitud';
+  agregarFilaActivacion(fecha || hoyLima()); toggleUnificarCostos(); abrirModal();
 }
-
-window.toggleImpresora = function(index) {
-  const servicio = document.getElementById(`servicio_${index}`).value;
-  const div = document.getElementById(`divImpresora_${index}`);
-  const check = document.getElementById(`checkImpresora_${index}`);
-
-  if (servicio === 'Foto Gif') {
-    div.classList.remove('hidden');
-  } else {
-    div.classList.add('hidden');
-    check.checked = false;
-  }
-  
-  validarImpresorasEnTiempoReal();
-};
-
-window.eliminarFila = function(index) {
-  const elem = document.getElementById(`fila_${index}`);
-  if (elem) elem.remove();
-  
-  const container = document.getElementById('contenedorBloques');
-  Array.from(container.children).forEach((child, i) => {
-    child.querySelector('span.uppercase').innerText = `Activación #${i + 1}`;
+function editarRegistro(r) {
+  registroEditando = r; idEventoEditando = r.numEvento; contadorFilas = 0;
+  $('formActivacion').reset(); $('contenedorBloques').replaceChildren();
+  $('modalTitulo').textContent = `Reserva #${r.numEvento}`; $('btnGuardar').textContent = 'Revisar cambios';
+  $('solicita').value = r.solicita; $('area').value = r.area; $('costos').value = r.centroCostos; $('observaciones').value = r.observaciones;
+  $('contenedorEdicion').classList.toggle('hidden', currentUser.role !== 'SUPERADMIN');
+  $('btnCancelar').classList.toggle('hidden', r.estado === 'Cancelado');
+  $('tablet').value = r.tablet || ''; $('fotos').value = r.cantFotos ?? ''; $('link').value = r.link || '';
+  agregarFilaActivacion(r.fecha, r); toggleUnificarCostos(); abrirModal();
+}
+function agregarFilaActivacion(fecha = '', r = null) {
+  const i = contadorFilas++, s = r ? Reservas.servicio(r,catalogo) : null, div = document.createElement('section');
+  div.id = `fila_${i}`; div.className = 'fila-activacion'; div.dataset.original = r ? 'true' : '';
+  const servicios = catalogo.filter(c => c.activo || c.id === s?.id);
+  div.innerHTML = `<div class="row-heading"><strong>Activación <span class="numero-fila"></span></strong>${r ? '<span class="muted">Registro existente</span>' : `<button type="button" class="text-action" onclick="eliminarFila(${i})">Quitar</button>`}</div>
+  ${r && !r.horaInicio ? '<p class="inline-warning">Reserva antigua sin horario. Al guardar, indica inicio y fin; se comprobará la disponibilidad nuevamente.</p>' : ''}
+  <div class="fields-grid"><label class="span-2">Nombre del evento<input id="nombreEvento_${i}" maxlength="200" required value="${esc(r?.tipoEvento || '')}"></label>
+  <label>Activación<select id="servicio_${i}" onchange="toggleImpresora(${i})" required><option value="">Seleccionar servicio</option>${servicios.map(c => `<option value="${esc(c.id)}" ${c.id === s?.id ? 'selected' : ''}>${esc(c.nombre)}${c.activo ? '' : ' · inactivo'}</option>`).join('')}</select></label>
+  <label>Fecha de inicio<input type="date" id="fechaEvento_${i}" required value="${esc(fecha)}" onchange="cambiarFecha(${i})"></label>
+  <label>Hora de inicio<input type="time" id="horaInicio_${i}" required value="${esc(r?.horaInicio || '')}" onchange="validarDisponibilidad()"></label>
+  <label>Fecha de fin<input type="date" id="fechaFin_${i}" required value="${esc(r?.fechaFin || (r ? Reservas.sumarDias(fecha,(r.diasServicio || 1)-1) : fecha))}" onchange="validarDisponibilidad()"></label>
+  <label>Hora de fin<input type="time" id="horaFin_${i}" required value="${esc(r?.horaFin || '')}" onchange="validarDisponibilidad()"></label></div>
+  <div id="divImpresora_${i}" class="print-option ${s?.permiteImpresora ? '' : 'hidden'}"><label><input type="checkbox" id="checkImpresora_${i}" ${r && Reservas.imprime(r) ? 'checked' : ''} onchange="validarDisponibilidad()"> Incluir impresora · el margen bloquea el pack completo</label></div>
+  <p id="resumen_${i}" class="resource-preview" aria-live="polite"></p>
+  <div id="divCostosUnitario_${i}" class="fields-grid"><label>Centro de costos<input id="costos_${i}" value="${esc(r?.centroCostos || '')}"></label><label class="span-2">Observaciones<textarea id="observaciones_${i}" maxlength="4000">${esc(r?.observaciones || '')}</textarea></label></div>`;
+  $('contenedorBloques').append(div); renumerar(); toggleUnificarCostos(); validarDisponibilidad();
+}
+function renumerar() { document.querySelectorAll('.numero-fila').forEach((e,i) => e.textContent = i+1); }
+function eliminarFila(i) { $(`fila_${i}`)?.remove(); renumerar(); validarDisponibilidad(); }
+function cambiarFecha(i) { const inicio = $(`fechaEvento_${i}`).value, fin = $(`fechaFin_${i}`); if (!fin.value || fin.value < inicio) fin.value = inicio; validarDisponibilidad(); }
+function toggleImpresora(i) {
+  const s = catalogo.find(s => s.id === $(`servicio_${i}`).value);
+  $(`divImpresora_${i}`).classList.toggle('hidden', !s?.permiteImpresora);
+  if (!s?.permiteImpresora) $(`checkImpresora_${i}`).checked = false;
+  validarDisponibilidad();
+}
+function toggleUnificarCostos() {
+  const unificar = $('chkUnificarCostos').checked;
+  $('costos').disabled = $('observaciones').disabled = !unificar;
+  document.querySelectorAll('[id^="divCostosUnitario_"]').forEach(d => {
+    d.classList.toggle('hidden', unificar); d.querySelectorAll('input,textarea').forEach(e => e.disabled = unificar);
   });
-
-  validarImpresorasEnTiempoReal();
-};
-
-// --- CONTROL DE MODALES ---
-
-window.abrirModalNuevo = function(fechaInicial = "") {
-  cerrarModalAdmins(); // Cierra el modal de admins si estaba abierto
-
-  idEventoEditando = null; 
-  
-  const form = document.getElementById('formActivacion');
-  if (form) form.reset();
-  
-  const chk = document.getElementById('chkUnificarCostos');
-  if (chk) {
-    chk.checked = true;
-    if (typeof toggleUnificarCostos === 'function') toggleUnificarCostos();
-  }
-
-  const titulo = document.getElementById('modalTitulo');
-  if (titulo) titulo.innerText = "Registrar Nueva Solicitud";
-  
-  const btnG = document.getElementById('btnGuardar');
-  if (btnG) btnG.innerText = "Guardar Solicitud";
-  
-  const solicita = document.getElementById('solicita');
-  if (solicita) solicita.value = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.name : '';
-  
-  const contenedorEdic = document.getElementById('contenedorEdicion');
-  if (contenedorEdic) contenedorEdic.classList.add('hidden');
-  
-  const btnCanc = document.getElementById('btnCancelar');
-  if (btnCanc) btnCanc.classList.add('hidden');
-  
-  const contenedorBloques = document.getElementById('contenedorBloques');
-  if (contenedorBloques) contenedorBloques.innerHTML = "";
-  
-  contadorFilas = 0;
-  if (typeof agregarFilaActivacion === 'function') {
-    agregarFilaActivacion(fechaInicial);
-  }
-  
-  abrirModal();
-};
-
-window.abrirModal = function() {
-  const overlay = document.getElementById('modalOverlay');
-  const box = document.getElementById('modalBox');
-  if (!overlay) return;
-  overlay.removeAttribute('style');
-  overlay.classList.remove('hidden');
-  setTimeout(() => {
-    overlay.classList.remove('opacity-0');
-    box?.classList.remove('scale-95');
-  }, 10);
-};
-
-window.cerrarModal = function() {
-  const overlay = document.getElementById('modalOverlay');
-  const box = document.getElementById('modalBox');
-  if (!overlay) return;
-  overlay.classList.add('opacity-0');
-  box?.classList.add('scale-95');
-  setTimeout(() => overlay.classList.add('hidden'), 300);
-};
-
-// --- GESTIÓN DE ADMINS (CÓDIGO CORREGIDO Y SEGURO) ---
-
-// --- GESTIÓN DE ADMINS (CORREGIDO) ---
-
-window.abrirModalAdmins = function() {
-  const modal = document.getElementById('modalAdminsOverlay');
-  if (!modal) return;
-  
-  document.body.appendChild(modal);
-  modal.classList.remove('hidden');
-  modal.style.cssText = "display: flex !important; position: fixed !important; inset: 0 !important; z-index: 99999 !important; background-color: rgba(0,0,0,0.5) !important;";
-  
-  renderizarListaAdmins();
-};
-
-window.cerrarModalAdmins = function() {
-  const modal = document.getElementById('modalAdminsOverlay');
-  if (modal) {
-    modal.style.cssText = "";
-    modal.classList.add('hidden');
-  }
-};
-
-function renderizarListaAdmins() {
-  const lista = document.getElementById('listaAdmins');
-  if (!lista) return;
-  
-  if (listaAdmins.length === 0) {
-    lista.innerHTML = `<li class="py-2 text-gray-400 text-center">No hay administradores</li>`;
-    return;
-  }
-
-  lista.innerHTML = listaAdmins.map(adm => `
-    <li class="py-2 flex justify-between items-center border-b border-gray-100 text-xs">
-      <span>${adm}</span>
-      ${adm !== 'mtello@esan.edu.pe' ? `<button onclick="eliminarAdmin('${adm}')" class="text-red-500 font-bold hover:underline">Eliminar</button>` : '<span class="text-gray-400 font-bold">Principal</span>'}
-    </li>
-  `).join('');
 }
-
-window.agregarAdmin = async function() {
-  const input = document.getElementById('nuevoAdminEmail');
-  const email = input.value.trim().toLowerCase();
-  
-  if (!email.endsWith('@esan.edu.pe')) {
-    return mostrarToast("Debe ser un correo @esan.edu.pe", "error");
-  }
-
-  try {
-    // 1. Agregar a la lista local en memoria inmediatamente
-    if (!listaAdmins.includes(email)) {
-      listaAdmins.push(email);
-      renderizarListaAdmins();
-    }
-    input.value = '';
-
-    // 2. Persistir en Google Apps Script
-    await fetch(GOOGLE_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'add_admin', email: email })
-    });
-
-    limpiarCacheLocal();
-    mostrarToast("Administrador agregado", "exito");
-  } catch (err) {
-    console.error("Error al agregar admin:", err);
-    mostrarToast("Error al agregar administrador", "error");
-  }
-};
-
-window.eliminarAdmin = async function(email) {
-  if (!confirm(`¿Eliminar a ${email} de los administradores?`)) return;
-
-  try {
-    // 1. Quitar de la memoria local de inmediato
-    listaAdmins = listaAdmins.filter(a => a.toLowerCase() !== email.toLowerCase());
-    renderizarListaAdmins();
-
-    // 2. Enviar petición al servidor
-    await fetch(GOOGLE_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'remove_admin', email: email })
-    });
-
-    limpiarCacheLocal();
-    mostrarToast("Administrador eliminado", "exito");
-  } catch (err) {
-    console.error("Error al eliminar admin:", err);
-    mostrarToast("Error al eliminar administrador", "error");
-  }
-};
-
-// --- GUARDADO DE SOLICITUDES ---
-document.getElementById('formActivacion').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  
-  const filas = document.getElementById('contenedorBloques').children;
-  if (filas.length === 0) return mostrarToast("Agrega al menos una activación.", "error");
-
-  let payloadItems = [];
-
-  const unificarCostos = document.getElementById('chkUnificarCostos') ? document.getElementById('chkUnificarCostos').checked : false;
-  const costoGeneral = document.getElementById('costos').value;
-  const obsGeneral = document.getElementById('observaciones').value;
-
-  for (let i = 0; i < filas.length; i++) {
-    const divId = filas[i].id;
-    const index = divId.split('_')[1];
-
-    const nombre = document.getElementById(`nombreEvento_${index}`).value;
-    const fecha = document.getElementById(`fechaEvento_${index}`).value;
-    const diasServicio = parseInt(document.getElementById(`diasServicio_${index}`).value) || 1;
-    const servicioBase = document.getElementById(`servicio_${index}`).value;
-    const checkObj = document.getElementById(`checkImpresora_${index}`);
-    
-    const costoUnitario = document.getElementById(`costos_${index}`) ? document.getElementById(`costos_${index}`).value : "";
-    const obsUnitaria = document.getElementById(`observaciones_${index}`) ? document.getElementById(`observaciones_${index}`).value : "";
-
-    const quiereImpresora = !checkObj.disabled && checkObj.checked;
-    let servicioFinal = servicioBase;
-    if (servicioBase === 'Foto Gif') {
-      servicioFinal = quiereImpresora ? 'Foto Gif Impresión' : 'Foto Gif Virtual';
-    }
-
-    // 🟢 CLAVE DE LA SOLUCIÓN:
-    // La 1ª activación (i === 0) mantiene el ID original para actualizar esa fila en Excel.
-    // Las nuevas activaciones agregadas en el modal (i > 0) llevan null para que el Excel cree una fila NUEVA.
-    const idParaEsteItem = (idEventoEditando !== null && i === 0) ? idEventoEditando : null;
-
-    payloadItems.push({
-      numEvento: idParaEsteItem, // <-- Se asigna null a la nueva activación
-      tipoEvento: nombre,
-      area: document.getElementById('area').value,
-      solicita: currentUser.name,
-      correoSolicitante: currentUser.email,
-      centroCostos: unificarCostos ? costoGeneral : costoUnitario,
-      observaciones: unificarCostos ? obsGeneral : obsUnitaria,
-      tipoServicio: servicioFinal,
-      estado: "Confirmado",
-      tablet: (currentUser.role === 'SUPERADMIN' && idEventoEditando && i === 0) ? document.getElementById('tablet').value : "",
-      fecha: fecha, 
-      diasServicio: diasServicio, 
-      cantPersonas: 1,
-      cantFotos: (currentUser.role === 'SUPERADMIN' && idEventoEditando && i === 0) ? document.getElementById('fotos').value : "",
-      costo: calcularCostoServicio(servicioFinal),
-      link: (currentUser.role === 'SUPERADMIN' && idEventoEditando && i === 0) ? document.getElementById('link').value : ""
-    });
-  }
-
-  const getRango = (fechaStr, dias) => {
-    const idx = obtenerDiaIndex(fechaStr);
-    if (idx === null) return [];
-    let arr = [];
-    for (let i = idx - 1; i <= idx + (parseInt(dias) || 1); i++) arr.push(i);
-    return arr;
-  };
-
-  let usoPorDia = {};
-  registrosCargados.forEach(r => {
-    if (r.tipoServicio === 'Foto Gif Impresión' && r.estado !== 'Cancelado' && r.numEvento !== idEventoEditando) {
-      getRango(String(r.fecha), r.diasServicio || 1).forEach(d => usoPorDia[d] = (usoPorDia[d] || 0) + 1);
-    }
+function leerFilas() {
+  return [...$('contenedorBloques').children].map(fila => {
+    const i = fila.id.split('_')[1], s = catalogo.find(s => s.id === $(`servicio_${i}`).value), original = fila.dataset.original ? registroEditando : null;
+    if (!s) throw new Error('Selecciona el servicio de cada activación.');
+    const imp = $(`checkImpresora_${i}`).checked, fecha = $(`fechaEvento_${i}`).value, fechaFin = $(`fechaFin_${i}`).value;
+    const horaInicio = $(`horaInicio_${i}`).value, horaFin = $(`horaFin_${i}`).value;
+    const mismo = original && original.horaInicio && (Reservas.servicio(original,catalogo)||{}).id === s.id && Reservas.imprime(original) === imp && original.fecha === fecha && (original.fechaFin || original.fecha) === fechaFin && original.horaInicio === horaInicio && original.horaFin === horaFin;
+    return {numEvento: original?.numEvento ?? null, version: original?.version ?? 0, tipoEvento:$(`nombreEvento_${i}`).value.trim(), area:$('area').value,
+      solicita:original?.solicita || currentUser.name, correoSolicitante:original?.correoSolicitante || currentUser.email,
+      servicioId:s.id, tipoServicio:s.id === 'fotogift' ? (imp ? 'Foto Gif Impresión' : 'Foto Gif Virtual') : s.nombre,
+      conImpresora:imp, fecha, fechaFin, horaInicio, horaFin, estado:original?.estado === 'Cancelado' ? 'Cancelado' : 'Pendiente',
+      tabletsReservadas: mismo && original.tabletsReservadas != null ? original.tabletsReservadas : s.tablets,
+      margenAntes:imp ? (mismo && original.margenAntes != null ? original.margenAntes : configRecursos.margenAntes) : 0,
+      margenDespues:imp ? (mismo && original.margenDespues != null ? original.margenDespues : configRecursos.margenDespues) : 0,
+      centroCostos:$('chkUnificarCostos').checked ? $('costos').value : $(`costos_${i}`).value,
+      observaciones:$('chkUnificarCostos').checked ? $('observaciones').value : $(`observaciones_${i}`).value,
+      tablet:original ? $('tablet').value : '', cantFotos:original ? $('fotos').value : '', link:original ? $('link').value : ''};
   });
-
-  let hayConflicto = false;
-  for (let item of payloadItems) {
-    if (item.tipoServicio === 'Foto Gif Impresión') {
-      const rangoItem = getRango(item.fecha, item.diasServicio);
-      for (let d of rangoItem) {
-        if ((usoPorDia[d] || 0) >= 2) {
-          hayConflicto = true;
-          break;
-        }
-      }
-      if (hayConflicto) break;
-      rangoItem.forEach(d => usoPorDia[d] = (usoPorDia[d] || 0) + 1);
-    }
-  }
-
-  if (hayConflicto) {
-    alert("Atención\nNo contamos con la cantidad de impresoras para atender su fotogif en el rango de fechas seleccionado.");
-    return;
-  }
-
-  datosPendientesGuardar = payloadItems;
-  abrirModalConfirmacion();
+}
+function validarDisponibilidad() {
+  try {
+    const items = leerFilas();
+    items.forEach((r,idx) => {
+      const t = Reservas.tramo(r,catalogo,configRecursos), i = $('contenedorBloques').children[idx].id.split('_')[1];
+      $(`resumen_${i}`).textContent = `${t.tablets} tablet(s)${t.impresoras ? ' + 1 impresora' : ''} · Ocupación: ${formato(t.inicio)} → ${formato(t.fin)}${r.estado === 'Cancelado' ? ' · Cancelada: no ocupa equipos' : ''}`;
+    });
+    Reservas.validarLote(registrosCargados,items,catalogo,configRecursos);
+    $('avisoDisponibilidad').textContent = items.length ? 'Horario disponible según la última sincronización. Se verificará nuevamente al guardar.' : 'Añade al menos una activación.';
+    $('avisoDisponibilidad').className = 'availability'; return true;
+  } catch(e) { $('avisoDisponibilidad').textContent = e.message; $('avisoDisponibilidad').className = 'availability availability-warning'; return false; }
+}
+$('formActivacion').addEventListener('submit', e => {
+  e.preventDefault(); if (!validarDisponibilidad()) return;
+  datosPendientesGuardar = leerFilas(); if (!datosPendientesGuardar.length) return;
+  requestId = crypto.randomUUID();
+  $('listaConfirmacion').innerHTML = datosPendientesGuardar.map(r => {
+    const t = Reservas.tramo(r,catalogo,configRecursos);
+    return `<article class="confirm-card"><strong>${esc(r.tipoEvento)}</strong><p>${esc(r.tipoServicio)}</p><p>Evento: ${esc(r.fecha)} ${esc(r.horaInicio)} → ${esc(r.fechaFin)} ${esc(r.horaFin)}</p><p>${t.tablets} tablet(s)${t.impresoras ? ' + 1 impresora' : ''}</p><p>Equipos ocupados: ${esc(formato(t.inicio))} → ${esc(formato(t.fin))}</p></article>`;
+  }).join('');
+  $('modalConfirmacion').classList.remove('hidden','opacity-0'); $('modalConfirmacionBox').classList.remove('scale-95');
+  $('btnConfirmarGuardado').textContent = 'Confirmar reserva'; $('btnConfirmarGuardado').disabled = false;
 });
-
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && calendarObj) {
-    calendarObj.updateSize();
+function cerrarModalConfirmacion() { if (!guardando) $('modalConfirmacion').classList.add('hidden'); }
+$('btnConfirmarGuardado').addEventListener('click', async () => {
+  if (guardando) return; guardando = true; const btn = $('btnConfirmarGuardado'); btn.disabled = true; btn.textContent = 'Guardando…';
+  let exito = false;
+  try {
+    const r = await ApiActivaciones.llamar(idEventoEditando ? 'update' : 'create_multiple',{items:datosPendientesGuardar,requestId});
+    exito = true; $('modalConfirmacion').classList.add('hidden'); $('modalOverlay').classList.add('hidden');
+    mostrarToast(r.alertaCorreo || 'Reserva guardada.');
+    try { await cargarDatosDesdeGoogle(); } catch(e) { mostrarToast('Se guardó, pero no se pudo actualizar la vista: ' + e.message,'error'); }
+  } catch(e) { mostrarToast(e.message,'error'); }
+  finally { guardando = false; btn.disabled = false; btn.textContent = exito ? 'Confirmar reserva' : 'Reintentar'; }
+});
+async function cancelarRegistro() {
+  if (!registroEditando || !confirm('¿Cancelar esta reserva y liberar sus equipos?')) return;
+  const btn = $('btnCancelar'); btn.disabled = true;
+  try { await ApiActivaciones.llamar('cancel',{numEvento:idEventoEditando,version:registroEditando.version}); cerrarModal(); await cargarDatosDesdeGoogle(); mostrarToast('Reserva cancelada.'); }
+  catch(e) { mostrarToast(e.message,'error'); } finally { btn.disabled = false; }
+}
+function abrirModalAdmins() { renderizarAdmins(); $('modalAdminsOverlay').classList.remove('hidden'); }
+function cerrarModalAdmins() { $('modalAdminsOverlay').classList.add('hidden'); }
+function renderizarAdmins() {
+  $('listaAdmins').replaceChildren();
+  listaAdmins.forEach(email => { const li = document.createElement('li'); li.className = 'admin-row'; li.textContent = email;
+    if (email !== 'mtello@esan.edu.pe') { const b = document.createElement('button'); b.type='button'; b.textContent='Eliminar'; b.className='text-action'; b.onclick=() => eliminarAdmin(email); li.append(b); } $('listaAdmins').append(li); });
+}
+async function agregarAdmin() { await modificarAdmin('add_admin',$('nuevoAdminEmail').value.trim().toLowerCase()); }
+async function eliminarAdmin(email) { if (confirm('¿Quitar permisos a ' + email + '?')) await modificarAdmin('remove_admin',email); }
+async function modificarAdmin(action,email) { try { await ApiActivaciones.llamar(action,{email}); await cargarDatosDesdeGoogle(); renderizarAdmins(); $('nuevoAdminEmail').value=''; } catch(e) { mostrarToast(e.message,'error'); } }
+function abrirCatalogo() {
+  catalogoBorrador = JSON.parse(JSON.stringify(catalogo)); revisionBorrador = configRecursos.revision;
+  ['tabletsTotal','impresorasTotal','margenAntes','margenDespues'].forEach(k => $('cfg_'+k).value = configRecursos[k]);
+  renderizarEditorCatalogo(); $('modalCatalogo').classList.remove('hidden');
+}
+function cerrarCatalogo() { $('modalCatalogo').classList.add('hidden'); }
+function recogerEditor() {
+  document.querySelectorAll('[data-editor-servicio]').forEach(f => {
+    const s = catalogoBorrador.find(s => s.id === f.dataset.editorServicio);
+    ['nombre','descripcion','color','tablets','costo','sustentoUrl'].forEach(k => s[k] = f.querySelector(`[data-campo="${k}"]`).value);
+    s.activo = f.querySelector('[data-campo="activo"]').checked; s.permiteImpresora = f.querySelector('[data-campo="permiteImpresora"]').checked;
+  });
+}
+function renderizarEditorCatalogo() {
+  $('editorCatalogo').innerHTML = catalogoBorrador.map(s => `<fieldset data-editor-servicio="${esc(s.id)}" class="catalog-editor"><legend>${esc(s.nombre)}</legend><div class="fields-grid">
+    <label class="span-2">Nombre<input data-campo="nombre" value="${esc(s.nombre)}" maxlength="100" required></label><label>Color<input type="color" data-campo="color" value="${esc(s.color)}" required></label>
+    <label class="span-3">Descripción<textarea data-campo="descripcion" maxlength="2000">${esc(s.descripcion)}</textarea></label>
+    <label>Tablets por activación<input type="number" data-campo="tablets" min="1" max="10000" step="1" value="${s.tablets}" required></label>
+    <label>Valor referencial (S/)<input type="number" data-campo="costo" min="0" step="0.01" max="10000000" value="${s.costo}" required></label>
+    <label class="span-3">Enlace de sustento<input type="url" data-campo="sustentoUrl" value="${esc(s.sustentoUrl)}" placeholder="https://…"></label></div>
+    <div class="checkbox-row"><label><input type="checkbox" data-campo="activo" ${s.activo ? 'checked' : ''}> Disponible para nuevas reservas</label><label><input type="checkbox" data-campo="permiteImpresora" ${s.permiteImpresora ? 'checked' : ''}> Ofrece impresión opcional</label></div><small class="muted">ID permanente: ${esc(s.id)}. Para retirarlo, desactívalo; su historial se conserva.</small></fieldset>`).join('');
+}
+function nuevoServicio() {
+  recogerEditor(); catalogoBorrador.push({id:'servicio-'+crypto.randomUUID(),nombre:'Nueva activación',descripcion:'',color:'#0D9488',tablets:1,costo:0,sustentoUrl:'',activo:true,permiteImpresora:false,alias:[]}); renderizarEditorCatalogo();
+  $('editorCatalogo').lastElementChild.scrollIntoView({behavior:'smooth',block:'center'});
+}
+$('formCatalogo').addEventListener('submit', async e => {
+  e.preventDefault(); recogerEditor(); const btn = $('guardarCatalogo'); btn.disabled = true;
+  try {
+    const config = {}; ['tabletsTotal','impresorasTotal','margenAntes','margenDespues'].forEach(k => config[k]=Number($('cfg_'+k).value));
+    await ApiActivaciones.llamar('save_catalog',{catalogo:catalogoBorrador,config,revision:revisionBorrador});
+    cerrarCatalogo(); await cargarDatosDesdeGoogle(); mostrarToast('Servicios y recursos guardados.');
+  } catch(e) { mostrarToast(e.message,'error'); } finally { btn.disabled = false; }
+});
+// Foco de teclado y Escape en ventanas; los formularios conservan los cambios al cerrar con Escape.
+document.addEventListener('keydown',e => {
+  const visibles = ['modalConfirmacion','modalCatalogo','modalAdminsOverlay','modalOverlay'].map($).filter(n => !n.classList.contains('hidden'));
+  const modal = visibles[0]; if (!modal) return;
+  if(e.key === 'Escape' && !guardando) modal.classList.add('hidden');
+  if(e.key === 'Tab') {
+    const a = [...modal.querySelectorAll('button,input,select,textarea,a[href]')].filter(n => !n.disabled && n.getClientRects().length);
+    if (!a.length) return;
+    if(e.shiftKey && (document.activeElement === a[0] || !modal.contains(document.activeElement))) { e.preventDefault(); a.at(-1).focus(); }
+    else if(!e.shiftKey && (document.activeElement === a.at(-1) || !modal.contains(document.activeElement))) {e.preventDefault();a[0].focus();}
   }
 });
-
-window.cancelarRegistro = async function() {
-  if (!idEventoEditando || !confirm("¿Seguro que deseas cancelar este evento?")) return;
-
-  const btn = document.getElementById('btnCancelar');
-  btn.innerText = "Cancelando...";
-  btn.disabled = true;
-
-  try {
-    await fetch(GOOGLE_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'cancel', numEvento: idEventoEditando })
-    });
-    
-    limpiarCacheLocal();
-    mostrarToast("Evento cancelado correctamente");
-    await cargarDatosDesdeGoogle(true); // Forzar lectura real del servidor
-    cerrarModal();
-  } catch (e) {
-    mostrarToast("Error al cancelar el evento", "error");
-  } finally {
-    btn.innerText = "Cancelar Evento";
-    btn.disabled = false;
-  }
-};
-
-// --- VALIDACIÓN EN TIEMPO REAL DE IMPRESORAS ---
-function obtenerDiaIndex(fechaStr) {
-  if (!fechaStr) return null;
-  const parts = fechaStr.split('T')[0].split('-');
-  if (parts.length !== 3) return null;
-  return Math.floor(Date.UTC(parts[0], parts[1] - 1, parts[2]) / 86400000);
-}
-
-window.validarImpresorasEnTiempoReal = function() {
-  const filas = Array.from(document.getElementById('contenedorBloques').children);
-
-  const getRango = (fechaStr, dias) => {
-    const idx = obtenerDiaIndex(fechaStr);
-    if (idx === null) return [];
-    const numDias = parseInt(dias) || 1;
-    let arr = [];
-    for (let i = idx - 1; i <= idx + numDias; i++) arr.push(i);
-    return arr;
-  };
-
-  filas.forEach(fila => {
-    const index = fila.id.split('_')[1];
-    const checkImpresora = document.getElementById(`checkImpresora_${index}`);
-    if (!checkImpresora) return;
-
-    const servicio = document.getElementById(`servicio_${index}`)?.value;
-    const fechaInput = document.getElementById(`fechaEvento_${index}`)?.value;
-    const diasInput = document.getElementById(`diasServicio_${index}`)?.value || 1;
-
-    if (servicio !== 'Foto Gif' || !fechaInput) return;
-
-    const rangoCandidato = getRango(fechaInput, diasInput);
-    if (rangoCandidato.length === 0) return;
-
-    let usoPorDia = {};
-
-    registrosCargados.forEach(r => {
-      if (r.tipoServicio === 'Foto Gif Impresión' && r.estado !== 'Cancelado' && r.numEvento !== idEventoEditando) {
-        getRango(String(r.fecha), r.diasServicio || 1).forEach(d => usoPorDia[d] = (usoPorDia[d] || 0) + 1);
-      }
-    });
-
-    filas.forEach(otraFila => {
-      if (otraFila.id === fila.id) return;
-      const oIndex = otraFila.id.split('_')[1];
-      const oServicio = document.getElementById(`servicio_${oIndex}`)?.value;
-      const oCheck = document.getElementById(`checkImpresora_${oIndex}`)?.checked;
-      const oFecha = document.getElementById(`fechaEvento_${oIndex}`)?.value;
-      const oDias = document.getElementById(`diasServicio_${oIndex}`)?.value || 1;
-
-      if (oServicio === 'Foto Gif' && oCheck && oFecha) {
-        getRango(oFecha, oDias).forEach(d => usoPorDia[d] = (usoPorDia[d] || 0) + 1);
-      }
-    });
-
-    let bloqueado = false;
-    for (let d of rangoCandidato) {
-      if ((usoPorDia[d] || 0) >= 2) {
-        bloqueado = true;
-        break;
-      }
-    }
-
-    if (bloqueado) {
-      if (!checkImpresora.checked) {
-        checkImpresora.disabled = true;
-        checkImpresora.title = "Agotado: Impresoras al límite en este rango.";
-        checkImpresora.parentElement.classList.add('opacity-50', 'cursor-not-allowed');
-      }
-    } else {
-      checkImpresora.disabled = false;
-      checkImpresora.title = "";
-      checkImpresora.parentElement.classList.remove('opacity-50', 'cursor-not-allowed');
-    }
-  });
-};
-
-window.toggleUnificarCostos = function() {
-  const chkElement = document.getElementById('chkUnificarCostos');
-  if (!chkElement) return;
-
-  const unificado = chkElement.checked;
-  const contenedorGeneral = document.getElementById('contenedorCostosGeneral');
-  
-  if(contenedorGeneral) {
-    contenedorGeneral.classList.toggle('opacity-50', !unificado);
-  }
-  
-  const costoGeneral = document.getElementById('costos');
-  const obsGeneral = document.getElementById('observaciones');
-  if(costoGeneral) costoGeneral.disabled = !unificado;
-  if(obsGeneral) obsGeneral.disabled = !unificado;
-
-  const filas = document.getElementById('contenedorBloques').children;
-  for (let i = 0; i < filas.length; i++) {
-    const index = filas[i].id.split('_')[1];
-    const divUnitario = document.getElementById(`divCostosUnitario_${index}`);
-    const inputCosto = document.getElementById(`costos_${index}`);
-    const inputObs = document.getElementById(`observaciones_${index}`);
-    
-    if (divUnitario && inputCosto && inputObs) {
-      divUnitario.classList.toggle('opacity-50', unificado);
-      inputCosto.disabled = unificado;
-      inputObs.disabled = unificado;
-    }
-  }
-};
-
-window.manejarCambioFecha = function(index) {
-  const inputFecha = document.getElementById(`fechaEvento_${index}`);
-  const selectServicio = document.getElementById(`servicio_${index}`);
-
-  if (inputFecha && selectServicio) {
-    if (inputFecha.value) {
-      selectServicio.disabled = false;
-    } else {
-      selectServicio.disabled = true;
-      selectServicio.value = "";
-      toggleImpresora(index);
-    }
-  }
-  validarImpresorasEnTiempoReal();
-};
-
-function calcularCostoServicio(tipoServicio) {
-  if (tipoServicio === 'Foto Booth') {
-    return 600;
-  }
-  return 899;
-}
-
-// --- LÓGICA DE CONFIRMACIÓN DE GUARDADO ---
-window.abrirModalConfirmacion = function() {
-  const lista = document.getElementById('listaConfirmacion');
-  
-  lista.innerHTML = datosPendientesGuardar.map((item, i) => `
-    <div class="bg-white p-4 rounded-lg mb-3 border border-gray-200 shadow-sm">
-      <p class="text-sm font-bold text-gray-800 mb-2 border-b pb-1">Activación #${i + 1}: ${item.tipoEvento}</p>
-      <ul class="text-xs text-gray-600 space-y-1.5 mt-2">
-        <li><span class="font-bold">Fecha:</span> ${item.fecha}</li>
-        <li><span class="font-bold">Servicio:</span> ${item.tipoServicio}</li>
-        <li><span class="font-bold">Centro Costos:</span> ${item.centroCostos || '<span class="text-gray-400 italic">No especificado</span>'}</li>
-        <li><span class="font-bold">Observaciones:</span> ${item.observaciones || '<span class="text-gray-400 italic">Ninguna</span>'}</li>
-      </ul>
-    </div>
-  `).join('');
-
-  const overlay = document.getElementById('modalConfirmacion');
-  const box = document.getElementById('modalConfirmacionBox');
-  overlay.classList.remove('hidden');
-  setTimeout(() => {
-    overlay.classList.remove('opacity-0');
-    box.classList.remove('scale-95');
-  }, 10);
-
-  const btn = document.getElementById('btnConfirmarGuardado');
-  btn.disabled = true;
-  let segundos = 5;
-  btn.innerText = `Confirmar (${segundos})`;
-  btn.onclick = null;
-
-  clearInterval(intervaloConfirmacion);
-  intervaloConfirmacion = setInterval(() => {
-    segundos--;
-    if (segundos <= 0) {
-      clearInterval(intervaloConfirmacion);
-      btn.disabled = false;
-      btn.innerText = "Sí, Confirmar Guardado";
-      btn.onclick = ejecutarGuardado;
-    } else {
-      btn.innerText = `Confirmar (${segundos})`;
-    }
-  }, 1000);
-};
-
-window.cerrarModalConfirmacion = function() {
-  clearInterval(intervaloConfirmacion);
-  const overlay = document.getElementById('modalConfirmacion');
-  const box = document.getElementById('modalConfirmacionBox');
-  overlay.classList.add('opacity-0');
-  box.classList.add('scale-95');
-  setTimeout(() => overlay.classList.add('hidden'), 300);
-};
-
-// 4. GUARDADO DE REGISTROS (CON LIMPIEZA)
-async function ejecutarGuardado() {
-  const btn = document.getElementById('btnConfirmarGuardado');
-  btn.innerText = `Procesando...`;
-  btn.disabled = true;
-
-  try {
-    await fetch(GOOGLE_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ 
-        action: idEventoEditando ? 'update' : 'create_multiple', 
-        items: datosPendientesGuardar 
-      })
-    });
-
-    limpiarCacheLocal();
-    mostrarToast("Guardado correctamente", "exito");
-    await cargarDatosDesdeGoogle(true);
-    cerrarModalConfirmacion();
-    cerrarModal();
-  } catch (error) {
-    mostrarToast("Error de conexión al guardar.", "error");
-    btn.innerText = "Intentar nuevamente";
-    btn.disabled = false;
-  }
-}
-
-// 5. BOTÓN ACTUALIZAR
-window.actualizarCalendario = async function() {
+document.addEventListener('DOMContentLoaded',async () => {
   limpiarCacheLocal();
-  await cargarDatosDesdeGoogle(true);
-  mostrarToast("Calendario actualizado correctamente", "exito");
-};
-
-// 🟢 DENTRO DE DOMContentLoaded EN script.js:
-document.addEventListener('DOMContentLoaded', async () => {
-
-  // Escuchadores para los 3 filtros en tiempo real
-  document.getElementById('buscadorTexto')?.addEventListener('input', aplicarFiltros);
-  document.getElementById('filtroArea')?.addEventListener('change', aplicarFiltros);
-  document.getElementById('filtroServicio')?.addEventListener('change', aplicarFiltros);
-
-  // Lógica de sesión existente...
-  const sesion = sessionStorage.getItem('currentUser');
-  if (sesion) {
-    currentUser = JSON.parse(sesion);
-    document.getElementById('loginScreen')?.classList.add('hidden');
-    document.getElementById('mainHeader')?.classList.remove('hidden');
-    document.getElementById('mainContent')?.classList.remove('hidden');
-    
-    const elemNombre = document.getElementById('userNombre');
-    if (elemNombre) elemNombre.innerText = currentUser.name || currentUser.email;
-
-    const solicitaInput = document.getElementById('solicita');
-    if (solicitaInput) solicitaInput.value = currentUser.name || '';
-
-    await cargarDatosDesdeGoogle();
-  }
+  if (sessionStorage.getItem('activaciones_id_token')) { try { await cargarDatosDesdeGoogle(); } catch(e) { $('loginError').textContent=e.message;$('loginError').classList.remove('hidden'); } }
 });
-
-window.alternarVista = function(vista) {
-  const contCalendario = document.getElementById('calendarContainer');
-  const contDashboard = document.getElementById('dashboardContainer'); // Asegúrate de tener este contenedor
-  const btnDash = document.getElementById('btnDashboard');
-  const btnCal = document.getElementById('btnCalendario');
-
-  if (vista === 'dashboard') {
-    if (contCalendario) contCalendario.classList.add('hidden');
-    if (contDashboard) contDashboard.classList.remove('hidden');
-    if (btnDash) btnDash.classList.add('hidden');
-    if (btnCal) btnCal.classList.remove('hidden');
-  } else {
-    if (contDashboard) contDashboard.classList.add('hidden');
-    if (contCalendario) contCalendario.classList.remove('hidden');
-    if (btnCal) btnCal.classList.add('hidden');
-    if (btnDash) btnDash.classList.remove('hidden');
-
-    // Re-renderizado obligatorio del calendario
-    if (calendarObj) {
-      setTimeout(() => {
-        calendarObj.updateSize();
-      }, 50);
-    }
-  }
-};
-
-// 🟢 UNIFICADO AL FINAL DE SCRIPT.JS: Recalcula dimensiones al regresar de otra página o pestaña
-window.addEventListener('pageshow', () => {
-  setTimeout(() => {
-    if (calendarObj) {
-      calendarObj.updateSize();
-    }
-  }, 300);
-});
-
-// 🟢 REAPLICA LOS FILTROS EN EL CALENDARIO EN TIEMPO REAL
-window.aplicarFiltros = function() {
-  if (!calendarObj) return;
-  calendarObj.removeAllEventSources();
-  calendarObj.addEventSource(generarEventosProcesados());
-};
-
-// 🟢 RECARGA FORZADA: Borra la memoria local y pide datos frescos a Google Sheets
-window.forzarActualizacion = async function() {
-  localStorage.removeItem('dashboard_cache');
-  localStorage.removeItem('dashboard_cache_time');
-  
-  // Limpia el calendario en pantalla de inmediato
-  if (calendarObj) {
-    calendarObj.removeAllEvents();
-  }
-  
-  await cargarDatosDesdeGoogle(true);
-  mostrarToast("Datos sincronizados con Google Sheets", "exito");
-};
-
+window.addEventListener('pageshow',() => calendarObj?.updateSize());
+if (window.__credencialPendiente) { const r = window.__credencialPendiente; delete window.__credencialPendiente; window.handleCredentialResponse(r); }
